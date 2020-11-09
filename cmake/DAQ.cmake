@@ -36,6 +36,7 @@ macro(daq_setup_environment)
 
   enable_testing()
 
+
 endmacro()
 
 
@@ -257,6 +258,14 @@ endfunction()
 
 function(daq_install) 
 
+  ## AT HACK ALERT
+  file(GLOB cmks CONFIGURE_DEPENDS cmake/*.cmake)
+  foreach (cmk ${cmks})
+    # repkace with configure_file?
+    file(COPY ${cmk} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+  endforeach()
+  ## AT HACK ALERT
+
   get_property(listoftargets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)	 	     
 
   if (listoftargets)
@@ -265,7 +274,7 @@ function(daq_install)
   endif()
 
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
-  install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
+  # install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)
@@ -283,7 +292,7 @@ function(daq_install)
      message(FATAL_ERROR "Error: unable to find needed file ${configfiletemplate} for ${PROJECT_NAME} installation")
   endif()
 
-  install(FILES ${versionfile} ${configfile} DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
+  install(FILES ${versionfile} ${configfile} ${cmks} DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
 
 endfunction()
 
