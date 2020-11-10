@@ -32,10 +32,11 @@ macro(daq_setup_environment)
 
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
 
+  set(DAQ_PROJECT_INSTALLS_TARGETS false)
+
   add_compile_options( -g -pedantic -Wall -Wextra -fdiagnostics-color=always )
 
   enable_testing()
-
 
 endmacro()
 
@@ -113,6 +114,7 @@ function(daq_add_library)
 
   _daq_define_exportname()
   install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
+  set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
 
@@ -154,6 +156,7 @@ function(daq_add_plugin pluginname plugintype)
   else()
     _daq_define_exportname()
     install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
   endif()
 
   endfunction()
@@ -213,6 +216,7 @@ function(daq_add_application appname)
   else()
     _daq_define_exportname()
     install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
+    set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
   endif()
 
 endfunction()
@@ -265,16 +269,14 @@ function(daq_install)
     file(COPY ${cmk} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
   endforeach()
   ## AT HACK ALERT
-
-  get_property(listoftargets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)	 	     
-
-  if (listoftargets)
+  
+  if (${DAQ_PROJECT_INSTALLS_TARGETS})
     _daq_define_exportname()
     install(EXPORT ${DAQ_PROJECT_EXPORTNAME} FILE ${DAQ_PROJECT_EXPORTNAME}.cmake NAMESPACE ${PROJECT_NAME}:: DESTINATION ${CMAKE_INSTALL_CMAKEDIR} )
   endif()
 
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
-  # install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
+  install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)
@@ -292,7 +294,7 @@ function(daq_install)
      message(FATAL_ERROR "Error: unable to find needed file ${configfiletemplate} for ${PROJECT_NAME} installation")
   endif()
 
-  install(FILES ${versionfile} ${configfile} ${cmks} DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
+  install(FILES ${versionfile} ${configfile} DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
 
 endfunction()
 
