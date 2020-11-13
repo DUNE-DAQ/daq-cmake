@@ -1,6 +1,7 @@
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
+include(moo)
 
 ####################################################################################################
 
@@ -121,7 +122,7 @@ endfunction()
 ####################################################################################################
 # daq_add_plugin:
 # Usage:
-# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...])
+# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...] [SCHEMA <schema>] )
 #
 # daq_add_plugin will build a plugin of type <plugin type> with the
 # user-defined name <plugin name>. It will expect that there's a file
@@ -131,11 +132,13 @@ endfunction()
 # plugin is deemed a "TEST" plugin, it's not installed as the
 # assumption is that it's meant for developer testing. Like
 # daq_add_library, daq_add_plugin can be provided a list of libraries
-# to link against, following the LINK_LIBRARIES argument.
+# to link against, following the LINK_LIBRARIES argument. It can also
+# be provided a schema file, off of which it will generate and build
+# the necessary C++ code.
 
 function(daq_add_plugin pluginname plugintype)
 
-  cmake_parse_arguments(PLUGOPTS "TEST" "" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(PLUGOPTS "TEST" "SCHEMA" "LINK_LIBRARIES" ${ARGN})
 
   set(pluginlibname "${PROJECT_NAME}_${pluginname}_${plugintype}")
 
@@ -144,6 +147,15 @@ function(daq_add_plugin pluginname plugintype)
     set(PLUGIN_PATH "test/${PLUGIN_PATH}")
   endif()
   
+  # Before building anything, figure out if we need to generate code
+  # off of a schema
+
+  if (PLUGOPTS_SCHEMA)
+    set( schema_fullname ${PROJECT_SOURCE_DIR}/schema/${PLUGOPTS_SCHEMA})
+    if (NOT EXISTS ${schema_fullname})
+      message(FATAL_ERROR "Didn't find ${schema_fullname}")
+    endif()
+  endif()
 
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp )
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
