@@ -152,6 +152,7 @@ function(daq_add_plugin pluginname plugintype)
 
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp )
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
+  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
 
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
 
@@ -213,6 +214,7 @@ function(daq_add_application appname)
   
   add_executable(${appname} ${appsrcs})
   target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES}) 
+  target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
 
   _daq_set_target_output_dirs( ${appname} ${APP_PATH} )
 
