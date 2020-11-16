@@ -152,13 +152,15 @@ function(daq_add_plugin pluginname plugintype)
 
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp )
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
+  # Add src to the include path for private headers
   target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
 
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
 
 
-  if ( ${PLUGOPTS_TEST} )
-    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/include> )
+  if ( ${PLUGOPTS_TEST} ) 
+    # Add test/src to the include path for private "test" headers
+    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
   else()
     _daq_define_exportname()
     install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -214,12 +216,14 @@ function(daq_add_application appname)
   
   add_executable(${appname} ${appsrcs})
   target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES}) 
+  # Add src to the include path for private headers
   target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
 
   _daq_set_target_output_dirs( ${appname} ${APP_PATH} )
 
   if( ${APPOPTS_TEST} )
-    target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/include> )
+    # Add test/src to the include path for private "test" headers
+    target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
   else()
     _daq_define_exportname()
     install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
