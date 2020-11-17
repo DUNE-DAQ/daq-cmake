@@ -182,7 +182,7 @@ function(daq_add_plugin pluginname plugintype)
                  TPATH ${PROJECT_SOURCE_DIR}/schema
     		 MODEL ${model_fullname}
   		 TEMPL ${template_fullname}
-		 CODEGEN ${CMAKE_CURRENT_SOURCE_DIR}/test/include/appfwk/${pluginname_LC}/${WHAT}.hpp
+		 CODEGEN ${CMAKE_CURRENT_SOURCE_DIR}/test/src/appfwk/${pluginname_LC}/${WHAT}.hpp
 	    )
     endforeach()
 
