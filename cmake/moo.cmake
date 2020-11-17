@@ -39,39 +39,47 @@ macro(moo_codegen)
   set(MC_BASE_ARGS -T ${MC_TPATH} -M ${MC_MPATH} ${MC_GRAFT} ${MC_TLAS})
 
   set(MC_MODEL_DEPS_ARGS ${MC_BASE_ARGS} imports -o ${MC_MODEL_DEPS_FILE} ${MC_MODEL})
-  #message("model deps args ${MC_MODEL_DEPS_ARGS}")
-
   set(MC_TEMPL_DEPS_ARGS ${MC_BASE_ARGS} imports -o ${MC_TEMPL_DEPS_FILE} ${MC_TEMPL})
-  #message("templ deps args ${MC_TEMPL_DEPS_ARGS}")
 
-  execute_process(
-    COMMAND ${MOO_CMD} ${MC_MODEL_DEPS_ARGS}
-    RESULT_VARIABLE RETURN_VALUE)
-  if (NOT RETURN_VALUE EQUAL 0)
-    message(FATAL_ERROR "Failed to prime dependencies for ${MC_MODEL}")
-  endif()
-  include(${MC_MODEL_DEPS_FILE})
+  foreach(FILETYPE MODEL TEMPL)
+    execute_process(
+      COMMAND ${MOO_CMD} ${MC_${FILETYPE}_DEPS_ARGS}
+      RESULT_VARIABLE returnval 
+      OUTPUT_VARIABLE outvar 
+      ERROR_VARIABLE errvar 
+    )
+
+    if (NOT returnval EQUAL 0)
+      message(WARNING "WARNING: ${errvar}")
+      message(STATUS "Called ${MOO_CMD} ${MC_${FILETYPE}_DEPS_ARGS}")
+      message(STATUS "Non-stderr output was ${outvar}")
+      message(FATAL_ERROR "Failed to prime dependencies for ${MC_${FILETYPE}}")
+    else()
+      message(STATUS "Successfully performed call meant to produce ${MC_TEMPL_DEPS_FILE}")
+    endif()
+
+    include(${MC_${FILETYPE}_DEPS_FILE})
+  endforeach()
 
   message("model deps name: ${MC_MODEL_DEPS_NAME}")
   message("model deps file: ${MC_MODEL_DEPS_FILE}")
   message("model deps: ${${MC_MODEL_DEPS_NAME}}")
 
 
-  execute_process(
-    COMMAND ${MOO_CMD} ${MC_TEMPL_DEPS_ARGS}
-    RESULT_VARIABLE RETURN_VALUE)
-  if (NOT RETURN_VALUE EQUAL 0)
-    message(FATAL_ERROR "Failed to prime dependencies for ${MC_TEMPL}")
-  endif()
-  include(${MC_TEMPL_DEPS_FILE})
-
   set(MC_CODEGEN_ARGS ${MC_BASE_ARGS} render -o ${MC_CODEGEN} ${MC_MODEL} ${MC_TEMPL})
-  message("codegen args ${MC_CODEGEN_ARGS}")
-  add_custom_command(
-    COMMAND ${MOO_CMD} ARGS ${MC_CODEGEN_ARGS}
-    COMMENT "generate code ${MC_CODEGEN}"
-    DEPENDS "${MC_MODEL}" "${MC_TEMPL}" "${${MC_MODEL_DEPS_NAME}}" "${${MC_TEMPL_DEPS_NAME}}"
-    OUTPUT "${MC_CODEGEN}")
+  message(STATUS "codegen args ${MC_CODEGEN_ARGS}")
+  execute_process(
+    COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS}
+    RESULT_VARIABLE returnval 
+    OUTPUT_VARIABLE outvar 
+    ERROR_VARIABLE errvar 
+  )
+  if (NOT returnval EQUAL 0)
+    message(WARNING "WARNING: ${errvar}")
+    message(STATUS "Called ${MOO_CMD} ${MC_CODEGEN_ARGS}")
+    message(STATUS "Non-stderr output was ${outvar}")
+    message(FATAL_ERROR "Problem trying to generate ${MC_CODEGEN}")
+  endif()
 
   add_custom_command(
     COMMAND ${MOO_CMD} ARGS ${MC_MODEL_DEPS_ARGS}

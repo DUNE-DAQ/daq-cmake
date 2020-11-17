@@ -122,8 +122,9 @@ endfunction()
 ####################################################################################################
 # daq_add_plugin:
 # Usage:
-# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...] [SCHEMA <schema>] )
+# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...] [SCHEMA] )
 #
+
 # daq_add_plugin will build a plugin of type <plugin type> with the
 # user-defined name <plugin name>. It will expect that there's a file
 # with the name <plugin name>.cpp located either in the plugins/
@@ -132,13 +133,19 @@ endfunction()
 # plugin is deemed a "TEST" plugin, it's not installed as the
 # assumption is that it's meant for developer testing. Like
 # daq_add_library, daq_add_plugin can be provided a list of libraries
-# to link against, following the LINK_LIBRARIES argument. It can also
-# be provided a schema file, off of which it will generate and build
-# the necessary C++ code.
+# to link against, following the LINK_LIBRARIES argument. 
+
+# If the "SCHEMA" option is used, daq_add_plugin will look for moo
+# template files of the form "./schema/<package name>-structs.hpp.j2"
+# and "./schema/<package name>-nljs.hpp.j2", and a model file of the
+# form "./schema/<package name>-<plugin name>-model.jsonnet" and
+# automatically generate C++ headers describing the configuration
+# structure of the plugin as well as how to translate this structure
+# between C++ and JSON
 
 function(daq_add_plugin pluginname plugintype)
 
-  cmake_parse_arguments(PLUGOPTS "TEST" "SCHEMA" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(PLUGOPTS "TEST;SCHEMA" "" "LINK_LIBRARIES" ${ARGN})
 
   set(pluginlibname "${PROJECT_NAME}_${pluginname}_${plugintype}")
 
@@ -150,11 +157,30 @@ function(daq_add_plugin pluginname plugintype)
   # Before building anything, figure out if we need to generate code
   # off of a schema
 
-  if (PLUGOPTS_SCHEMA)
-    set( schema_fullname ${PROJECT_SOURCE_DIR}/schema/${PLUGOPTS_SCHEMA})
-    if (NOT EXISTS ${schema_fullname})
-      message(FATAL_ERROR "Didn't find ${schema_fullname}")
+  if (${PLUGOPTS_SCHEMA})
+
+    set( model_fullname ${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}-${pluginname}-model.jsonnet )
+    if (NOT EXISTS ${model_fullname})
+      message(FATAL_ERROR "Didn't find ${model_fullname}")
     endif()
+
+    foreach (WHAT Structs Nljs)
+
+      string(TOLOWER ${WHAT} WHAT_LC)
+      set( template_fullname ${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}-${WHAT_LC}.hpp.j2)
+      if (NOT EXISTS ${template_fullname})
+        message(FATAL_ERROR "Didn't find ${template_fullname}")
+      endif()
+      
+      string(TOLOWER ${pluginname} pluginname_LC)
+      moo_codegen(MPATH ${PROJECT_SOURCE_DIR}/schema
+                 TPATH ${PROJECT_SOURCE_DIR}/schema
+    		 MODEL ${model_fullname}
+  		 TEMPL ${template_fullname}
+		 CODEGEN ${CMAKE_CURRENT_SOURCE_DIR}/test/include/appfwk/${pluginname_LC}/${WHAT}.hpp
+	    )
+    endforeach()
+
   endif()
 
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp )
