@@ -178,11 +178,23 @@ function(daq_add_plugin pluginname plugintype)
       endif()
       
       string(TOLOWER ${pluginname} pluginname_LC)
+
+      if(NOT ${PLUGOPTS_TEST})
+         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/test/src/appfwk/${pluginname_LC})
+      else()
+         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/src/appfwk/${pluginname_LC})
+      endif()
+
+      if (NOT EXISTS ${outdir})
+        message(WARNING "Creating ${outdir} to hold moo-generated plugin headers for ${pluginname} since it doesn't yet exist")
+        file(MAKE_DIRECTORY ${outdir})
+      endif()
+
       moo_codegen(MPATH ${PROJECT_SOURCE_DIR}/schema
                  TPATH ${PROJECT_SOURCE_DIR}/schema
     		 MODEL ${model_fullname}
   		 TEMPL ${template_fullname}
-		 CODEGEN ${CMAKE_CURRENT_SOURCE_DIR}/test/src/appfwk/${pluginname_LC}/${WHAT}.hpp
+		 CODEGEN ${outdir}/${WHAT}.hpp
 	    )
     endforeach()
 
