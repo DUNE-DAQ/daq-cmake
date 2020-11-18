@@ -180,9 +180,9 @@ function(daq_add_plugin pluginname plugintype)
       string(TOLOWER ${pluginname} pluginname_LC)
 
       if(NOT ${PLUGOPTS_TEST})
-         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/test/src/appfwk/${pluginname_LC})
-      else()
          set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/src/appfwk/${pluginname_LC})
+      else()
+         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/test/src/appfwk/${pluginname_LC})
       endif()
 
       if (NOT EXISTS ${outdir})
