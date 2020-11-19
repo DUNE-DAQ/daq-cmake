@@ -99,17 +99,5 @@ macro(moo_codegen)
     message(FATAL_ERROR "Problem trying to generate ${MC_CODEGEN}")
   endif()
 
-  add_custom_command(
-    COMMAND ${MOO_CMD} ARGS ${MC_MODEL_DEPS_ARGS}
-    COMMENT "remake model dependencies ${MC_MODEL_DEPS_FILE}"
-    DEPENDS ${MC_MODEL} ${${MC_MODEL_DEPS_NAME}} # bootstrap problems?
-    OUTPUT ${MC_MODEL_DEPS_FILE})
-
-  add_custom_command(
-    COMMAND ${MOO_CMD} ARGS ${MC_TEMPL_DEPS_ARGS}
-    COMMENT "remake templ dependencies ${MC_TEMPL_DEPS_FILE}"
-    DEPENDS ${MC_TEMPL} ${${MC_TEMPL_DEPS_NAME}} # bootstrap problems?
-    OUTPUT ${MC_TEMPL_DEPS_FILE})
-
 endmacro()
 
