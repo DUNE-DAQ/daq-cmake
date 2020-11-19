@@ -22,7 +22,7 @@ endfunction()
 
 ##
 macro(moo_codegen)
-  cmake_parse_arguments(MC "" "MODEL;TEMPL;CODEGEN;MPATH;TPATH;GRAFT;TLAS" "" ${ARGN})
+  cmake_parse_arguments(MC "" "MODEL;TEMPL;CODEGEN;MPATH;TPATH;GRAFT" "TLAS" ${ARGN})
 
   if (NOT DEFINED MC_MPATH)
     set(MC_MPATH ${CMAKE_CURRENT_SOURCE_DIR})
@@ -34,14 +34,28 @@ macro(moo_codegen)
   moo_deps_name(${MC_MODEL} MC_MODEL)
   moo_deps_name(${MC_TEMPL} MC_TEMPL)
 
-  list(TRANSFORM $MC_GRAFT APPEND "-g")
-  list(TRANSFORM $MC_TLAS APPEND "-A")
-  set(MC_BASE_ARGS -T ${MC_TPATH} -M ${MC_MPATH} ${MC_GRAFT} ${MC_TLAS})
+  set(MC_BASE_ARGS -T ${MC_TPATH} -M ${MC_MPATH})
+
+  if (DEFINED MC_GRAFT) 
+    list(APPEND MC_BASE_ARGS -g ${MC_GRAFT})
+  endif()
+  
+  if (DEFINED MC_TLAS)
+    foreach(TLA ${MC_TLAS})
+      list(APPEND MC_BASE_ARGS -A ${TLA})
+    endforeach()
+  endif()
+
 
   set(MC_MODEL_DEPS_ARGS ${MC_BASE_ARGS} imports -o ${MC_MODEL_DEPS_FILE} ${MC_MODEL})
   set(MC_TEMPL_DEPS_ARGS ${MC_BASE_ARGS} imports -o ${MC_TEMPL_DEPS_FILE} ${MC_TEMPL})
 
   foreach(FILETYPE MODEL TEMPL)
+
+    set(deps_call "")
+    string(REPLACE ";" " " deps_call "${MC_CODEGEN_ARGS}")
+    message(STATUS "deps: ${deps_call}")
+
     execute_process(
       COMMAND ${MOO_CMD} ${MC_${FILETYPE}_DEPS_ARGS}
       RESULT_VARIABLE returnval 
@@ -67,7 +81,11 @@ macro(moo_codegen)
 
 
   set(MC_CODEGEN_ARGS ${MC_BASE_ARGS} render -o ${MC_CODEGEN} ${MC_MODEL} ${MC_TEMPL})
-  message(STATUS "codegen args ${MC_CODEGEN_ARGS}")
+
+
+  string(REPLACE ";" " " formatted_codegen_call "${MC_CODEGEN_ARGS}")
+  message(STATUS "codegen: ${formatted_codegen_call}")
+
   execute_process(
     COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS}
     RESULT_VARIABLE returnval 

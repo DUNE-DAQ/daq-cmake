@@ -164,7 +164,7 @@ function(daq_add_plugin pluginname plugintype)
 
   if (${PLUGOPTS_SCHEMA})
 
-    set( model_fullname ${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}-${pluginname}-model.jsonnet )
+    set( model_fullname ${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}-model.jsonnet )
     if (NOT EXISTS ${model_fullname})
       message(FATAL_ERROR "Didn't find ${model_fullname}")
     endif()
@@ -192,6 +192,10 @@ function(daq_add_plugin pluginname plugintype)
 
       moo_codegen(MPATH ${PROJECT_SOURCE_DIR}/schema
                  TPATH ${PROJECT_SOURCE_DIR}/schema
+		 GRAFT /lang:ocpp.jsonnet
+		 TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
+		       ctxpath=dunedaq	
+		       os=${PROJECT_NAME}-${pluginname}-schema.jsonnet
     		 MODEL ${model_fullname}
   		 TEMPL ${template_fullname}
 		 CODEGEN ${outdir}/${WHAT}.hpp
