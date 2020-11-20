@@ -1,3 +1,6 @@
+_JCF, Nov-20-2020: attempts will be made to keep the descriptions of the DUNE DAQ CMake function signatures here up-to-date. However, the canonical location for this documentation isn't here, but rather, is in the DUNE DAQ CMake module itself (https://github.com/DUNE-DAQ/daq-cmake/blob/v1.0.0/cmake/DAQ.cmake for the most recent tag (v1.0.0), https://github.com/DUNE-DAQ/daq-cmake/blob/develop/cmake/DAQ.cmake for the head of the develop branch). Above the body of each function is its description._
+
+
 # daq-cmake
 
 This package provides the cmake support for DUNE-DAQ packages.
