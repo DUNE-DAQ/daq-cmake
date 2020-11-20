@@ -142,11 +142,9 @@ endfunction()
 
 # If the "SCHEMA" option is used, daq_add_plugin will look for moo
 # template files of the form "./schema/<package name>-structs.hpp.j2"
-# and "./schema/<package name>-nljs.hpp.j2", and a model file of the
-# form "./schema/<package name>-<plugin name>-model.jsonnet" and
-# automatically generate C++ headers describing the configuration
-# structure of the plugin as well as how to translate this structure
-# between C++ and JSON
+# and "./schema/<package name>-nljs.hpp.j2" and automatically generate
+# C++ headers describing the configuration structure of the plugin as
+# well as how to translate this structure between C++ and JSON
 
 function(daq_add_plugin pluginname plugintype)
 
@@ -163,11 +161,6 @@ function(daq_add_plugin pluginname plugintype)
   # off of a schema
 
   if (${PLUGOPTS_SCHEMA})
-
-    set( model_fullname ${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}-model.jsonnet )
-    if (NOT EXISTS ${model_fullname})
-      message(FATAL_ERROR "Didn't find ${model_fullname}")
-    endif()
 
     foreach (WHAT Structs Nljs)
 
@@ -196,7 +189,7 @@ function(daq_add_plugin pluginname plugintype)
 		 TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
 		       ctxpath=dunedaq	
 		       os=${PROJECT_NAME}-${pluginname}-schema.jsonnet
-    		 MODEL ${model_fullname}
+    		 MODEL omodel.jsonnet
   		 TEMPL ${template_fullname}
 		 CODEGEN ${outdir}/${WHAT}.hpp
 	    )
