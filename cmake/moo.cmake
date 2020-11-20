@@ -31,9 +31,6 @@ macro(moo_codegen)
     set(MC_TPATH ${CMAKE_CURRENT_SOURCE_DIR})
   endif()
 
-  moo_deps_name(${MC_MODEL} MC_MODEL)
-  moo_deps_name(${MC_TEMPL} MC_TEMPL)
-
   set(MC_BASE_ARGS -T ${MC_TPATH} -M ${MC_MPATH})
 
   if (DEFINED MC_GRAFT) 
@@ -46,45 +43,10 @@ macro(moo_codegen)
     endforeach()
   endif()
 
-
-  set(MC_MODEL_DEPS_ARGS ${MC_BASE_ARGS} imports -o ${MC_MODEL_DEPS_FILE} ${MC_MODEL})
-  set(MC_TEMPL_DEPS_ARGS ${MC_BASE_ARGS} imports -o ${MC_TEMPL_DEPS_FILE} ${MC_TEMPL})
-
-  foreach(FILETYPE MODEL TEMPL)
-
-    set(deps_call "")
-    string(REPLACE ";" " " deps_call "${MC_CODEGEN_ARGS}")
-    message(STATUS "deps: ${deps_call}")
-
-    execute_process(
-      COMMAND ${MOO_CMD} ${MC_${FILETYPE}_DEPS_ARGS}
-      RESULT_VARIABLE returnval 
-      OUTPUT_VARIABLE outvar 
-      ERROR_VARIABLE errvar 
-    )
-
-    if (NOT returnval EQUAL 0)
-      message(WARNING "WARNING: ${errvar}")
-      message(STATUS "Called ${MOO_CMD} ${MC_${FILETYPE}_DEPS_ARGS}")
-      message(STATUS "Non-stderr output was ${outvar}")
-      message(FATAL_ERROR "Failed to prime dependencies for ${MC_${FILETYPE}}")
-    else()
-      message(STATUS "Successfully performed call meant to produce ${MC_TEMPL_DEPS_FILE}")
-    endif()
-
-    include(${MC_${FILETYPE}_DEPS_FILE})
-  endforeach()
-
-  message("model deps name: ${MC_MODEL_DEPS_NAME}")
-  message("model deps file: ${MC_MODEL_DEPS_FILE}")
-  message("model deps: ${${MC_MODEL_DEPS_NAME}}")
-
-
   set(MC_CODEGEN_ARGS ${MC_BASE_ARGS} render -o ${MC_CODEGEN} ${MC_MODEL} ${MC_TEMPL})
 
-
   string(REPLACE ";" " " formatted_codegen_call "${MC_CODEGEN_ARGS}")
-  message(STATUS "codegen: ${formatted_codegen_call}")
+  #message(STATUS "Build system generating header via ${MOO_CMD} ${formatted_codegen_call}")
 
   execute_process(
     COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS}
