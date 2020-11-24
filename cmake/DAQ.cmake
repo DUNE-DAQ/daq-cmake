@@ -140,11 +140,11 @@ endfunction()
 # daq_add_library, daq_add_plugin can be provided a list of libraries
 # to link against, following the LINK_LIBRARIES argument. 
 
-# If the "SCHEMA" option is used, daq_add_plugin will look for moo
-# template files of the form "./schema/<package name>-structs.hpp.j2"
-# and "./schema/<package name>-nljs.hpp.j2" and automatically generate
+# If the "SCHEMA" option is used, daq_add_plugin will automatically generate
 # C++ headers describing the configuration structure of the plugin as
-# well as how to translate this structure between C++ and JSON
+# well as how to translate this structure between C++ and JSON, as long as 
+# a schema file <package name>-<plugin name>-schema.jsonnet is available in
+# the package's ./schema subdirectory
 
 function(daq_add_plugin pluginname plugintype)
 
@@ -162,14 +162,16 @@ function(daq_add_plugin pluginname plugintype)
 
   if (${PLUGOPTS_SCHEMA})
 
+    set(schemadir ${PROJECT_SOURCE_DIR}/schema)
+    set(schemafile ${schemadir}/${PROJECT_NAME}-${pluginname}-schema.jsonnet)
+
+    if (NOT EXISTS ${schemafile})
+      message(FATAL_ERROR "Error: auto-generation of schema-based headers for plugin \"${pluginname}\" was requested, but required file ${schemafile} wasn't found")
+    endif()
+
     foreach (WHAT Structs Nljs)
 
       string(TOLOWER ${WHAT} WHAT_LC)
-      set( template_fullname ${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}-${WHAT_LC}.hpp.j2)
-      if (NOT EXISTS ${template_fullname})
-        message(FATAL_ERROR "Didn't find ${template_fullname}")
-      endif()
-      
       string(TOLOWER ${pluginname} pluginname_LC)
 
       if(NOT ${PLUGOPTS_TEST})
@@ -183,14 +185,14 @@ function(daq_add_plugin pluginname plugintype)
         file(MAKE_DIRECTORY ${outdir})
       endif()
 
-      moo_codegen(MPATH ${PROJECT_SOURCE_DIR}/schema
-                 TPATH ${PROJECT_SOURCE_DIR}/schema
+      moo_codegen(MPATH ${schemadir}
+                 TPATH ${schemadir}
 		 GRAFT /lang:ocpp.jsonnet
 		 TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
 		       ctxpath=dunedaq	
 		       os=${PROJECT_NAME}-${pluginname}-schema.jsonnet
     		 MODEL omodel.jsonnet
-  		 TEMPL ${template_fullname}
+  		 TEMPL o${WHAT_LC}.hpp.j2
 		 CODEGEN ${outdir}/${WHAT}.hpp
 	    )
     endforeach()
