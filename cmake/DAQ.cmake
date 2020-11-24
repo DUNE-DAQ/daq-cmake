@@ -1,6 +1,7 @@
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
+include(moo)
 
 ####################################################################################################
 
@@ -126,8 +127,9 @@ endfunction()
 ####################################################################################################
 # daq_add_plugin:
 # Usage:
-# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...])
+# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...] [SCHEMA] )
 #
+
 # daq_add_plugin will build a plugin of type <plugin type> with the
 # user-defined name <plugin name>. It will expect that there's a file
 # with the name <plugin name>.cpp located either in the plugins/
@@ -136,11 +138,17 @@ endfunction()
 # plugin is deemed a "TEST" plugin, it's not installed as the
 # assumption is that it's meant for developer testing. Like
 # daq_add_library, daq_add_plugin can be provided a list of libraries
-# to link against, following the LINK_LIBRARIES argument.
+# to link against, following the LINK_LIBRARIES argument. 
+
+# If the "SCHEMA" option is used, daq_add_plugin will automatically generate
+# C++ headers describing the configuration structure of the plugin as
+# well as how to translate this structure between C++ and JSON, as long as 
+# a schema file <package name>-<plugin name>-schema.jsonnet is available in
+# the package's ./schema subdirectory
 
 function(daq_add_plugin pluginname plugintype)
 
-  cmake_parse_arguments(PLUGOPTS "TEST" "" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(PLUGOPTS "TEST;SCHEMA" "" "LINK_LIBRARIES" ${ARGN})
 
   set(pluginlibname "${PROJECT_NAME}_${pluginname}_${plugintype}")
 
@@ -149,6 +157,47 @@ function(daq_add_plugin pluginname plugintype)
     set(PLUGIN_PATH "test/${PLUGIN_PATH}")
   endif()
   
+  # Before building anything, figure out if we need to generate code
+  # off of a schema
+
+  if (${PLUGOPTS_SCHEMA})
+
+    set(schemadir ${PROJECT_SOURCE_DIR}/schema)
+    set(schemafile ${schemadir}/${PROJECT_NAME}-${pluginname}-schema.jsonnet)
+
+    if (NOT EXISTS ${schemafile})
+      message(FATAL_ERROR "Error: auto-generation of schema-based headers for plugin \"${pluginname}\" was requested, but required file ${schemafile} wasn't found")
+    endif()
+
+    foreach (WHAT Structs Nljs)
+
+      string(TOLOWER ${WHAT} WHAT_LC)
+      string(TOLOWER ${pluginname} pluginname_LC)
+
+      if(NOT ${PLUGOPTS_TEST})
+         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/src/${PROJECT_NAME}/${pluginname_LC})
+      else()
+         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/test/src/${PROJECT_NAME}/${pluginname_LC})
+      endif()
+
+      if (NOT EXISTS ${outdir})
+        message(WARNING "Creating ${outdir} to hold moo-generated plugin headers for ${pluginname} since it doesn't yet exist")
+        file(MAKE_DIRECTORY ${outdir})
+      endif()
+
+      moo_codegen(MPATH ${schemadir}
+                 TPATH ${schemadir}
+		 GRAFT /lang:ocpp.jsonnet
+		 TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
+		       ctxpath=dunedaq	
+		       os=${PROJECT_NAME}-${pluginname}-schema.jsonnet
+    		 MODEL omodel.jsonnet
+  		 TEMPL o${WHAT_LC}.hpp.j2
+		 CODEGEN ${outdir}/${WHAT}.hpp
+	    )
+    endforeach()
+
+  endif()
 
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp )
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
