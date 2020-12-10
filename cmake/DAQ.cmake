@@ -313,11 +313,14 @@ endfunction()
 ####################################################################################################
 
 # _daq_gather_info:
-# Will take info both about the build and the source, and save it in a *.txt file
+# Will take info both about the build and the source, and save it in a *.txt file 
+# referred to by the variable DAQ_PROJECT_SUMMARY_FILENAME
 
-function(_daq_gather_info)
+macro(_daq_gather_info)
 
-  set(cmds 
+  set(DAQ_PROJECT_SUMMARY_FILENAME ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt)
+
+  set(dgi_cmds 
 	 "echo \"user for build:         $USER\""
          "echo \"hostname for build:     $HOSTNAME\""
 	 "echo \"build time:             `date`\""
@@ -330,18 +333,18 @@ function(_daq_gather_info)
          "echo \"uncommitted changes:    `git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\n' ' '`\""
 	 )
 
-	 set (fullcmd "")
-	 foreach( cmd ${cmds} )
-	   set(fullcmd "${fullcmd}${cmd}; ")
+	 set (dgi_fullcmd "")
+	 foreach( dgi_cmd ${dgi_cmds} )
+	   set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
 	 endforeach()
 
-	 execute_process(COMMAND "bash" "-c" "${fullcmd}"  
-	 	         OUTPUT_FILE ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt 
-			 ERROR_FILE ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt  
+	 execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
+	 	         OUTPUT_FILE ${DAQ_PROJECT_SUMMARY_FILENAME}
+	 	         ERROR_FILE  ${DAQ_PROJECT_SUMMARY_FILENAME}
 			 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 			 )
 
-endfunction()
+endmacro()
 
 ####################################################################################################
 
@@ -356,6 +359,7 @@ endfunction()
 function(daq_install) 
 
   _daq_gather_info()		      
+  install(FILES ${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
 
   ## AT HACK ALERT
   file(GLOB cmks CONFIGURE_DEPENDS cmake/*.cmake)
