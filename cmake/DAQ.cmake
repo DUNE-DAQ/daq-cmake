@@ -312,6 +312,39 @@ endfunction()
 
 ####################################################################################################
 
+# _daq_gather_info:
+# Will take info both about the build and the source, and save it in a *.txt file
+
+function(_daq_gather_info)
+
+  set(cmds 
+	 "echo \"user for build:         $USER\""
+         "echo \"hostname for build:     $HOSTNAME\""
+	 "echo \"build time:             `date`\""
+	 "echo \"local repo dir:         `pwd`\""
+	 "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
+	 "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
+	 "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
+	 "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
+	 "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
+         "echo \"uncommitted changes:    `git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\n' ' '`\""
+	 )
+
+	 set (fullcmd "")
+	 foreach( cmd ${cmds} )
+	   set(fullcmd "${fullcmd}${cmd}; ")
+	 endforeach()
+
+	 execute_process(COMMAND "bash" "-c" "${fullcmd}"  
+	 	         OUTPUT_FILE ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt 
+			 ERROR_FILE ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt  
+			 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+			 )
+
+endfunction()
+
+####################################################################################################
+
 # daq_install:
 # Usage:
 # daq_install()
@@ -321,6 +354,8 @@ endfunction()
 # arguments.
 
 function(daq_install) 
+
+  _daq_gather_info()		      
 
   ## AT HACK ALERT
   file(GLOB cmks CONFIGURE_DEPENDS cmake/*.cmake)
