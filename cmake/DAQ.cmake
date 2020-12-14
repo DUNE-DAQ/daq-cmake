@@ -32,6 +32,8 @@ macro(daq_setup_environment)
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
+  set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
+  set(CMAKE_INSTALL_SCHEMADIR  ${CMAKE_INSTALL_DATADIR}/schema/${PROJECT_NAME} ) # Not defined in GNUInstallDirs
 
   set(DAQ_PROJECT_INSTALLS_TARGETS false)
 
@@ -388,6 +390,19 @@ function(daq_install)
 
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
+
+  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/python)
+    install(DIRECTORY python/ DESTINATION ${CMAKE_INSTALL_PYTHONDIR} FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py")
+  endif()
+  
+
+  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
+    install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR})
+  endif()
+
+  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/schema)
+    install(DIRECTORY schema/ DESTINATION ${CMAKE_INSTALL_SCHEMADIR} FILES_MATCHING PATTERN "*.jsonnet")
+  endif()
 
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)
