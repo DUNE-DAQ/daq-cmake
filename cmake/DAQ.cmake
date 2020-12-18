@@ -80,6 +80,10 @@ endmacro()
 # ending in "Utils.cpp", and links against the ERS (Error Reporting
 # System) library
 
+# Public headers for users of the library should go in the project's
+# include/<project name> directory. Private headers used in the
+# library's implementation should be put in the src/ directory.
+
 function(daq_add_library)
 
   cmake_parse_arguments(LIBOPTS "" "" "LINK_LIBRARIES" ${ARGN})
@@ -145,6 +149,10 @@ endfunction()
 # well as how to translate this structure between C++ and JSON, as long as 
 # a schema file <package name>-<plugin name>-schema.jsonnet is available in
 # the package's ./schema subdirectory
+
+# Your plugin will look in include/ for your project's public headers
+# and src/ for its private headers. Additionally, if it's a "TEST"
+# plugin, it will look in test/src/.
 
 function(daq_add_plugin pluginname plugintype)
 
@@ -233,6 +241,10 @@ function(daq_add_plugin pluginname plugintype)
 # assumption is that it's meant for developer testing. Like
 # daq_add_library, daq_add_application can be provided a list of
 # libraries to link against, following the LINK_LIBRARIES token.
+
+# Your application will look in include/ for your project's public
+# headers and src/ for its private headers. Additionally, if it's a
+# "TEST" plugin, it will look in test/src/.
 
 function(daq_add_application appname)
 
