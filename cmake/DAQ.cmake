@@ -32,6 +32,8 @@ macro(daq_setup_environment)
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
+  set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
+  set(CMAKE_INSTALL_SCHEMADIR  ${CMAKE_INSTALL_DATADIR}/schema/${PROJECT_NAME} ) # Not defined in GNUInstallDirs
 
   set(DAQ_PROJECT_INSTALLS_TARGETS false)
 
@@ -194,15 +196,15 @@ function(daq_add_plugin pluginname plugintype)
       endif()
 
       moo_codegen(MPATH ${schemadir}
-                 TPATH ${schemadir}
-		 GRAFT /lang:ocpp.jsonnet
-		 TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
-		       ctxpath=dunedaq	
-		       os=${PROJECT_NAME}-${pluginname}-schema.jsonnet
-    		 MODEL omodel.jsonnet
-  		 TEMPL o${WHAT_LC}.hpp.j2
-		 CODEGEN ${outdir}/${WHAT}.hpp
-	    )
+                  TPATH ${schemadir}
+                  GRAFT /lang:ocpp.jsonnet
+                  TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
+                        ctxpath=dunedaq	
+                        os=${PROJECT_NAME}-${pluginname}-schema.jsonnet
+                  MODEL omodel.jsonnet
+                  TEMPL o${WHAT_LC}.hpp.j2
+                  CODEGEN ${outdir}/${WHAT}.hpp
+      )
     endforeach()
 
   endif()
@@ -333,28 +335,28 @@ macro(_daq_gather_info)
   set(DAQ_PROJECT_SUMMARY_FILENAME ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt)
 
   set(dgi_cmds 
-	 "echo \"user for build:         $USER\""
+   "echo \"user for build:         $USER\""
          "echo \"hostname for build:     $HOSTNAME\""
-	 "echo \"build time:             `date`\""
-	 "echo \"local repo dir:         `pwd`\""
-	 "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
-	 "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
-	 "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
-	 "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
-	 "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
+   "echo \"build time:             `date`\""
+   "echo \"local repo dir:         `pwd`\""
+   "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
+   "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
+   "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
+   "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
+   "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
          "echo \"uncommitted changes:    `git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\n' ' '`\""
-	 )
+   )
 
-	 set (dgi_fullcmd "")
-	 foreach( dgi_cmd ${dgi_cmds} )
-	   set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
-	 endforeach()
+   set (dgi_fullcmd "")
+   foreach( dgi_cmd ${dgi_cmds} )
+     set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
+   endforeach()
 
-	 execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
-	 	         OUTPUT_FILE ${DAQ_PROJECT_SUMMARY_FILENAME}
-	 	         ERROR_FILE  ${DAQ_PROJECT_SUMMARY_FILENAME}
-			 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-			 )
+   execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
+              OUTPUT_FILE ${DAQ_PROJECT_SUMMARY_FILENAME}
+              ERROR_FILE  ${DAQ_PROJECT_SUMMARY_FILENAME}
+       WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+       )
 
 endmacro()
 
@@ -388,6 +390,19 @@ function(daq_install)
 
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
+
+  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/python)
+    install(DIRECTORY python/ DESTINATION ${CMAKE_INSTALL_PYTHONDIR} FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py")
+  endif()
+  
+
+  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
+    install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR})
+  endif()
+
+  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/schema)
+    install(DIRECTORY schema/ DESTINATION ${CMAKE_INSTALL_SCHEMADIR} FILES_MATCHING PATTERN "*.jsonnet")
+  endif()
 
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)
