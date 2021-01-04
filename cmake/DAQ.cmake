@@ -318,6 +318,10 @@ function(daq_add_unit_test testname)
   add_executable( ${testname} ${UTEST_PATH}/${testname}.cxx )
   target_link_libraries( ${testname} ${UTEST_LINK_LIBRARIES} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
   target_compile_definitions(${testname} PRIVATE "BOOST_TEST_DYN_LINK=1")
+
+  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
+  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
+
   add_test(NAME ${testname} COMMAND ${testname})
 
   _daq_set_target_output_dirs( ${testname} ${UTEST_PATH} )
