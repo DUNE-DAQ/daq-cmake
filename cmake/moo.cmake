@@ -45,9 +45,6 @@ macro(moo_codegen)
 
   set(MC_CODEGEN_ARGS ${MC_BASE_ARGS} render -o ${MC_CODEGEN} ${MC_MODEL} ${MC_TEMPL})
 
-  string(REPLACE ";" " " formatted_codegen_call "${MC_CODEGEN_ARGS}")
-  #message(STATUS "Build system generating header via ${MOO_CMD} ${formatted_codegen_call}")
-
   execute_process(
     COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS}
     RESULT_VARIABLE returnval 
@@ -62,4 +59,42 @@ macro(moo_codegen)
   endif()
 
 endmacro()
+
+macro(moo_associate)
+  cmake_parse_arguments(MC "" "TARGET;CODEDEP;MODEL;TEMPL;CODEGEN;MPATH;TPATH;GRAFT" "TLAS" ${ARGN})
+
+  if (NOT DEFINED MC_MPATH)
+    set(MC_MPATH ${CMAKE_CURRENT_SOURCE_DIR})
+  endif()
+  if (NOT DEFINED MC_TPATH)
+    set(MC_TPATH ${CMAKE_CURRENT_SOURCE_DIR})
+  endif()
+
+  set(MC_BASE_ARGS -T ${MC_TPATH} -M ${MC_MPATH})
+
+  if (DEFINED MC_GRAFT) 
+    list(APPEND MC_BASE_ARGS -g ${MC_GRAFT})
+  endif()
+  
+  if (DEFINED MC_TLAS)
+    foreach(TLA ${MC_TLAS})
+      list(APPEND MC_BASE_ARGS -A ${TLA})
+    endforeach()
+  endif()
+
+  set(MC_CODEGEN_ARGS ${MC_BASE_ARGS} render -o ${MC_CODEGEN} ${MC_MODEL} ${MC_TEMPL})
+
+  # See, e.g.,
+  #  https://samthursfield.wordpress.com/2015/11/21/cmake-dependencies-between-targets-and-files-and-custom-commands/
+  #  for a discussion of what's happening below
+
+  add_custom_command(OUTPUT ${MC_CODEGEN} COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS} DEPENDS ${MC_CODEDEP})
+
+  string(REGEX REPLACE "[\./-]" "_" unique_target_name ${MC_CODEGEN})
+
+  add_custom_target(${unique_target_name} DEPENDS ${MC_CODEGEN})
+  add_dependencies( ${MC_TARGET} ${unique_target_name})
+
+endmacro()
+
 
