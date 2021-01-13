@@ -41,6 +41,19 @@ macro(daq_setup_environment)
 
   enable_testing()
 
+  set(directories_to_copy "scripts" "test/scripts" "python" "schema")
+
+  foreach(directory_to_copy ${directories_to_copy})
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy})
+      string(REPLACE "/" "_" directory_as_target ${directory_to_copy})
+      add_custom_target(copy-files-${PROJECT_NAME}-${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory
+                               ${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy}
+                               ${CMAKE_CURRENT_BINARY_DIR}/${directory_to_copy}
+                   )
+    endif()
+  endforeach()
+
+
 endmacro()
 
 
