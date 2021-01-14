@@ -41,7 +41,7 @@ macro(daq_setup_environment)
 
   enable_testing()
 
-  set(directories_to_copy "scripts" "test/scripts" "python" "schema")
+  set(directories_to_copy "scripts" "test/scripts" "python" "schema" "config")
 
   foreach(directory_to_copy ${directories_to_copy})
     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy})
@@ -408,17 +408,21 @@ function(daq_install)
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
-  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/python)
+  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/python)
     install(DIRECTORY python/ DESTINATION ${CMAKE_INSTALL_PYTHONDIR} FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py")
   endif()
   
 
-  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
+  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/scripts)
     install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
 
-  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/schema)
+  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/schema)
     install(DIRECTORY schema/ DESTINATION ${CMAKE_INSTALL_SCHEMADIR} FILES_MATCHING PATTERN "*.jsonnet")
+  endif()
+
+  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/config)
+    install(DIRECTORY schema/ DESTINATION ${CMAKE_INSTALL_SCHEMADIR} FILES_MATCHING PATTERN "*.json")
   endif()
 
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
