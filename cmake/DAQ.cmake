@@ -210,18 +210,6 @@ function(daq_add_plugin pluginname plugintype)
         file(MAKE_DIRECTORY ${outdir})
       endif()
 
-      moo_codegen(MPATH ${schemadir}
-                  TPATH ${schemadir}
-                  GRAFT /lang:ocpp.jsonnet
-		  TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
-		        ctxpath=dunedaq	
-		        os=${schemafile}
-       		  MODEL omodel.jsonnet
-  		  TEMPL o${WHAT_LC}.hpp.j2
-		  CODEGEN ${outdir}/${WHAT}.hpp
-		  CODEDEP ${schemadir}/${schemafile}
-		  TARGET ${pluginlibname})
-
       moo_associate(MPATH ${schemadir}
                     TPATH ${schemadir}
                     GRAFT /lang:ocpp.jsonnet
