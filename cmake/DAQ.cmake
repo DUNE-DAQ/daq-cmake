@@ -37,11 +37,14 @@ macro(daq_setup_environment)
 
   set(DAQ_PROJECT_INSTALLS_TARGETS false)
 
+  set(COMPILER_OPTS -g -pedantic -Wall -Wextra -fdiagnostics-color=always)
   if (${DBT_DEBUG})
-    add_compile_options( -g -pedantic -Wall -Wextra -fdiagnostics-color=always )
+    set(COMPILER_OPTS ${COMPILER_OPTS} -Og)
   else()
-    add_compile_options( -g -pedantic -Wall -Wextra -fdiagnostics-color=always -O2 )
+    set(COMPILER_OPTS ${COMPILER_OPTS} -O2)
   endif()
+  add_compile_options(${COMPILER_OPTS})
+  unset(COMPILER_OPTS)
 
   enable_testing()
 
