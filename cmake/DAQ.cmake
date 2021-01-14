@@ -174,16 +174,31 @@ function(daq_add_plugin pluginname plugintype)
     set(PLUGIN_PATH "test/${PLUGIN_PATH}")
   endif()
   
-  # Before building anything, figure out if we need to generate code
-  # off of a schema
+  add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
+
+  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
+  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
+
+  _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
+
+  if ( ${PLUGOPTS_TEST} ) 
+    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
+  else()
+    _daq_define_exportname()
+    install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
+  endif()
+
+  # Figure out if we need to generate code off of a schema and
+  # rebuild the plugin whenever the schema is edited
 
   if (${PLUGOPTS_SCHEMA})
 
-    set(schemadir ${PROJECT_SOURCE_DIR}/schema)
-    set(schemafile ${schemadir}/${PROJECT_NAME}-${pluginname}-schema.jsonnet)
+    set(schemadir  ${PROJECT_SOURCE_DIR}/schema)
+    set(schemafile ${PROJECT_NAME}-${pluginname}-schema.jsonnet)
 
-    if (NOT EXISTS ${schemafile})
-      message(FATAL_ERROR "Error: auto-generation of schema-based headers for plugin \"${pluginname}\" was requested, but required file ${schemafile} wasn't found")
+    if (NOT EXISTS ${schemadir}/${schemafile})
+      message(FATAL_ERROR "Error: auto-generation of schema-based headers for plugin \"${pluginname}\" was requested, but required file ${schemadir}/${schemafile} wasn't found")
     endif()
 
     foreach (WHAT Structs Nljs)
@@ -202,36 +217,22 @@ function(daq_add_plugin pluginname plugintype)
         file(MAKE_DIRECTORY ${outdir})
       endif()
 
-      moo_codegen(MPATH ${schemadir}
-                  TPATH ${schemadir}
-                  GRAFT /lang:ocpp.jsonnet
-                  TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
-                        ctxpath=dunedaq	
-                        os=${PROJECT_NAME}-${pluginname}-schema.jsonnet
-                  MODEL omodel.jsonnet
-                  TEMPL o${WHAT_LC}.hpp.j2
-                  CODEGEN ${outdir}/${WHAT}.hpp
-      )
+      moo_associate(MPATH ${schemadir}
+                    TPATH ${schemadir}
+                    GRAFT /lang:ocpp.jsonnet
+		    TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
+		          ctxpath=dunedaq	
+		          os=${schemafile}
+       		    MODEL omodel.jsonnet
+  		    TEMPL o${WHAT_LC}.hpp.j2
+		    CODEGEN ${outdir}/${WHAT}.hpp
+		    CODEDEP ${schemadir}/${schemafile}
+		    TARGET ${pluginlibname}
+	            )
     endforeach()
 
   endif()
 
-  add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp )
-  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
-  # Add src to the include path for private headers
-  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-
-  _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
-
-
-  if ( ${PLUGOPTS_TEST} ) 
-    # Add test/src to the include path for private "test" headers
-    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
-  else()
-    _daq_define_exportname()
-    install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
-    set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
-  endif()
 
   endfunction()
 
