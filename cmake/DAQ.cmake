@@ -32,12 +32,34 @@ macro(daq_setup_environment)
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
+  set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
+  set(CMAKE_INSTALL_SCHEMADIR  ${CMAKE_INSTALL_DATADIR}/schema/${PROJECT_NAME} ) # Not defined in GNUInstallDirs
 
   set(DAQ_PROJECT_INSTALLS_TARGETS false)
 
-  add_compile_options( -g -pedantic -Wall -Wextra -fdiagnostics-color=always )
+  set(COMPILER_OPTS -g -pedantic -Wall -Wextra -fdiagnostics-color=always)
+  if (${DBT_DEBUG})
+    set(COMPILER_OPTS ${COMPILER_OPTS} -Og)
+  else()
+    set(COMPILER_OPTS ${COMPILER_OPTS} -O2)
+  endif()
+  add_compile_options(${COMPILER_OPTS})
+  unset(COMPILER_OPTS)
 
   enable_testing()
+
+  set(directories_to_copy "scripts" "test/scripts" "python" "schema" "config")
+
+  foreach(directory_to_copy ${directories_to_copy})
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy})
+      string(REPLACE "/" "_" directory_as_target ${directory_to_copy})
+      add_custom_target(copy-files-${PROJECT_NAME}-${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory
+                               ${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy}
+                               ${CMAKE_CURRENT_BINARY_DIR}/${directory_to_copy}
+                   )
+    endif()
+  endforeach()
+
 
 endmacro()
 
@@ -79,6 +101,10 @@ endmacro()
 # will create a library off of src/MyProj.cpp and any file in src/
 # ending in "Utils.cpp", and links against the ERS (Error Reporting
 # System) library
+
+# Public headers for users of the library should go in the project's
+# include/<project name> directory. Private headers used in the
+# library's implementation should be put in the src/ directory.
 
 function(daq_add_library)
 
@@ -146,6 +172,10 @@ endfunction()
 # a schema file <package name>-<plugin name>-schema.jsonnet is available in
 # the package's ./schema subdirectory
 
+# Your plugin will look in include/ for your project's public headers
+# and src/ for its private headers. Additionally, if it's a "TEST"
+# plugin, it will look in test/src/.
+
 function(daq_add_plugin pluginname plugintype)
 
   cmake_parse_arguments(PLUGOPTS "TEST;SCHEMA" "" "LINK_LIBRARIES" ${ARGN})
@@ -157,16 +187,31 @@ function(daq_add_plugin pluginname plugintype)
     set(PLUGIN_PATH "test/${PLUGIN_PATH}")
   endif()
   
-  # Before building anything, figure out if we need to generate code
-  # off of a schema
+  add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
+
+  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
+  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
+
+  _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
+
+  if ( ${PLUGOPTS_TEST} ) 
+    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
+  else()
+    _daq_define_exportname()
+    install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
+  endif()
+
+  # Figure out if we need to generate code off of a schema and
+  # rebuild the plugin whenever the schema is edited
 
   if (${PLUGOPTS_SCHEMA})
 
-    set(schemadir ${PROJECT_SOURCE_DIR}/schema)
-    set(schemafile ${schemadir}/${PROJECT_NAME}-${pluginname}-schema.jsonnet)
+    set(schemadir  ${PROJECT_SOURCE_DIR}/schema)
+    set(schemafile ${PROJECT_NAME}-${pluginname}-schema.jsonnet)
 
-    if (NOT EXISTS ${schemafile})
-      message(FATAL_ERROR "Error: auto-generation of schema-based headers for plugin \"${pluginname}\" was requested, but required file ${schemafile} wasn't found")
+    if (NOT EXISTS ${schemadir}/${schemafile})
+      message(FATAL_ERROR "Error: auto-generation of schema-based headers for plugin \"${pluginname}\" was requested, but required file ${schemadir}/${schemafile} wasn't found")
     endif()
 
     foreach (WHAT Structs Nljs)
@@ -185,36 +230,22 @@ function(daq_add_plugin pluginname plugintype)
         file(MAKE_DIRECTORY ${outdir})
       endif()
 
-      moo_codegen(MPATH ${schemadir}
-                 TPATH ${schemadir}
-		 GRAFT /lang:ocpp.jsonnet
-		 TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
-		       ctxpath=dunedaq	
-		       os=${PROJECT_NAME}-${pluginname}-schema.jsonnet
-    		 MODEL omodel.jsonnet
-  		 TEMPL o${WHAT_LC}.hpp.j2
-		 CODEGEN ${outdir}/${WHAT}.hpp
-	    )
+      moo_associate(MPATH ${schemadir}
+                    TPATH ${schemadir}
+                    GRAFT /lang:ocpp.jsonnet
+		    TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
+		          ctxpath=dunedaq	
+		          os=${schemafile}
+       		    MODEL omodel.jsonnet
+  		    TEMPL o${WHAT_LC}.hpp.j2
+		    CODEGEN ${outdir}/${WHAT}.hpp
+		    CODEDEP ${schemadir}/${schemafile}
+		    TARGET ${pluginlibname}
+	            )
     endforeach()
 
   endif()
 
-  add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp )
-  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
-  # Add src to the include path for private headers
-  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-
-  _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
-
-
-  if ( ${PLUGOPTS_TEST} ) 
-    # Add test/src to the include path for private "test" headers
-    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
-  else()
-    _daq_define_exportname()
-    install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
-    set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
-  endif()
 
   endfunction()
 
@@ -233,6 +264,10 @@ function(daq_add_plugin pluginname plugintype)
 # assumption is that it's meant for developer testing. Like
 # daq_add_library, daq_add_application can be provided a list of
 # libraries to link against, following the LINK_LIBRARIES token.
+
+# Your application will look in include/ for your project's public
+# headers and src/ for its private headers. Additionally, if it's a
+# "TEST" plugin, it will look in test/src/.
 
 function(daq_add_application appname)
 
@@ -304,11 +339,51 @@ function(daq_add_unit_test testname)
   add_executable( ${testname} ${UTEST_PATH}/${testname}.cxx )
   target_link_libraries( ${testname} ${UTEST_LINK_LIBRARIES} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
   target_compile_definitions(${testname} PRIVATE "BOOST_TEST_DYN_LINK=1")
+
+  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
+  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
+
   add_test(NAME ${testname} COMMAND ${testname})
 
   _daq_set_target_output_dirs( ${testname} ${UTEST_PATH} )
 
 endfunction()
+
+####################################################################################################
+
+# _daq_gather_info:
+# Will take info both about the build and the source, and save it in a *.txt file 
+# referred to by the variable DAQ_PROJECT_SUMMARY_FILENAME
+
+macro(_daq_gather_info)
+
+  set(DAQ_PROJECT_SUMMARY_FILENAME ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt)
+
+  set(dgi_cmds 
+   "echo \"user for build:         $USER\""
+         "echo \"hostname for build:     $HOSTNAME\""
+   "echo \"build time:             `date`\""
+   "echo \"local repo dir:         `pwd`\""
+   "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
+   "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
+   "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
+   "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
+   "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
+         "echo \"uncommitted changes:    `git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\n' ' '`\""
+   )
+
+   set (dgi_fullcmd "")
+   foreach( dgi_cmd ${dgi_cmds} )
+     set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
+   endforeach()
+
+   execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
+              OUTPUT_FILE ${DAQ_PROJECT_SUMMARY_FILENAME}
+              ERROR_FILE  ${DAQ_PROJECT_SUMMARY_FILENAME}
+       WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+       )
+
+endmacro()
 
 ####################################################################################################
 
@@ -321,6 +396,9 @@ endfunction()
 # arguments.
 
 function(daq_install) 
+
+  _daq_gather_info()		      
+  install(FILES ${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
 
   ## AT HACK ALERT
   file(GLOB cmks CONFIGURE_DEPENDS cmake/*.cmake)
@@ -337,6 +415,23 @@ function(daq_install)
 
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
+
+  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/python)
+    install(DIRECTORY python/ DESTINATION ${CMAKE_INSTALL_PYTHONDIR} FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py")
+  endif()
+  
+
+  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/scripts)
+    install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR} USE_SOURCE_PERMISSIONS)
+  endif()
+
+  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/schema)
+    install(DIRECTORY schema/ DESTINATION ${CMAKE_INSTALL_SCHEMADIR} FILES_MATCHING PATTERN "*.jsonnet")
+  endif()
+
+  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/config)
+    install(DIRECTORY schema/ DESTINATION ${CMAKE_INSTALL_SCHEMADIR} FILES_MATCHING PATTERN "*.json")
+  endif()
 
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)

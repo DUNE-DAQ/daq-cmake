@@ -20,9 +20,8 @@ function(moo_deps_name source prefix)
   set("${prefix}_DEPS_NAME" "${DEPS_NAME}" PARENT_SCOPE)
 endfunction()
 
-##
-macro(moo_codegen)
-  cmake_parse_arguments(MC "" "MODEL;TEMPL;CODEGEN;MPATH;TPATH;GRAFT" "TLAS" ${ARGN})
+macro(moo_associate)
+  cmake_parse_arguments(MC "" "TARGET;CODEDEP;MODEL;TEMPL;CODEGEN;MPATH;TPATH;GRAFT" "TLAS" ${ARGN})
 
   if (NOT DEFINED MC_MPATH)
     set(MC_MPATH ${CMAKE_CURRENT_SOURCE_DIR})
@@ -45,21 +44,17 @@ macro(moo_codegen)
 
   set(MC_CODEGEN_ARGS ${MC_BASE_ARGS} render -o ${MC_CODEGEN} ${MC_MODEL} ${MC_TEMPL})
 
-  string(REPLACE ";" " " formatted_codegen_call "${MC_CODEGEN_ARGS}")
-  #message(STATUS "Build system generating header via ${MOO_CMD} ${formatted_codegen_call}")
+  # See, e.g.,
+  #  https://samthursfield.wordpress.com/2015/11/21/cmake-dependencies-between-targets-and-files-and-custom-commands/
+  #  for a discussion of what's happening below
 
-  execute_process(
-    COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS}
-    RESULT_VARIABLE returnval 
-    OUTPUT_VARIABLE outvar 
-    ERROR_VARIABLE errvar 
-  )
-  if (NOT returnval EQUAL 0)
-    message(WARNING "WARNING: ${errvar}")
-    message(STATUS "Called ${MOO_CMD} ${MC_CODEGEN_ARGS}")
-    message(STATUS "Non-stderr output was ${outvar}")
-    message(FATAL_ERROR "Problem trying to generate ${MC_CODEGEN}")
-  endif()
+  add_custom_command(OUTPUT ${MC_CODEGEN} COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS} DEPENDS ${MC_CODEDEP})
+
+  string(REGEX REPLACE "[\./-]" "_" unique_target_name ${MC_CODEGEN})
+
+  add_custom_target(${unique_target_name} DEPENDS ${MC_CODEGEN})
+  add_dependencies( ${MC_TARGET} ${unique_target_name})
 
 endmacro()
+
 
