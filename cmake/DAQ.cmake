@@ -422,7 +422,7 @@ function(daq_install)
   
 
   if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/scripts)
-    install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR})
+    install(DIRECTORY scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR} USE_SOURCE_PERMISSIONS)
   endif()
 
   if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/schema)
