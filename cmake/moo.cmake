@@ -20,46 +20,6 @@ function(moo_deps_name source prefix)
   set("${prefix}_DEPS_NAME" "${DEPS_NAME}" PARENT_SCOPE)
 endfunction()
 
-##
-macro(moo_codegen)
-  cmake_parse_arguments(MC "" "MODEL;TEMPL;CODEGEN;MPATH;TPATH;GRAFT" "TLAS" ${ARGN})
-
-  if (NOT DEFINED MC_MPATH)
-    set(MC_MPATH ${CMAKE_CURRENT_SOURCE_DIR})
-  endif()
-  if (NOT DEFINED MC_TPATH)
-    set(MC_TPATH ${CMAKE_CURRENT_SOURCE_DIR})
-  endif()
-
-  set(MC_BASE_ARGS -T ${MC_TPATH} -M ${MC_MPATH})
-
-  if (DEFINED MC_GRAFT) 
-    list(APPEND MC_BASE_ARGS -g ${MC_GRAFT})
-  endif()
-  
-  if (DEFINED MC_TLAS)
-    foreach(TLA ${MC_TLAS})
-      list(APPEND MC_BASE_ARGS -A ${TLA})
-    endforeach()
-  endif()
-
-  set(MC_CODEGEN_ARGS ${MC_BASE_ARGS} render -o ${MC_CODEGEN} ${MC_MODEL} ${MC_TEMPL})
-
-  execute_process(
-    COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS}
-    RESULT_VARIABLE returnval 
-    OUTPUT_VARIABLE outvar 
-    ERROR_VARIABLE errvar 
-  )
-  if (NOT returnval EQUAL 0)
-    message(WARNING "WARNING: ${errvar}")
-    message(STATUS "Called ${MOO_CMD} ${MC_CODEGEN_ARGS}")
-    message(STATUS "Non-stderr output was ${outvar}")
-    message(FATAL_ERROR "Problem trying to generate ${MC_CODEGEN}")
-  endif()
-
-endmacro()
-
 macro(moo_associate)
   cmake_parse_arguments(MC "" "TARGET;CODEDEP;MODEL;TEMPL;CODEGEN;MPATH;TPATH;GRAFT" "TLAS" ${ARGN})
 
