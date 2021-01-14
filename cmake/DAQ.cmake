@@ -40,7 +40,7 @@ macro(daq_setup_environment)
   if (${DBT_DEBUG})
     add_compile_options( -g -pedantic -Wall -Wextra -fdiagnostics-color=always )
   else()
-    add_compile_options( -O2 -pedantic -Wall -Wextra -fdiagnostics-color=always )
+    add_compile_options( -g -pedantic -Wall -Wextra -fdiagnostics-color=always -O2 )
   endif()
 
   enable_testing()
