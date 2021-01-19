@@ -48,16 +48,13 @@ macro(daq_setup_environment)
 
   enable_testing()
 
-  set(directories_to_copy "scripts" "test/scripts" "python" "schema" "config")
-
+  set(directories_to_copy)
+  file(GLOB directories_to_copy CONFIGURE_DEPENDS "scripts" "test/scripts" "python" "schema" "config")
+        
   foreach(directory_to_copy ${directories_to_copy})
-    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy})
-      string(REPLACE "/" "_" directory_as_target ${directory_to_copy})
-      add_custom_target(copy-files-${PROJECT_NAME}-${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory
-                               ${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy}
-                               ${CMAKE_CURRENT_BINARY_DIR}/${directory_to_copy}
-                   )
-    endif()
+    string(REPLACE "/" "_" directory_as_target ${directory_to_copy})
+    string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}" dest ${directory_to_copy})
+    add_custom_target(copy_files_${PROJECT_NAME}_${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${directory_to_copy} ${dest})
   endforeach()
 
 
