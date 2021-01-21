@@ -204,7 +204,12 @@ function(daq_add_plugin pluginname plugintype)
 
   if (${PLUGOPTS_SCHEMA})
 
-    set(schemadir  ${PROJECT_SOURCE_DIR}/schema)
+    if (NOT ${PLUGOPTS_TEST})
+      set(schemadir  ${PROJECT_SOURCE_DIR}/schema)
+    else()
+      set(schemadir  ${PROJECT_SOURCE_DIR}/test/schema)
+    endif()
+
     set(schemafile ${PROJECT_NAME}-${pluginname}-schema.jsonnet)
 
     if (NOT EXISTS ${schemadir}/${schemafile})
