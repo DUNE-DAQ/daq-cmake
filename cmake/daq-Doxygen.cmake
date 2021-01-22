@@ -58,7 +58,7 @@ if(DOXYGEN_FOUND)
 	create_pdf_documentation()
 
 	# install doxygen-generated HTML pages and MAN pages.
-	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html DESTINATION ${CMAKE_INSTALL_DATADIR}/doc)
+	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/${PROJECT_NAME})
 	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/man DESTINATION ${CMAKE_INSTALL_DATADIR})
 endif(DOXYGEN_FOUND)
 endmacro()

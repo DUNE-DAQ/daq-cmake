@@ -43,7 +43,7 @@ $extrastylesheet
    <!--END PROJECT_BRIEF-->
   <!--END !PROJECT_NAME-->
   <td style="text-align:right;">
-  <div id="toplink" style="floag:right;"><a href="../index.html">Return to top level</a></div>
+  <div id="toplink" style="floag:right;"><a href="../">Return to top level</a></div>
   <!--BEGIN DISABLE_INDEX-->
    <!--BEGIN SEARCHENGINE-->
    <td>$searchbox</td>
