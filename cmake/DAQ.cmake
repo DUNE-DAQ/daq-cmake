@@ -2,6 +2,7 @@
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 include(moo)
+include(moo2g)
 
 ####################################################################################################
 
@@ -236,15 +237,15 @@ function(daq_add_plugin pluginname plugintype)
       moo_associate(MPATH ${schemadir}
                     TPATH ${schemadir}
                     GRAFT /lang:ocpp.jsonnet
-		    TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
-		          ctxpath=dunedaq	
-		          os=${schemafile}
-       		    MODEL omodel.jsonnet
-  		    TEMPL o${WHAT_LC}.hpp.j2
-		    CODEGEN ${outdir}/${WHAT}.hpp
-		    CODEDEP ${schemadir}/${schemafile}
-		    TARGET ${pluginlibname}
-	            )
+                    TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
+                          ctxpath=dunedaq       
+                          os=${schemafile}
+                    MODEL omodel.jsonnet
+                    TEMPL o${WHAT_LC}.hpp.j2
+                    CODEGEN ${outdir}/${WHAT}.hpp
+                    CODEDEP ${schemadir}/${schemafile}
+                    TARGET ${pluginlibname}
+                    )
     endforeach()
 
   endif()
@@ -401,7 +402,7 @@ endmacro()
 
 function(daq_install) 
 
-  _daq_gather_info()		      
+  _daq_gather_info()                  
   install(FILES ${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
 
   ## AT HACK ALERT
