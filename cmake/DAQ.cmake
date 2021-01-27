@@ -192,7 +192,7 @@ function(daq_add_plugin pluginname plugintype)
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
   target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
   target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
-  # add_dependencies( ${pluginlibname} ${CODEGEN_MASTER_TARGET})
+  add_dependencies( ${pluginlibname} ${CODEGEN_MASTER_TARGET})
 
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
 
@@ -248,8 +248,7 @@ function(daq_add_plugin pluginname plugintype)
                     TEMPL o${WHAT_LC}.hpp.j2
                     CODEGEN ${outdir}/${WHAT}.hpp
                     CODEDEP ${schemadir}/${schemafile}
-                    TARGET ${pluginlibname}
-                    # TARGET ${CODEGEN_MASTER_TARGET}
+                    TARGET ${CODEGEN_MASTER_TARGET}
                     )
     endforeach()
 
@@ -312,7 +311,7 @@ function(daq_add_application appname)
   # Add src to the include path for private headers
   target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
   target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
-  # add_dependencies( ${appname} ${CODEGEN_MASTER_TARGET})
+  add_dependencies( ${appname} ${CODEGEN_MASTER_TARGET})
 
   _daq_set_target_output_dirs( ${appname} ${APP_PATH} )
 
@@ -358,7 +357,7 @@ function(daq_add_unit_test testname)
   target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
   target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
   target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/plugins> )
-  # add_dependencies( ${testname} ${CODEGEN_MASTER_TARGET})
+  add_dependencies( ${testname} ${CODEGEN_MASTER_TARGET})
 
   add_test(NAME ${testname} COMMAND ${testname})
 
