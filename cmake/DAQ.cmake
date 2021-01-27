@@ -2,7 +2,6 @@
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 include(moo)
-include(moo2g)
 
 ####################################################################################################
 
@@ -58,7 +57,8 @@ macro(daq_setup_environment)
     add_custom_target(copy_files_${PROJECT_NAME}_${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${directory_to_copy} ${dest})
   endforeach()
 
-
+  set(CODEGEN_MASTER_TARGET codegen_${PROJECT_NAME}_done)
+  add_custom_target(${CODEGEN_MASTER_TARGET})
 endmacro()
 
 
@@ -142,6 +142,7 @@ function(daq_add_library)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
     target_include_directories(${libname} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> )
   endif()
+  add_dependencies( ${libname} ${CODEGEN_MASTER_TARGET})
 
   _daq_define_exportname()
   install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
@@ -190,11 +191,14 @@ function(daq_add_plugin pluginname plugintype)
 
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
   target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
+  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  # add_dependencies( ${pluginlibname} ${CODEGEN_MASTER_TARGET})
 
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
 
   if ( ${PLUGOPTS_TEST} ) 
     target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
+    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
   else()
     _daq_define_exportname()
     install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -224,9 +228,9 @@ function(daq_add_plugin pluginname plugintype)
       string(TOLOWER ${pluginname} pluginname_LC)
 
       if(NOT ${PLUGOPTS_TEST})
-         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/src/${PROJECT_NAME}/${pluginname_LC})
+         set(outdir ${CMAKE_CURRENT_BINARY_DIR}/codegen/src/${PROJECT_NAME}/${pluginname_LC})
       else()
-         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/test/src/${PROJECT_NAME}/${pluginname_LC})
+         set(outdir ${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src/${PROJECT_NAME}/${pluginname_LC})
       endif()
 
       if (NOT EXISTS ${outdir})
@@ -245,6 +249,7 @@ function(daq_add_plugin pluginname plugintype)
                     CODEGEN ${outdir}/${WHAT}.hpp
                     CODEDEP ${schemadir}/${schemafile}
                     TARGET ${pluginlibname}
+                    # TARGET ${CODEGEN_MASTER_TARGET}
                     )
     endforeach()
 
@@ -306,12 +311,15 @@ function(daq_add_application appname)
   target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES}) 
   # Add src to the include path for private headers
   target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
+  target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  # add_dependencies( ${appname} ${CODEGEN_MASTER_TARGET})
 
   _daq_set_target_output_dirs( ${appname} ${APP_PATH} )
 
   if( ${APPOPTS_TEST} )
     # Add test/src to the include path for private "test" headers
     target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
+    target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
   else()
     _daq_define_exportname()
     install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
@@ -347,6 +355,10 @@ function(daq_add_unit_test testname)
   target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
   target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
   target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins> )
+  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
+  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/plugins> )
+  # add_dependencies( ${testname} ${CODEGEN_MASTER_TARGET})
 
   add_test(NAME ${testname} COMMAND ${testname})
 
