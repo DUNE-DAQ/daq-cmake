@@ -48,17 +48,22 @@ macro(daq_setup_environment)
 
   enable_testing()
 
+  set(CODEGEN_MASTER_TARGET codegen_${PROJECT_NAME}_done)
+  add_custom_target(${CODEGEN_MASTER_TARGET})
+
   set(directories_to_copy)
   file(GLOB directories_to_copy CONFIGURE_DEPENDS "scripts" "test/scripts" "python" "schema" "config")
         
   foreach(directory_to_copy ${directories_to_copy})
-    string(REPLACE "/" "_" directory_as_target ${directory_to_copy})
-    string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}" dest ${directory_to_copy})
-    add_custom_target(copy_files_${PROJECT_NAME}_${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${directory_to_copy} ${dest})
+    message(WARNING "${directory_to_copy}   ${CMAKE_CURRENT_SOURCE_DIR}")
+    string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" directory_to_copy_short "${directory_to_copy}")
+    string(REPLACE "/" "_" directory_as_target ${directory_to_copy_short})
+    string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}" dest ${directory_to_copy_short})
+    add_custom_target(copy_files_${PROJECT_NAME}_${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${directory_to_copy_short} ${dest})
+    add_dependencies(${CODEGEN_MASTER_TARGET} copy_files_${PROJECT_NAME}_${directory_as_target})
   endforeach()
 
-  set(CODEGEN_MASTER_TARGET codegen_${PROJECT_NAME}_done)
-  add_custom_target(${CODEGEN_MASTER_TARGET})
+
 endmacro()
 
 
@@ -238,6 +243,11 @@ function(daq_add_plugin pluginname plugintype)
         file(MAKE_DIRECTORY ${outdir})
       endif()
 
+      # string(REGEX REPLACE "[\./-]" "_" unique_target_name ${MC_CODEGEN})
+
+      set(outfile ${outdir}/${WHAT}.hpp)
+      string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outfile})
+      string(REGEX REPLACE "[\./-]" "_" moo_target "moo${moo_target}")
       moo_associate(MPATH ${schemadir}
                     TPATH ${schemadir}
                     GRAFT /lang:ocpp.jsonnet
@@ -246,10 +256,11 @@ function(daq_add_plugin pluginname plugintype)
                           os=${schemafile}
                     MODEL omodel.jsonnet
                     TEMPL o${WHAT_LC}.hpp.j2
-                    CODEGEN ${outdir}/${WHAT}.hpp
+                    CODEGEN ${outfile}
                     CODEDEP ${schemadir}/${schemafile}
-                    TARGET ${CODEGEN_MASTER_TARGET}
+                    TARGET ${moo_target}
                     )
+      add_dependencies( ${CODEGEN_MASTER_TARGET} ${moo_target})
     endforeach()
 
   endif()
