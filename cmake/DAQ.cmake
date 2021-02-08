@@ -168,13 +168,20 @@ endfunction()
 # ---------------------------------------------------------------
 function(daq_codegen_schema schemafile)
 
-  cmake_parse_arguments(CODEGEN "TEST" "" "" ${ARGN})
+  cmake_parse_arguments(CODEGEN "TEST" "MODEL" "TEMPLATES" ${ARGN})
 
+  # insert test in schemadir if a TEST schema
   set(schemadir "${PROJECT_SOURCE_DIR}")
   if (${CODEGEN_TEST}) 
     set(schemadir "${schemadir}/test")
   endif()
   set(schemadir  "${schemadir}/schema")
+
+
+  if (NOT DEFINED CODEGEN_MODEL)
+    set(CODEGEN_MODEL omodel.jsonnet)
+  endif()
+
 
   set(schemapath "${schemadir}/${schemafile}")
 
@@ -184,11 +191,12 @@ function(daq_codegen_schema schemafile)
 
   get_filename_component(schema ${schemafile} NAME_WE)
 
-  set(flavors Structs Nljs)
-  foreach (WHAT ${flavors})
+  # set(CODEGEN_TEMPLATES Structs Nljs)
+  foreach (WHAT ${CODEGEN_TEMPLATES})
     string(TOLOWER ${WHAT} WHAT_LC)
     string(TOLOWER ${schema} schema_LC)
 
+  # insert test in outdir if a TEST schema
     set(outdir "${CMAKE_CURRENT_BINARY_DIR}/codegen/src")
     if (${CODEGEN_TEST}) 
       set(outdir "${outdir}/test")
@@ -209,7 +217,7 @@ function(daq_codegen_schema schemafile)
                   TLAS  path=dunedaq.${PROJECT_NAME}.${schema_LC}
                         ctxpath=dunedaq       
                         os=${schemafile}
-                  MODEL omodel.jsonnet
+                  MODEL ${CODEGEN_MODEL}
                   TEMPL o${WHAT_LC}.hpp.j2
                   CODEGEN ${outfile}
                   CODEDEP ${schemadir}/${schemafile}
@@ -284,7 +292,7 @@ function(daq_add_plugin pluginname plugintype)
     if (${PLUGOPTS_TEST})
       set(options TEST)
     endif()
-    daq_codegen_schema(${PROJECT_NAME}/${pluginname}.jsonnet ${PLUGOPTS_TEST})
+    daq_codegen_schema(${PROJECT_NAME}/${pluginname}.jsonnet ${PLUGOPTS_TEST} )
     # if (NOT ${PLUGOPTS_TEST})
     #   set(schemadir  ${PROJECT_SOURCE_DIR}/schema)
     # else()
