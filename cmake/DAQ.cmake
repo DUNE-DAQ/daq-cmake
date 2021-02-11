@@ -175,6 +175,19 @@ function(daq_add_library)
 endfunction()
 
 
+####################################################################################################
+# daq_codegen_schema:
+# Usage:
+# daq_codegen_schema( <schema filename> [TEST] [TEMPLATES <template filename1> ...] [MODEL <model filename>] )
+#
+# daq_codegen_schema will take the provided schema file name (minus
+# its path), and generate code from it using moo given the names of
+# the template files provided. If the code is meant for an entity in
+# the package's test/ subdirectory, "TEST" should be passed as an
+# argument, and the schema file's path will be assumed to be
+# "test/schema/" rather than merely "schema/". The MODEL argument is
+# optional; if no model file name is explicitly provided,
+# omodel.jsonnet from the moo package itself is used.
 
 # ---------------------------------------------------------------
 function(daq_codegen_schema schemafile)
