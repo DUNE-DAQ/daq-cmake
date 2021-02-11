@@ -31,6 +31,9 @@ macro(daq_setup_environment)
   # Needed for clang-tidy (called by our linters) to work
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+  set(CMAKE_CODEGEN_BASEDIR "${CMAKE_CURRENT_BINARY_DIR}/codegen")
+
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_SCHEMADIR  ${CMAKE_INSTALL_DATADIR}/schema ) # Not defined in GNUInstallDirs
@@ -146,15 +149,23 @@ function(daq_add_library)
   if (libsrcs)
     add_library(${libname} SHARED ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
-    target_include_directories(${libname} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> )
-    target_include_directories(${libname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-    target_include_directories(${libname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+    target_include_directories(${libname} PUBLIC 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+    )
+    target_include_directories(${libname}  
+      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+      PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/src>
+    )
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
   else()
     add_library(${libname} INTERFACE)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
-    target_include_directories(${libname} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> )
+    target_include_directories(${libname} INTERFACE 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    )
   endif()
 
   _daq_define_exportname()
@@ -183,6 +194,10 @@ function(daq_codegen_schema schemafile)
   endif()
 
 
+  if (NOT DEFINED CODEGEN_TEMPLATES)
+    message(FATAL_ERROR "Error: No template defined.")
+  endif()
+
   set(schemapath "${schemadir}/${schemafile}")
 
   if (NOT EXISTS ${schemapath})
@@ -197,14 +212,14 @@ function(daq_codegen_schema schemafile)
     string(TOLOWER ${schema} schema_LC)
 
   # insert test in outdir if a TEST schema
-    set(outdir "${CMAKE_CURRENT_BINARY_DIR}/codegen/src")
+    set(outdir "${CMAKE_CODEGEN_BASEDIR}/src")
     if (${CODEGEN_TEST}) 
       set(outdir "${outdir}/test")
     endif()
     set(outdir "${outdir}/${PROJECT_NAME}/${schema_LC}")
 
     if (NOT EXISTS ${outdir})
-      message(WARNING "Creating ${outdir} to hold moo-generated plugin headers for ${schemafile} since it doesn't yet exist")
+      message(NOTICE "Creating ${outdir} to hold moo-generated plugin headers for ${schemafile} since it doesn't yet exist")
       file(MAKE_DIRECTORY ${outdir})
     endif()
 
@@ -224,6 +239,7 @@ function(daq_codegen_schema schemafile)
                   TARGET ${moo_target}
                   )
     add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
+
   endforeach()
 endfunction()
 
@@ -270,15 +286,19 @@ function(daq_add_plugin pluginname plugintype)
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
 
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
-  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  target_include_directories(${pluginlibname}
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/src>
+  )
   add_dependencies( ${pluginlibname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
 
   if ( ${PLUGOPTS_TEST} ) 
-    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
-    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
+    target_include_directories(${pluginlibname} 
+      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
+      PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/test/src>
+  )
   else()
     _daq_define_exportname()
     install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -292,7 +312,7 @@ function(daq_add_plugin pluginname plugintype)
     if (${PLUGOPTS_TEST})
       set(options TEST)
     endif()
-    daq_codegen_schema(${PROJECT_NAME}/${pluginname}.jsonnet ${PLUGOPTS_TEST} )
+    daq_codegen_schema(${PROJECT_NAME}/${pluginname}.jsonnet ${PLUGOPTS_TEST} TEMPLATES Structs Nljs)
     # if (NOT ${PLUGOPTS_TEST})
     #   set(schemadir  ${PROJECT_SOURCE_DIR}/schema)
     # else()
@@ -400,16 +420,19 @@ function(daq_add_application appname)
   add_executable(${appname} ${appsrcs})
   target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES}) 
   # Add src to the include path for private headers
-  target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-  target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  target_include_directories( ${appname}  
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> 
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/src>
+  )
   add_dependencies( ${appname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   _daq_set_target_output_dirs( ${appname} ${APP_PATH} )
 
   if( ${APPOPTS_TEST} )
-    # Add test/src to the include path for private "test" headers
-    target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
-    target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
+    target_include_directories( ${appname} 
+      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> 
+      PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/test/src>
+  )
   else()
     _daq_define_exportname()
     install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
@@ -442,11 +465,16 @@ function(daq_add_unit_test testname)
   target_link_libraries( ${testname} ${UTEST_LINK_LIBRARIES} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
   target_compile_definitions(${testname} PRIVATE "BOOST_TEST_DYN_LINK=1")
 
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins> )
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
+
+  target_include_directories( ${testname} 
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins>
+
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src>
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src>
+  )
+
   add_dependencies( ${testname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   add_test(NAME ${testname} COMMAND ${testname})
@@ -466,28 +494,28 @@ macro(_daq_gather_info)
   set(DAQ_PROJECT_SUMMARY_FILENAME ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt)
 
   set(dgi_cmds 
-   "echo \"user for build:         $USER\""
-         "echo \"hostname for build:     $HOSTNAME\""
-   "echo \"build time:             `date`\""
-   "echo \"local repo dir:         `pwd`\""
-   "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
-   "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
-   "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
-   "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
-   "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
+    "echo \"user for build:         $USER\""
+    "echo \"hostname for build:     $HOSTNAME\""
+    "echo \"build time:             `date`\""
+    "echo \"local repo dir:         `pwd`\""
+    "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
+    "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
+    "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
+    "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
+    "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
          "echo \"uncommitted changes:    `git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\n' ' '`\""
-   )
+    )
 
-   set (dgi_fullcmd "")
-   foreach( dgi_cmd ${dgi_cmds} )
-     set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
-   endforeach()
+  set (dgi_fullcmd "")
+  foreach( dgi_cmd ${dgi_cmds} )
+    set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
+  endforeach()
 
-   execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
+  execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
               OUTPUT_FILE ${DAQ_PROJECT_SUMMARY_FILENAME}
               ERROR_FILE  ${DAQ_PROJECT_SUMMARY_FILENAME}
-       WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-       )
+              WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+              )
 
 endmacro()
 
