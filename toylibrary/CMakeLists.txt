@@ -15,7 +15,6 @@ find_package(TRACE REQUIRED)
 find_package(Boost COMPONENTS unit_test_framework program_options REQUIRED)
 
 ##############################################################################
-
 # Note that when the ers library is linked in, it uses a "::" because
 # it's in an external package, not a local CMake target. The semantics
 # are <namespace>::<shared library / executable>

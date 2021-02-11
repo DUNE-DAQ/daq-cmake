@@ -49,11 +49,7 @@ macro(moo_associate)
   #  for a discussion of what's happening below
 
   add_custom_command(OUTPUT ${MC_CODEGEN} COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS} DEPENDS ${MC_CODEDEP})
-
-  string(REGEX REPLACE "[\./-]" "_" unique_target_name ${MC_CODEGEN})
-
-  add_custom_target(${unique_target_name} DEPENDS ${MC_CODEGEN})
-  add_dependencies( ${MC_TARGET} ${unique_target_name})
+  add_custom_target(${MC_TARGET} DEPENDS ${MC_CODEGEN})
 
 endmacro()
 
