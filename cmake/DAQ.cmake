@@ -182,6 +182,7 @@ function(daq_codegen_schema schemafile)
   cmake_parse_arguments(CODEGEN "TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
   # insert test in schemadir if a TEST schema
   set(schemadir "${PROJECT_SOURCE_DIR}")
+
   if (${CODEGEN_TEST}) 
     set(schemadir "${schemadir}/test")
   endif()
@@ -216,17 +217,16 @@ function(daq_codegen_schema schemafile)
 
   get_filename_component(schema ${schemafile} NAME_WE)
 
-  # set(CODEGEN_TEMPLATES Structs Nljs)
   foreach (WHAT ${CODEGEN_TEMPLATES})
     # string(TOLOWER ${WHAT} WHAT_LC)
     string(TOLOWER ${schema} schema_LC)
 
-  # insert test in outdir if a TEST schema
-    set(outdir "${CMAKE_CODEGEN_BASEDIR}/src")
+    # insert test in outdir if a TEST schema
+    set(outdir "${CMAKE_CODEGEN_BASEDIR}")
     if (${CODEGEN_TEST}) 
-      set(outdir "${outdir}/test")
+        set(outdir "${outdir}/test")
     endif()
-    set(outdir "${outdir}/${PROJECT_NAME}/${schema_LC}")
+    set(outdir "${outdir}/src/${PROJECT_NAME}/${schema_LC}")
 
     if (NOT EXISTS ${outdir})
       message(NOTICE "Creating ${outdir} to hold moo-generated plugin headers for ${schemafile} since it doesn't yet exist")
