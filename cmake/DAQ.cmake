@@ -32,7 +32,7 @@ macro(daq_setup_environment)
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
-  set(CMAKE_CODEGEN_BASEDIR "${CMAKE_CURRENT_BINARY_DIR}/codegen")
+  set(CMAKE_CODEGEN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/codegen")
 
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
@@ -153,9 +153,9 @@ function(daq_add_library)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
     )
-    target_include_directories(${libname}  
-      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-      PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/src>
+    target_include_directories(${libname} PRIVATE 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/src>
     )
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
@@ -192,7 +192,7 @@ endfunction()
 # ---------------------------------------------------------------
 function(daq_codegen_schema schemafile)
 
-  cmake_parse_arguments(CODEGEN "TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
+  cmake_parse_arguments(CODEGEN "PUBLIC;PRIVATE;TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
   # insert test in schemadir if a TEST schema
   set(schemadir "${PROJECT_SOURCE_DIR}")
 
@@ -213,7 +213,7 @@ function(daq_codegen_schema schemafile)
     endif()
 
     get_filename_component(templates_package_dir ${${CODEGEN_TEMPLATES_PACKAGE}_CONFIG} DIRECTORY)
-    set(templatedir "${templates_package_dir}/schema/templates")
+    set(templatedir "${templates_package_dir}/schema/${CODEGEN_TEMPLATES_PACKAGE}/templates")
   else()
     set(templatedir ${schemadir})
   endif()
@@ -231,11 +231,11 @@ function(daq_codegen_schema schemafile)
   get_filename_component(schema ${schemafile} NAME_WE)
 
   foreach (WHAT ${CODEGEN_TEMPLATES})
-    # string(TOLOWER ${WHAT} WHAT_LC)
+    string(TOLOWER ${WHAT} WHAT_LC)
     string(TOLOWER ${schema} schema_LC)
 
     # insert test in outdir if a TEST schema
-    set(outdir "${CMAKE_CODEGEN_BASEDIR}")
+    set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
     if (${CODEGEN_TEST}) 
         set(outdir "${outdir}/test")
     endif()
@@ -257,6 +257,7 @@ function(daq_codegen_schema schemafile)
                         os=${schemafile}
                   MODEL ${CODEGEN_MODEL}
                   TEMPL ${WHAT}.hpp.j2
+                  # TEMPL o${WHAT_LC}.hpp.j2
                   CODEGEN ${outfile}
                   CODEDEP ${schemadir}/${schemafile}
                   TARGET ${moo_target}
@@ -309,18 +310,18 @@ function(daq_add_plugin pluginname plugintype)
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
 
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
-  target_include_directories(${pluginlibname}
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/src>
+  target_include_directories(${pluginlibname} PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/src>
   )
   add_dependencies( ${pluginlibname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
 
   if ( ${PLUGOPTS_TEST} ) 
-    target_include_directories(${pluginlibname} 
-      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
-      PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/test/src>
+    target_include_directories(${pluginlibname} PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
   )
   else()
     _daq_define_exportname()
@@ -331,13 +332,13 @@ function(daq_add_plugin pluginname plugintype)
   # Figure out if we need to generate code off of a schema and
   # rebuild the plugin whenever the schema is edited
 
-  if (${PLUGOPTS_SCHEMA})
-    if (${PLUGOPTS_TEST})
-      set(options TEST)
-    endif()
-    # daq_codegen_schema(${PROJECT_NAME}/${pluginname}.jsonnet ${PLUGOPTS_TEST} TEMPLATES Structs Nljs)
+  # if (${PLUGOPTS_SCHEMA})
+  #   if (${PLUGOPTS_TEST})
+  #     set(options TEST)
+  #   endif()
+  #   daq_codegen_schema(${PROJECT_NAME}/${pluginname}.jsonnet ${PLUGOPTS_TEST} TEMPLATES Structs Nljs)
 
-  endif()
+  # endif()
 
 endfunction()
 
@@ -397,8 +398,7 @@ function(daq_add_application appname)
   target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES}) 
   # Add src to the include path for private headers
   target_include_directories( ${appname}  
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> 
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/src>
+    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/src>
   )
   add_dependencies( ${appname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
@@ -406,8 +406,7 @@ function(daq_add_application appname)
 
   if( ${APPOPTS_TEST} )
     target_include_directories( ${appname} 
-      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> 
-      PRIVATE $<BUILD_INTERFACE:${CMAKE_CODEGEN_BASEDIR}/test/src>
+      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
   )
   else()
     _daq_define_exportname()
@@ -442,13 +441,13 @@ function(daq_add_unit_test testname)
   target_compile_definitions(${testname} PRIVATE "BOOST_TEST_DYN_LINK=1")
 
 
-  target_include_directories( ${testname} 
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins>
+  target_include_directories( ${testname} PRIVATE 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins>
 
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src>
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src>
   )
 
   add_dependencies( ${testname} ${PRE_BUILD_STAGE_DONE_TRGT})
