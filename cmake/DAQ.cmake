@@ -190,79 +190,103 @@ endfunction()
 # omodel.jsonnet from the moo package itself is used.
 
 # ---------------------------------------------------------------
-function(daq_codegen_schema schemafile)
+function(daq_codegen_schema)
 
-  cmake_parse_arguments(CODEGEN "PUBLIC;PRIVATE;TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
+  cmake_parse_arguments(CGOPTS "PUBLIC;PRIVATE;TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
   # insert test in schemadir if a TEST schema
   set(schemadir "${PROJECT_SOURCE_DIR}")
 
-  if (${CODEGEN_TEST}) 
+  if (${CGOPTS_TEST}) 
     set(schemadir "${schemadir}/test")
   endif()
   set(schemadir  "${schemadir}/schema")
 
 
   # Fall back on omodel.jsonnet if no model is defined
-  if (NOT DEFINED CODEGEN_MODEL)
-    set(CODEGEN_MODEL omodel.jsonnet)
+  if (NOT DEFINED CGOPTS_MODEL)
+    set(CGOPTS_MODEL omodel.jsonnet)
   endif()
 
-  if (DEFINED CODEGEN_TEMPLATES_PACKAGE)
-    if (NOT DEFINED "${CODEGEN_TEMPLATES_PACKAGE}_CONFIG")
-      message(FATAL_ERROR "Error: package ${CODEGEN_TEMPLATES_PACKAGE} not loaded")
+  if (DEFINED CGOPTS_TEMPLATES_PACKAGE)
+    if (NOT DEFINED "${CGOPTS_TEMPLATES_PACKAGE}_CONFIG")
+      message(FATAL_ERROR "Error: package ${CGOPTS_TEMPLATES_PACKAGE} not loaded")
     endif()
 
-    get_filename_component(templates_package_dir ${${CODEGEN_TEMPLATES_PACKAGE}_CONFIG} DIRECTORY)
-    set(templatedir "${templates_package_dir}/schema/${CODEGEN_TEMPLATES_PACKAGE}/templates")
+    get_filename_component(templates_package_dir ${${CGOPTS_TEMPLATES_PACKAGE}_CONFIG} DIRECTORY)
+    set(templatedir "${templates_package_dir}/schema/${CGOPTS_TEMPLATES_PACKAGE}/templates")
   else()
     set(templatedir ${schemadir})
   endif()
 
-  if (NOT DEFINED CODEGEN_TEMPLATES)
+  if (NOT DEFINED CGOPTS_TEMPLATES)
     message(FATAL_ERROR "Error: No template defined.")
   endif()
 
-  set(schemapath "${schemadir}/${schemafile}")
 
-  if (NOT EXISTS ${schemapath})
-    message(FATAL_ERROR "Error: auto-generation of schema-based headers from \"${schemafile}\" failed because ${schemapath} wasn't found")
-  endif()
+  set(schemas)
+  foreach(f ${CGOPTS_UNPARSED_ARGUMENTS})
 
-  get_filename_component(schema ${schemafile} NAME_WE)
+    if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
 
-  foreach (WHAT ${CODEGEN_TEMPLATES})
-    string(TOLOWER ${WHAT} WHAT_LC)
-    string(TOLOWER ${schema} schema_LC)
+      set(fpaths)
+      file(GLOB fpaths CONFIGURE_DEPENDS ${schemadir}/${f})
 
-    # insert test in outdir if a TEST schema
-    set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
-    if (${CODEGEN_TEST}) 
-        set(outdir "${outdir}/test")
+      if (fpaths)
+        set(schemas ${schemas} ${fpaths})
+      else()
+        message(WARNING "When defining list of schema files to perform code generation on, no files in ${CMAKE_CURRENT_SOURCE_DIR}/${schemadir} match the glob \"${f}\"")
+      endif()
+    else()
+       # may be generated file, so just add
+      set(schemas ${schemas} ${schemadir}/${f})
     endif()
-    set(outdir "${outdir}/src/${PROJECT_NAME}/${schema_LC}")
+  endforeach()
 
-    if (NOT EXISTS ${outdir})
-      message(NOTICE "Creating ${outdir} to hold moo-generated plugin headers for ${schemafile} since it doesn't yet exist")
-      file(MAKE_DIRECTORY ${outdir})
+  foreach(schemapath ${schemas})
+    # set(schemapath "${schemadir}/${schemafile}")
+    # set(${schemafile} )
+    string(REPLACE "${schemadir}/" "" schemafile "${schemapath}")
+
+    if (NOT EXISTS ${schemapath})
+      message(FATAL_ERROR "Error: auto-generation of schema-based headers from \"${schemafile}\" failed because ${schemapath} wasn't found")
     endif()
 
-    set(outfile ${outdir}/${WHAT}.hpp)
-    string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outfile})
-    string(REGEX REPLACE "[\./-]" "_" moo_target "moo${moo_target}")
-    moo_associate(MPATH ${schemadir}
-                  TPATH ${templatedir}
-                  GRAFT /lang:ocpp.jsonnet
-                  TLAS  path=dunedaq.${PROJECT_NAME}.${schema_LC}
-                        ctxpath=dunedaq       
-                        os=${schemafile}
-                  MODEL ${CODEGEN_MODEL}
-                  TEMPL ${WHAT}.hpp.j2
-                  # TEMPL o${WHAT_LC}.hpp.j2
-                  CODEGEN ${outfile}
-                  CODEDEP ${schemadir}/${schemafile}
-                  TARGET ${moo_target}
-                  )
-    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
+    get_filename_component(schema ${schemafile} NAME_WE)
+
+    foreach (WHAT ${CGOPTS_TEMPLATES})
+      string(TOLOWER ${WHAT} WHAT_LC)
+      string(TOLOWER ${schema} schema_LC)
+
+      # insert test in outdir if a TEST schema
+      set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
+      if (${CGOPTS_TEST}) 
+          set(outdir "${outdir}/test")
+      endif()
+      set(outdir "${outdir}/src/${PROJECT_NAME}/${schema_LC}")
+
+      if (NOT EXISTS ${outdir})
+        message(NOTICE "Creating ${outdir} to hold moo-generated plugin headers for ${schemafile} since it doesn't yet exist")
+        file(MAKE_DIRECTORY ${outdir})
+      endif()
+
+      set(outfile ${outdir}/${WHAT}.hpp)
+      string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outfile})
+      string(REGEX REPLACE "[\./-]" "_" moo_target "moo${moo_target}")
+      moo_associate(MPATH ${schemadir}
+                    TPATH ${templatedir}
+                    GRAFT /lang:ocpp.jsonnet
+                    TLAS  path=dunedaq.${PROJECT_NAME}.${schema_LC}
+                          ctxpath=dunedaq       
+                          os=${schemafile}
+                    MODEL ${CGOPTS_MODEL}
+                    TEMPL ${WHAT}.hpp.j2
+                    # TEMPL o${WHAT_LC}.hpp.j2
+                    CODEGEN ${outfile}
+                    CODEDEP ${schemadir}/${schemafile}
+                    TARGET ${moo_target}
+                    )
+      add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
+    endforeach()
 
   endforeach()
 endfunction()
