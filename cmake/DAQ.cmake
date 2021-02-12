@@ -179,8 +179,7 @@ endfunction()
 # ---------------------------------------------------------------
 function(daq_codegen_schema schemafile)
 
-  cmake_parse_arguments(CODEGEN "TEST" "MODEL" "TEMPLATES" ${ARGN})
-
+  cmake_parse_arguments(CODEGEN "TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
   # insert test in schemadir if a TEST schema
   set(schemadir "${PROJECT_SOURCE_DIR}")
   if (${CODEGEN_TEST}) 
@@ -189,10 +188,21 @@ function(daq_codegen_schema schemafile)
   set(schemadir  "${schemadir}/schema")
 
 
+  # Fall back on omodel.jsonnet if no model is defined
   if (NOT DEFINED CODEGEN_MODEL)
     set(CODEGEN_MODEL omodel.jsonnet)
   endif()
 
+  if (DEFINED CODEGEN_TEMPLATES_PACKAGE)
+    if (NOT DEFINED "${CODEGEN_TEMPLATES_PACKAGE}_CONFIG")
+      message(FATAL_ERROR "Error: package ${CODEGEN_TEMPLATES_PACKAGE} not loaded")
+    endif()
+
+    get_filename_component(templates_package_dir ${${CODEGEN_TEMPLATES_PACKAGE}_CONFIG} DIRECTORY)
+    set(templatedir "${templates_package_dir}/schema/templates")
+  else()
+    set(templatedir ${schemadir})
+  endif()
 
   if (NOT DEFINED CODEGEN_TEMPLATES)
     message(FATAL_ERROR "Error: No template defined.")
@@ -208,7 +218,7 @@ function(daq_codegen_schema schemafile)
 
   # set(CODEGEN_TEMPLATES Structs Nljs)
   foreach (WHAT ${CODEGEN_TEMPLATES})
-    string(TOLOWER ${WHAT} WHAT_LC)
+    # string(TOLOWER ${WHAT} WHAT_LC)
     string(TOLOWER ${schema} schema_LC)
 
   # insert test in outdir if a TEST schema
@@ -227,13 +237,13 @@ function(daq_codegen_schema schemafile)
     string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outfile})
     string(REGEX REPLACE "[\./-]" "_" moo_target "moo${moo_target}")
     moo_associate(MPATH ${schemadir}
-                  TPATH ${schemadir}
+                  TPATH ${templatedir}
                   GRAFT /lang:ocpp.jsonnet
                   TLAS  path=dunedaq.${PROJECT_NAME}.${schema_LC}
                         ctxpath=dunedaq       
                         os=${schemafile}
                   MODEL ${CODEGEN_MODEL}
-                  TEMPL o${WHAT_LC}.hpp.j2
+                  TEMPL ${WHAT}.hpp.j2
                   CODEGEN ${outfile}
                   CODEDEP ${schemadir}/${schemafile}
                   TARGET ${moo_target}
@@ -312,54 +322,7 @@ function(daq_add_plugin pluginname plugintype)
     if (${PLUGOPTS_TEST})
       set(options TEST)
     endif()
-    daq_codegen_schema(${PROJECT_NAME}/${pluginname}.jsonnet ${PLUGOPTS_TEST} TEMPLATES Structs Nljs)
-    # if (NOT ${PLUGOPTS_TEST})
-    #   set(schemadir  ${PROJECT_SOURCE_DIR}/schema)
-    # else()
-    #   set(schemadir  ${PROJECT_SOURCE_DIR}/test/schema)
-    # endif()
-
-    # set(schemafile ${PROJECT_NAME}-${pluginname}-schema.jsonnet)
-
-    # if (NOT EXISTS ${schemadir}/${schemafile})
-    #   message(FATAL_ERROR "Error: auto-generation of schema-based headers for plugin \"${pluginname}\" was requested, but required file ${schemadir}/${schemafile} wasn't found")
-    # endif()
-
-    # foreach (WHAT Structs Nljs)
-
-    #   string(TOLOWER ${WHAT} WHAT_LC)
-    #   string(TOLOWER ${pluginname} pluginname_LC)
-
-    #   if(NOT ${PLUGOPTS_TEST})
-    #      set(outdir ${CMAKE_CURRENT_BINARY_DIR}/codegen/src/${PROJECT_NAME}/${pluginname_LC})
-    #   else()
-    #      set(outdir ${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src/${PROJECT_NAME}/${pluginname_LC})
-    #   endif()
-
-    #   if (NOT EXISTS ${outdir})
-    #     message(WARNING "Creating ${outdir} to hold moo-generated plugin headers for ${pluginname} since it doesn't yet exist")
-    #     file(MAKE_DIRECTORY ${outdir})
-    #   endif()
-
-    #   # string(REGEX REPLACE "[\./-]" "_" unique_target_name ${MC_CODEGEN})
-
-    #   set(outfile ${outdir}/${WHAT}.hpp)
-    #   string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outfile})
-    #   string(REGEX REPLACE "[\./-]" "_" moo_target "moo${moo_target}")
-    #   moo_associate(MPATH ${schemadir}
-    #                 TPATH ${schemadir}
-    #                 GRAFT /lang:ocpp.jsonnet
-    #                 TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
-    #                       ctxpath=dunedaq       
-    #                       os=${schemafile}
-    #                 MODEL omodel.jsonnet
-    #                 TEMPL o${WHAT_LC}.hpp.j2
-    #                 CODEGEN ${outfile}
-    #                 CODEDEP ${schemadir}/${schemafile}
-    #                 TARGET ${moo_target}
-    #                 )
-    #   add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
-    # endforeach()
+    # daq_codegen_schema(${PROJECT_NAME}/${pluginname}.jsonnet ${PLUGOPTS_TEST} TEMPLATES Structs Nljs)
 
   endif()
 
