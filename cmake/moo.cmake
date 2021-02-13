@@ -48,8 +48,28 @@ macro(moo_associate)
   #  https://samthursfield.wordpress.com/2015/11/21/cmake-dependencies-between-targets-and-files-and-custom-commands/
   #  for a discussion of what's happening below
 
+  message(NOTICE "${MC_TARGET} ${MC_BASE_ARGS} ${MC_CODEGEN_ARGS}")
   add_custom_command(OUTPUT ${MC_CODEGEN} COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS} DEPENDS ${MC_CODEDEP})
   add_custom_target(${MC_TARGET} DEPENDS ${MC_CODEGEN})
+
+  # # Custom command to re-evaulate the schema dependencies
+  # # After running moo imports it updates the deps file modification time with the most recently modified file 
+  # # Note the phony output used to enforce the command to be run every time
+  # add_custom_command(
+  #     COMMAND moo ARGS imports ${CMAKE_CURRENT_SOURCE_DIR}/schema/toy.jsonnet -o "${MC_CODEDEP}"
+  #     COMMAND bash ARGS -c "touch -r $(ls -t $(cat ${MC_CODEDEP} ) | head -n1) ${MC_CODEDEP}"
+  #     VERBATIM
+  #     COMMENT "Updating moo dependencies"
+  #     OUTPUT ${MC_CODEDEP}
+  #     OUTPUT ${MC_TARGET}_deps_phony
+  # )
+
+  # # Custom target to force the update of jsonnet dependencies at build time
+  # # Note the phony dependency to force it to be re-run every time
+  # add_custom_target(${MC_TARGET}_deps
+  #     ALL
+  #     DEPENDS ${MC_CODEDEP} ${MC_TARGET}_deps_phony
+  # )
 
 
 endmacro()
