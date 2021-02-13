@@ -155,7 +155,7 @@ function(daq_add_library)
     )
     target_include_directories(${libname} PRIVATE 
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/src>
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
     )
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
@@ -192,10 +192,10 @@ endfunction()
 # ---------------------------------------------------------------
 function(daq_codegen_schema)
 
-  cmake_parse_arguments(CGOPTS "PUBLIC;PRIVATE;TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
+  cmake_parse_arguments(CGOPTS "TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
+
   # insert test in schemadir if a TEST schema
   set(schemadir "${PROJECT_SOURCE_DIR}")
-
   if (${CGOPTS_TEST}) 
     set(schemadir "${schemadir}/test")
   endif()
@@ -207,6 +207,10 @@ function(daq_codegen_schema)
     set(CGOPTS_MODEL omodel.jsonnet)
   endif()
 
+  if (NOT DEFINED CGOPTS_TEMPLATES)
+    message(FATAL_ERROR "Error: No template defined.")
+  endif()
+
   if (DEFINED CGOPTS_TEMPLATES_PACKAGE)
     if (NOT DEFINED "${CGOPTS_TEMPLATES_PACKAGE}_CONFIG")
       message(FATAL_ERROR "Error: package ${CGOPTS_TEMPLATES_PACKAGE} not loaded")
@@ -215,14 +219,30 @@ function(daq_codegen_schema)
     get_filename_component(templates_package_dir ${${CGOPTS_TEMPLATES_PACKAGE}_CONFIG} DIRECTORY)
     set(templatedir "${templates_package_dir}/schema/${CGOPTS_TEMPLATES_PACKAGE}/templates")
   else()
+    
     set(templatedir ${schemadir})
+
   endif()
 
-  if (NOT DEFINED CGOPTS_TEMPLATES)
-    message(FATAL_ERROR "Error: No template defined.")
-  endif()
+  # Pre-fill outputs and template lists
+  set(outfiles ${CGOPTS_TEMPLATES})
+  set(templates)
+  
+  foreach(tname ${CGOPTS_TEMPLATES})
 
+    if (DEFINED CGOPTS_TEMPLATES_PACKAGE)
+      # if template package defined, use the template names passed as arguments
+      set(templ_root ${tname})
+    else()
+      # take them from moo otherwise
+      string(TOLOWER ${tname} tname_lc)
+      set(templ_root "o${tname_lc}")
+    endif()
+    # Append adding jinja's extension
+    list(APPEND templates "${templ_root}.j2")
+  endforeach()
 
+  # Resolve the list of files
   set(schemas)
   foreach(f ${CGOPTS_UNPARSED_ARGUMENTS})
 
@@ -242,9 +262,8 @@ function(daq_codegen_schema)
     endif()
   endforeach()
 
+  # Generate!
   foreach(schemapath ${schemas})
-    # set(schemapath "${schemadir}/${schemafile}")
-    # set(${schemafile} )
     string(REPLACE "${schemadir}/" "" schemafile "${schemapath}")
 
     if (NOT EXISTS ${schemapath})
@@ -253,35 +272,41 @@ function(daq_codegen_schema)
 
     get_filename_component(schema ${schemafile} NAME_WE)
 
-    foreach (WHAT ${CGOPTS_TEMPLATES})
-      string(TOLOWER ${WHAT} WHAT_LC)
-      string(TOLOWER ${schema} schema_LC)
+    foreach( outfile templfile IN ZIP_LISTS outfiles templates)
+      message(NOTICE "Generating: " ${outfile} ${templfile})
 
-      # insert test in outdir if a TEST schema
+    # foreach (WHAT ${CGOPTS_TEMPLATES})
+      string(TOLOWER ${schema} schema_lc)
+
+      # define the output dir 
       set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
       if (${CGOPTS_TEST}) 
-          set(outdir "${outdir}/test")
+        set(outdir "${outdir}/test/src")
+      else()
+        set(outdir "${outdir}/include")
       endif()
-      set(outdir "${outdir}/src/${PROJECT_NAME}/${schema_LC}")
+      set(outdir "${outdir}/${PROJECT_NAME}/${schema_lc}")
+
 
       if (NOT EXISTS ${outdir})
         message(NOTICE "Creating ${outdir} to hold moo-generated plugin headers for ${schemafile} since it doesn't yet exist")
         file(MAKE_DIRECTORY ${outdir})
       endif()
 
-      set(outfile ${outdir}/${WHAT}.hpp)
-      string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outfile})
+      # set(outpath ${outdir}/${WHAT}.hpp)
+      set(outpath ${outdir}/${outfile})
+      string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outpath})
       string(REGEX REPLACE "[\./-]" "_" moo_target "moo${moo_target}")
       moo_associate(MPATH ${schemadir}
                     TPATH ${templatedir}
                     GRAFT /lang:ocpp.jsonnet
-                    TLAS  path=dunedaq.${PROJECT_NAME}.${schema_LC}
+                    TLAS  path=dunedaq.${PROJECT_NAME}.${schema_lc}
                           ctxpath=dunedaq       
                           os=${schemafile}
                     MODEL ${CGOPTS_MODEL}
-                    TEMPL ${WHAT}.hpp.j2
+                    TEMPL ${templfile}
                     # TEMPL o${WHAT_LC}.hpp.j2
-                    CODEGEN ${outfile}
+                    CODEGEN ${outpath}
                     CODEDEP ${schemadir}/${schemafile}
                     TARGET ${moo_target}
                     )
@@ -336,7 +361,7 @@ function(daq_add_plugin pluginname plugintype)
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
   target_include_directories(${pluginlibname} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
   )
   add_dependencies( ${pluginlibname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
@@ -421,8 +446,9 @@ function(daq_add_application appname)
   add_executable(${appname} ${appsrcs})
   target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES}) 
   # Add src to the include path for private headers
-  target_include_directories( ${appname}  
-    PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/src>
+  target_include_directories( ${appname} PRIVATE 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> 
+    $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
   )
   add_dependencies( ${appname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
@@ -470,7 +496,7 @@ function(daq_add_unit_test testname)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins>
 
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src>
   )
 
@@ -547,6 +573,7 @@ function(daq_install)
   endif()
 
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
+  install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )

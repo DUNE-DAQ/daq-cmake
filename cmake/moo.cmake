@@ -51,6 +51,7 @@ macro(moo_associate)
   add_custom_command(OUTPUT ${MC_CODEGEN} COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS} DEPENDS ${MC_CODEDEP})
   add_custom_target(${MC_TARGET} DEPENDS ${MC_CODEGEN})
 
+
 endmacro()
 
 
