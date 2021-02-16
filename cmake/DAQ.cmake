@@ -98,6 +98,157 @@ endmacro()
 
 
 ####################################################################################################
+# daq_codegen_schema:
+# Usage:
+# daq_codegen_schema( <schema filename> [TEST] [TEMPLATES <template filename1> ...] [MODEL <model filename>] )
+#
+# daq_codegen_schema will take the provided schema file name (minus
+# its path), and generate code from it using moo given the names of
+# the template files provided. If the code is meant for an entity in
+# the package's test/ subdirectory, "TEST" should be passed as an
+# argument, and the schema file's path will be assumed to be
+# "test/schema/" rather than merely "schema/". The MODEL argument is
+# optional; if no model file name is explicitly provided,
+# omodel.jsonnet from the moo package itself is used.
+
+function(daq_codegen_schema)
+
+  cmake_parse_arguments(CGOPTS "TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
+
+  # insert test in schemadir if a TEST schema
+  set(schemadir "${PROJECT_SOURCE_DIR}")
+  if (${CGOPTS_TEST}) 
+    set(schemadir "${schemadir}/test")
+  endif()
+  set(schemadir  "${schemadir}/schema/${PROJECT_NAME}")
+
+
+  # Fall back on omodel.jsonnet if no model is defined
+  if (NOT DEFINED CGOPTS_MODEL)
+    set(CGOPTS_MODEL omodel.jsonnet)
+  endif()
+
+  if (NOT DEFINED CGOPTS_TEMPLATES)
+    message(FATAL_ERROR "Error: No template defined.")
+  endif()
+
+  if (DEFINED CGOPTS_TEMPLATES_PACKAGE)
+    if (NOT DEFINED "${CGOPTS_TEMPLATES_PACKAGE}_CONFIG")
+      message(FATAL_ERROR "Error: package ${CGOPTS_TEMPLATES_PACKAGE} not loaded")
+    endif()
+
+    get_filename_component(templates_package_dir ${${CGOPTS_TEMPLATES_PACKAGE}_CONFIG} DIRECTORY)
+    set(template_dir "${templates_package_dir}/schema/${CGOPTS_TEMPLATES_PACKAGE}/templates")
+    set(template_pkg ${CGOPTS_TEMPLATES_PACKAGE})
+  else()
+    
+    set(template_dir ${schemadir})
+    set(template_pkg "moo")
+  endif()
+
+  # Pre-fill outputs and template lists
+  set(outfiles ${CGOPTS_TEMPLATES})
+  set(templates)
+  
+  foreach(tname ${CGOPTS_TEMPLATES})
+
+    if (DEFINED CGOPTS_TEMPLATES_PACKAGE)
+      # if template package defined, use the template names passed as arguments
+      set(templ_root ${tname})
+    else()
+      # take them from moo otherwise
+      string(TOLOWER ${tname} tname_lc)
+      set(templ_root "o${tname_lc}")
+    endif()
+    # Append adding jinja's extension
+    list(APPEND templates "${templ_root}.j2")
+  endforeach()
+
+  # Resolve the list of schema files
+  set(schemas)
+  foreach(f ${CGOPTS_UNPARSED_ARGUMENTS})
+
+    if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
+
+      set(fpaths)
+      file(GLOB fpaths CONFIGURE_DEPENDS ${schemadir}/${f})
+
+      if (fpaths)
+        set(schemas ${schemas} ${fpaths})
+      else()
+        message(WARNING "When defining list of schema files to perform code generation on, no files in ${CMAKE_CURRENT_SOURCE_DIR}/${schemadir} match the glob \"${f}\"")
+      endif()
+    else()
+       # may be generated file, so just add
+      set(schemas ${schemas} ${schemadir}/${f})
+    endif()
+  endforeach()
+
+  # Generate!
+  foreach(schemapath ${schemas})
+    string(REPLACE "${schemadir}/" "" schemafile "${schemapath}")
+
+    if (NOT EXISTS ${schemapath})
+      message(FATAL_ERROR "Error: auto-generation of schema-based headers from \"${schemafile}\" failed because ${schemapath} wasn't found")
+    endif()
+
+    get_filename_component(schema ${schemafile} NAME_WE)
+
+    foreach(outfile templfile IN ZIP_LISTS outfiles templates)
+      # message(NOTICE "Generating: " ${outfile} ${templfile})
+
+    # foreach (WHAT ${CGOPTS_TEMPLATES})
+      string(TOLOWER ${schema} schema_lc)
+
+      # define the output dir 
+      set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
+      if (${CGOPTS_TEST}) 
+        set(outdir "${outdir}/test/src")
+      else()
+        set(outdir "${outdir}/include")
+      endif()
+      set(outdir "${outdir}/${PROJECT_NAME}/${schema_lc}")
+
+
+      if (NOT EXISTS ${outdir})
+        message(NOTICE "Creating ${outdir} to hold moo-generated plugin headers for ${schemafile} since it doesn't yet exist")
+        file(MAKE_DIRECTORY ${outdir})
+      endif()
+
+      # Convenience variable
+      set(outpath ${outdir}/${outfile})
+
+      # Make up a target name
+      string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outpath})
+      string(REGEX REPLACE "[\./-]" "_" moo_target "moo_${PROJECT_NAME}${moo_target}")
+
+      # Creare a unique file for dependency tracking
+      string(REGEX REPLACE "[^a-zA-Z0-9]" "_" codedeps_filename "moo_render__${schemafile}__${model}__${template_pkg}_${templfile}")
+      
+
+      # Run moo
+      moo_render(
+        TARGET ${moo_target}
+        MPATH ${schemadir}
+        TPATH ${template_dir}
+        GRAFT /lang:ocpp.jsonnet
+        TLAS  path=dunedaq.${PROJECT_NAME}.${schema_lc}
+              ctxpath=dunedaq       
+              os=${schemafile}
+        MODEL ${CGOPTS_MODEL}
+        TEMPL ${templfile}
+        CODEGEN ${outpath}
+        CODEDEP ${schemadir}/${schemafile}
+        DEPS_DIR ${CMAKE_CODEGEN_BINARY_DIR}/deps
+      )
+      add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
+    endforeach()
+
+  endforeach()
+endfunction()
+
+
+####################################################################################################
 # daq_add_library:
 # Usage:
 # daq_add_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
@@ -151,11 +302,11 @@ function(daq_add_library)
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
     target_include_directories(${libname} PUBLIC 
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
     )
     target_include_directories(${libname} PRIVATE 
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
     )
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
@@ -173,150 +324,6 @@ function(daq_add_library)
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
-
-
-####################################################################################################
-# daq_codegen_schema:
-# Usage:
-# daq_codegen_schema( <schema filename> [TEST] [TEMPLATES <template filename1> ...] [MODEL <model filename>] )
-#
-# daq_codegen_schema will take the provided schema file name (minus
-# its path), and generate code from it using moo given the names of
-# the template files provided. If the code is meant for an entity in
-# the package's test/ subdirectory, "TEST" should be passed as an
-# argument, and the schema file's path will be assumed to be
-# "test/schema/" rather than merely "schema/". The MODEL argument is
-# optional; if no model file name is explicitly provided,
-# omodel.jsonnet from the moo package itself is used.
-
-# ---------------------------------------------------------------
-function(daq_codegen_schema)
-
-  cmake_parse_arguments(CGOPTS "TEST" "MODEL;TEMPLATES_PACKAGE" "TEMPLATES" ${ARGN})
-
-  # insert test in schemadir if a TEST schema
-  set(schemadir "${PROJECT_SOURCE_DIR}")
-  if (${CGOPTS_TEST}) 
-    set(schemadir "${schemadir}/test")
-  endif()
-  set(schemadir  "${schemadir}/schema")
-
-
-  # Fall back on omodel.jsonnet if no model is defined
-  if (NOT DEFINED CGOPTS_MODEL)
-    set(CGOPTS_MODEL omodel.jsonnet)
-  endif()
-
-  if (NOT DEFINED CGOPTS_TEMPLATES)
-    message(FATAL_ERROR "Error: No template defined.")
-  endif()
-
-  if (DEFINED CGOPTS_TEMPLATES_PACKAGE)
-    if (NOT DEFINED "${CGOPTS_TEMPLATES_PACKAGE}_CONFIG")
-      message(FATAL_ERROR "Error: package ${CGOPTS_TEMPLATES_PACKAGE} not loaded")
-    endif()
-
-    get_filename_component(templates_package_dir ${${CGOPTS_TEMPLATES_PACKAGE}_CONFIG} DIRECTORY)
-    set(templatedir "${templates_package_dir}/schema/${CGOPTS_TEMPLATES_PACKAGE}/templates")
-  else()
-    
-    set(templatedir ${schemadir})
-
-  endif()
-
-  # Pre-fill outputs and template lists
-  set(outfiles ${CGOPTS_TEMPLATES})
-  set(templates)
-  
-  foreach(tname ${CGOPTS_TEMPLATES})
-
-    if (DEFINED CGOPTS_TEMPLATES_PACKAGE)
-      # if template package defined, use the template names passed as arguments
-      set(templ_root ${tname})
-    else()
-      # take them from moo otherwise
-      string(TOLOWER ${tname} tname_lc)
-      set(templ_root "o${tname_lc}")
-    endif()
-    # Append adding jinja's extension
-    list(APPEND templates "${templ_root}.j2")
-  endforeach()
-
-  # Resolve the list of files
-  set(schemas)
-  foreach(f ${CGOPTS_UNPARSED_ARGUMENTS})
-
-    if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
-
-      set(fpaths)
-      file(GLOB fpaths CONFIGURE_DEPENDS ${schemadir}/${f})
-
-      if (fpaths)
-        set(schemas ${schemas} ${fpaths})
-      else()
-        message(WARNING "When defining list of schema files to perform code generation on, no files in ${CMAKE_CURRENT_SOURCE_DIR}/${schemadir} match the glob \"${f}\"")
-      endif()
-    else()
-       # may be generated file, so just add
-      set(schemas ${schemas} ${schemadir}/${f})
-    endif()
-  endforeach()
-
-  # Generate!
-  foreach(schemapath ${schemas})
-    string(REPLACE "${schemadir}/" "" schemafile "${schemapath}")
-
-    if (NOT EXISTS ${schemapath})
-      message(FATAL_ERROR "Error: auto-generation of schema-based headers from \"${schemafile}\" failed because ${schemapath} wasn't found")
-    endif()
-
-    get_filename_component(schema ${schemafile} NAME_WE)
-
-    foreach( outfile templfile IN ZIP_LISTS outfiles templates)
-      message(NOTICE "Generating: " ${outfile} ${templfile})
-
-    # foreach (WHAT ${CGOPTS_TEMPLATES})
-      string(TOLOWER ${schema} schema_lc)
-
-      # define the output dir 
-      set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
-      if (${CGOPTS_TEST}) 
-        set(outdir "${outdir}/test/src")
-      else()
-        set(outdir "${outdir}/include")
-      endif()
-      set(outdir "${outdir}/${PROJECT_NAME}/${schema_lc}")
-
-
-      if (NOT EXISTS ${outdir})
-        message(NOTICE "Creating ${outdir} to hold moo-generated plugin headers for ${schemafile} since it doesn't yet exist")
-        file(MAKE_DIRECTORY ${outdir})
-      endif()
-
-      # set(outpath ${outdir}/${WHAT}.hpp)
-      set(outpath ${outdir}/${outfile})
-      string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outpath})
-      string(REGEX REPLACE "[\./-]" "_" moo_target "moo${moo_target}")
-      moo_associate(MPATH ${schemadir}
-                    TPATH ${templatedir}
-                    GRAFT /lang:ocpp.jsonnet
-                    TLAS  path=dunedaq.${PROJECT_NAME}.${schema_lc}
-                          ctxpath=dunedaq       
-                          os=${schemafile}
-                    MODEL ${CGOPTS_MODEL}
-                    TEMPL ${templfile}
-                    # TEMPL o${WHAT_LC}.hpp.j2
-                    CODEGEN ${outpath}
-                    CODEDEP ${schemadir}/${schemafile}
-                    TARGET ${moo_target}
-                    )
-      add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
-    endforeach()
-
-  endforeach()
-endfunction()
-
-# ---------------------------------------------------------------
 
 
 ####################################################################################################
