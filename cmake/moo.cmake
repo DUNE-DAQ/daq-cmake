@@ -64,16 +64,20 @@ endfunction()
 
 #-----
 function(moo_render)
-  cmake_parse_arguments(MC "" "TARGET;MODEL;TEMPL;CODEGEN;MPATH;TPATH;GRAFT;CODEDEP;DEPS_DIR" "TLAS" ${ARGN})
+  cmake_parse_arguments(MC "" "TARGET;MODEL;TEMPL;CODEGEN;GRAFT;CODEDEP;DEPS_DIR" "TPATH;MPATH;TLAS" ${ARGN})
 
   if (NOT DEFINED MC_MPATH)
     set(MC_MPATH ${CMAKE_CURRENT_SOURCE_DIR})
   endif()
+
   if (NOT DEFINED MC_TPATH)
     set(MC_TPATH ${CMAKE_CURRENT_SOURCE_DIR})
   endif()
 
-  set(MC_BASE_ARGS -T ${MC_TPATH} -M ${MC_MPATH})
+  list(TRANSFORM MC_TPATH PREPEND "-T")
+  list(TRANSFORM MC_MPATH PREPEND "-M")
+
+  set(MC_BASE_ARGS ${MC_TPATH} ${MC_MPATH})
 
   if (DEFINED MC_GRAFT) 
     list(APPEND MC_BASE_ARGS -g ${MC_GRAFT})
