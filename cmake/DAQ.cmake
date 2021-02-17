@@ -48,13 +48,20 @@ macro(daq_setup_environment)
 
   enable_testing()
 
+  set(PRE_BUILD_STAGE_DONE_TRGT ${PROJECT_NAME}_pre_build_stage_done)
+  add_custom_target(${PRE_BUILD_STAGE_DONE_TRGT})
+
   set(directories_to_copy)
   file(GLOB directories_to_copy CONFIGURE_DEPENDS "scripts" "test/scripts" "python" "schema" "config")
         
   foreach(directory_to_copy ${directories_to_copy})
-    string(REPLACE "/" "_" directory_as_target ${directory_to_copy})
-    string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}" dest ${directory_to_copy})
-    add_custom_target(copy_files_${PROJECT_NAME}_${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${directory_to_copy} ${dest})
+    message(WARNING "${directory_to_copy}   ${CMAKE_CURRENT_SOURCE_DIR}")
+    string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" directory_to_copy_short "${directory_to_copy}")
+    string(REPLACE "/" "_" directory_as_target ${directory_to_copy_short})
+    set(source "${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy_short}")
+    set(dest "${CMAKE_CURRENT_BINARY_DIR}/${directory_to_copy_short}")
+    add_custom_target(copy_files_${PROJECT_NAME}_${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${source} ${dest})
+    add_dependencies(${PRE_BUILD_STAGE_DONE_TRGT} copy_files_${PROJECT_NAME}_${directory_as_target})
   endforeach()
 
 
@@ -134,6 +141,9 @@ function(daq_add_library)
     add_library(${libname} SHARED ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
     target_include_directories(${libname} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> )
+    target_include_directories(${libname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
+    target_include_directories(${libname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+    add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
   else()
     add_library(${libname} INTERFACE)
@@ -188,11 +198,14 @@ function(daq_add_plugin pluginname plugintype)
 
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
   target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
+  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  add_dependencies( ${pluginlibname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
 
   if ( ${PLUGOPTS_TEST} ) 
     target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
+    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
   else()
     _daq_define_exportname()
     install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -222,9 +235,9 @@ function(daq_add_plugin pluginname plugintype)
       string(TOLOWER ${pluginname} pluginname_LC)
 
       if(NOT ${PLUGOPTS_TEST})
-         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/src/${PROJECT_NAME}/${pluginname_LC})
+         set(outdir ${CMAKE_CURRENT_BINARY_DIR}/codegen/src/${PROJECT_NAME}/${pluginname_LC})
       else()
-         set(outdir ${CMAKE_CURRENT_SOURCE_DIR}/test/src/${PROJECT_NAME}/${pluginname_LC})
+         set(outdir ${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src/${PROJECT_NAME}/${pluginname_LC})
       endif()
 
       if (NOT EXISTS ${outdir})
@@ -232,18 +245,24 @@ function(daq_add_plugin pluginname plugintype)
         file(MAKE_DIRECTORY ${outdir})
       endif()
 
+      # string(REGEX REPLACE "[\./-]" "_" unique_target_name ${MC_CODEGEN})
+
+      set(outfile ${outdir}/${WHAT}.hpp)
+      string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outfile})
+      string(REGEX REPLACE "[\./-]" "_" moo_target "moo${moo_target}")
       moo_associate(MPATH ${schemadir}
                     TPATH ${schemadir}
                     GRAFT /lang:ocpp.jsonnet
-		    TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
-		          ctxpath=dunedaq	
-		          os=${schemafile}
-       		    MODEL omodel.jsonnet
-  		    TEMPL o${WHAT_LC}.hpp.j2
-		    CODEGEN ${outdir}/${WHAT}.hpp
-		    CODEDEP ${schemadir}/${schemafile}
-		    TARGET ${pluginlibname}
-	            )
+                    TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
+                          ctxpath=dunedaq       
+                          os=${schemafile}
+                    MODEL omodel.jsonnet
+                    TEMPL o${WHAT_LC}.hpp.j2
+                    CODEGEN ${outfile}
+                    CODEDEP ${schemadir}/${schemafile}
+                    TARGET ${moo_target}
+                    )
+      add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
     endforeach()
 
   endif()
@@ -304,12 +323,15 @@ function(daq_add_application appname)
   target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES}) 
   # Add src to the include path for private headers
   target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
+  target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  add_dependencies( ${appname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   _daq_set_target_output_dirs( ${appname} ${APP_PATH} )
 
   if( ${APPOPTS_TEST} )
     # Add test/src to the include path for private "test" headers
     target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
+    target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
   else()
     _daq_define_exportname()
     install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
@@ -345,6 +367,9 @@ function(daq_add_unit_test testname)
   target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
   target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
   target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins> )
+  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
+  add_dependencies( ${testname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   add_test(NAME ${testname} COMMAND ${testname})
 
@@ -407,7 +432,7 @@ endmacro()
 
 function(daq_install) 
 
-  _daq_gather_info()		      
+  _daq_gather_info()                  
   install(FILES ${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
 
   ## AT HACK ALERT
