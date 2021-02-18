@@ -52,7 +52,14 @@ macro(daq_setup_environment)
   add_custom_target(${PRE_BUILD_STAGE_DONE_TRGT})
 
   set(directories_to_copy)
-  file(GLOB directories_to_copy CONFIGURE_DEPENDS "scripts" "test/scripts" "python" "schema" "config")
+  file(GLOB directories_to_copy CONFIGURE_DEPENDS 
+    "scripts" 
+    "python" 
+    "schema" 
+    "config"
+    "test/scripts" 
+    "test/schema" 
+  )
         
   foreach(directory_to_copy ${directories_to_copy})
     message(WARNING "${directory_to_copy}   ${CMAKE_CURRENT_SOURCE_DIR}")
