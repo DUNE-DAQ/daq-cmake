@@ -113,7 +113,7 @@ endmacro()
 
 function(daq_codegen_schema)
 
-  cmake_parse_arguments(CGOPTS "TEST" "MODEL;TEMPL_PKG" "MPATH_PKGS;TEMPL" ${ARGN})
+  cmake_parse_arguments(CGOPTS "TEST" "MODEL" "TPATH_PKGS;MPATH_PKGS;TEMPL" ${ARGN})
 
   # insert test in schema_dir if a TEST schema
   set(schema_dir "${PROJECT_SOURCE_DIR}")
@@ -124,7 +124,7 @@ function(daq_codegen_schema)
 
   # TEMPL is mandatory
   if (NOT DEFINED CGOPTS_TEMPL)
-    message(FATAL_ERROR "Error: No template defined.")
+    message(FATAL_ERROR "ERROR: No template defined.")
   endif()
 
   # Fall back on omodel.jsonnet if no model is defined
@@ -132,12 +132,12 @@ function(daq_codegen_schema)
     set(CGOPTS_MODEL omodel.jsonnet)
   endif()
 
-  # Build the list of paths
+  # Build the list of module paths
   set(mpaths ${schema_dir})
   if (DEFINED CGOPTS_MPATH_PKGS)
     foreach(m_pkg ${CGOPTS_MPATH_PKGS})
       if (NOT DEFINED "${m_pkg}_CONFIG")
-        message(FATAL_ERROR "Error: package ${m_pkg} not loaded")
+        message(FATAL_ERROR "ERROR: package ${m_pkg} not loaded")
       endif()
 
       get_filename_component(m_pkg_dir ${${m_pkg}_CONFIG} DIRECTORY)
@@ -145,45 +145,51 @@ function(daq_codegen_schema)
     endforeach()
   endif()
 
-  # Handle the case where templates re froma  different package
-  if (DEFINED CGOPTS_TEMPL_PKG)
-    if (NOT DEFINED "${CGOPTS_TEMPL_PKG}_CONFIG")
-      message(FATAL_ERROR "Error: package ${CGOPTS_TEMPL_PKG} not loaded")
-    endif()
+  # Build the list of template paths
+  set(tpaths ${schema_dir})
+  if (DEFINED CGOPTS_TPATH_PKGS)
+    foreach(t_pkg ${CGOPTS_TPATH_PKGS})
+      if (NOT DEFINED "${t_pkg}_CONFIG")
+        message(FATAL_ERROR "ERROR: package ${t_pkg} not loaded")
+      endif()
 
-    get_filename_component(templ_pkg_dir ${${CGOPTS_TEMPL_PKG}_CONFIG} DIRECTORY)
-    set(templ_dir "${templ_pkg_dir}/schema/${CGOPTS_TEMPL_PKG}/templates")
-    set(templ_pkg ${CGOPTS_TEMPL_PKG})
-  else()
-    
-    set(templ_dir ${schema_dir}/${PROJECT_NAME}/templates)
-
-    file(GLOB CONFIGURE_DEPENDS RESULT ${templ_dir})
-    list(LENGTH RESULT RES_LEN)
-    if(RES_LEN EQUAL 0)
-    # DIR is empty, do something
-      message(NOTICE "No template directory found for ${PROJECT_NAME}")
-      set(templ_dir ${CMAKE_CURRENT_SOURCE_DIR})
-    endif()
-    set(templ_pkg "moo")
+      get_filename_component(t_pkg_dir ${${t_pkg}_CONFIG} DIRECTORY)
+      list(APPEND tpaths "${t_pkg_dir}/schema")
+    endforeach()
   endif()
 
 
-  # Define outputs and template lists
-  set(outfiles ${CGOPTS_TEMPL})
+  # Expect <pkgA>/<templA.ext.j2> <pkgB>/<templB.ext.j2> Struct.hpp.j2
+  # -> outfiles = templA.ext templB.ext Struct.hpp
+  # -> templates = pkgA/templA.ext.j2 pkgB/templB.ext.j2 ostruct.hpp.j2
+  set(outfiles)
   set(templates)
   foreach(tname ${CGOPTS_TEMPL})
-    if (DEFINED CGOPTS_TEMPL_PKG)
-      # if template package defined, use the template names passed as arguments
-      set(templ_root ${tname})
-    else()
-      # take them from moo otherwise
-      string(TOLOWER ${tname} tname_lc)
-      set(templ_root "o${tname_lc}")
+    get_filename_component(tbase ${tname} NAME)
+    get_filename_component(tdir ${tname} DIRECTORY)
+    get_filename_component(text ${tname} LAST_EXT)
+    get_filename_component(tout ${tname} NAME_WLE)
+
+    # message(NOTICE '${tbase}')
+    # message(NOTICE '${tdir}')
+    # message(NOTICE '${text}')
+    # message(NOTICE '${tout}')
+
+    if (NOT "${text}" STREQUAL ".j2")
+      message(FATAL_ERROR "ERROR: ${tname} is not a jinja template. '${text}' ")
     endif()
-    # Append adding jinja's extension
-    list(APPEND templates "${templ_root}.j2")
+
+    # Fall back on moo templates if the template has no "namespace"
+    if ("${tdir}" STREQUAL "")
+      string(TOLOWER ${tname} tname_lc)
+      list(APPEND templates "o${tname_lc}")
+    else()
+      list(APPEND templates ${tname})
+    endif()
+
+    list(APPEND outfiles ${tout})
   endforeach()
+
 
   # Resolve the list of schema files
   set(schemas)
@@ -210,12 +216,13 @@ function(daq_codegen_schema)
     string(REPLACE "${schema_dir}/" "" schema_file "${schema_path}")
 
     if (NOT EXISTS ${schema_path})
-      message(FATAL_ERROR "Error: auto-generation of schema-based headers from \"${schema_file}\" failed because ${schema_path} could not be found")
+      message(FATAL_ERROR "ERROR: auto-generation of schema-based headers from \"${schema_file}\" failed because ${schema_path} could not be found")
     endif()
 
     get_filename_component(schema ${schema_file} NAME_WE)
 
     foreach(outfile templfile IN ZIP_LISTS outfiles templates)
+      # message(NOTICE ${schema} ${outfile} ${templfile})
 
       string(TOLOWER ${schema} schema_lc)
 
@@ -249,7 +256,7 @@ function(daq_codegen_schema)
       moo_render(
         TARGET ${moo_target}
         MPATH "${mpaths}"
-        TPATH ${templ_dir}
+        TPATH "${tpaths}"
         GRAFT /lang:ocpp.jsonnet
         TLAS  path=dunedaq.${PROJECT_NAME}.${schema_lc}
               ctxpath=dunedaq       
@@ -614,13 +621,13 @@ function(daq_install)
   if (DEFINED PROJECT_VERSION)
     write_basic_package_version_file(${versionfile} COMPATIBILITY ExactVersion)
   else()
-    message(FATAL_ERROR "Error: the PROJECT_VERSION CMake variable needs to be defined in order to install. The way to do this is by adding the version to the project() call at the top of your CMakeLists.txt file, e.g. \"project(${PROJECT_NAME} VERSION 1.0.0)\"")
+    message(FATAL_ERROR "ERROR: the PROJECT_VERSION CMake variable needs to be defined in order to install. The way to do this is by adding the version to the project() call at the top of your CMakeLists.txt file, e.g. \"project(${PROJECT_NAME} VERSION 1.0.0)\"")
   endif()
 
   if (EXISTS ${configfiletemplate})
     configure_package_config_file(${configfiletemplate} ${configfile} INSTALL_DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
   else()
-     message(FATAL_ERROR "Error: unable to find needed file ${configfiletemplate} for ${PROJECT_NAME} installation")
+     message(FATAL_ERROR "ERROR: unable to find needed file ${configfiletemplate} for ${PROJECT_NAME} installation")
   endif()
 
   install(FILES ${versionfile} ${configfile} DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
