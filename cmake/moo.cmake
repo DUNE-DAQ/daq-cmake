@@ -64,7 +64,7 @@ endfunction()
 
 #-----
 function(moo_render)
-
+  # message(NOTICE "moo_render ${ARGN}")
   cmake_parse_arguments(MC "" "TARGET;MODEL;TEMPL;CODEGEN;GRAFT;CODEDEP;DEPS_DIR" "TPATH;MPATH;TLAS" ${ARGN})
 
   if (NOT DEFINED MC_MPATH)
