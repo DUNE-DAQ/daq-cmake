@@ -98,22 +98,41 @@ endmacro()
 
 
 ####################################################################################################
-# daq_codegen_schema:
+# daq_codegen:
 # Usage:
-# daq_codegen_schema( <schema filename> [TEST] [TEMPL <template filename1> ...] [MODEL <model filename>] )
+# daq_codegen( <schema filename> [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>] 
+#              [TEMPLATES <template filename1> ...] )
 #
-# daq_codegen_schema will take the provided schema file name (minus
+# daq_codegen will take the provided schema files (minus
 # its path), and generate code from it using moo given the names of
-# the template files provided. If the code is meant for an entity in
-# the package's test/ subdirectory, "TEST" should be passed as an
-# argument, and the schema file's path will be assumed to be
-# "test/schema/" rather than merely "schema/". The MODEL argument is
-# optional; if no model file name is explicitly provided,
-# omodel.jsonnet from the moo package itself is used.
+# the template files provided. 
+# 
+# Arguments:
+#    <schema filenames>: The list of schema files to process from <package>/schema/<package>. 
+#    Each schema file will applied to each template (specified by the TEMPLATE argument).
+#    Each schema/template pair will generate a code file in 
+#       build/<package>/codegen/include/<schema basename>/<template basename>
+#    e.g. myschema.jsonnet (from my_pkg) + your_pkg/YourStruct.hpp.j2 will result in
+#        build/codegen/my_pkg/my_schema/YourStruct.hpp
+#
+#    TEST: If the code is meant for an entity in the package's test/ subdirectory, "TEST"
+#      should be passed as an argument, and the schema file's path will be assumed to be
+#      "test/schema/" rather than merely "schema/". 
+#
+#    DEP_PKGS: If schema, template or model files depend on files provided by other DAQ packages,
+#      the "DEP_PKGS" argument must contain the list of packages.
+#
+#    MODEL: The MODEL argument is # optional; if no model file name is explicitly provided,
+#      omodel.jsonnet from the moo package itself is used.
+#
+#    TEMPLATES: The list of templates to use. This is a mandatory argument. The template file format is 
+#        <template package>/<template name>.j2
+#      If <template package> is omitted, the template is expected to be made available by moo.
+#    
 
-function(daq_codegen_schema)
+function(daq_codegen)
 
-  cmake_parse_arguments(CGOPTS "TEST" "MODEL" "TPATH_PKGS;MPATH_PKGS;TEMPL" ${ARGN})
+  cmake_parse_arguments(CGOPTS "TEST" "MODEL" "DEP_PKGS;TEMPLATES" ${ARGN})
 
   # insert test in schema_dir if a TEST schema
   set(schema_dir "${PROJECT_SOURCE_DIR}")
@@ -122,8 +141,8 @@ function(daq_codegen_schema)
   endif()
   set(schema_dir  "${schema_dir}/schema")
 
-  # TEMPL is mandatory
-  if (NOT DEFINED CGOPTS_TEMPL)
+  # TEMPLATES is mandatory
+  if (NOT DEFINED CGOPTS_TEMPLATES)
     message(FATAL_ERROR "ERROR: No template defined.")
   endif()
 
@@ -133,48 +152,29 @@ function(daq_codegen_schema)
   endif()
 
   # Build the list of module paths
-  set(mpaths ${schema_dir})
-  if (DEFINED CGOPTS_MPATH_PKGS)
-    foreach(m_pkg ${CGOPTS_MPATH_PKGS})
-      # message(NOTICE "${PROJECT_NAME} m_pkg ${m_pkg}")
-      if (NOT DEFINED "${m_pkg}_DAQSHARE")
-        if (NOT DEFINED "${m_pkg}_CONFIG")
-          message(FATAL_ERROR "ERROR: package ${m_pkg} not found/imported.")
+  set(dep_paths ${schema_dir})
+  if (DEFINED CGOPTS_DEP_PKGS)
+    foreach(dep_pkg ${CGOPTS_DEP_PKGS})
+      # message(NOTICE "${PROJECT_NAME} dep_pkg ${dep_pkg}")
+      if (NOT DEFINED "${dep_pkg}_DAQSHARE")
+        if (NOT DEFINED "${dep_pkg}_CONFIG")
+          message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
         else()
-          message(FATAL_ERROR "ERROR: package ${m_pkg} does not provide the ${m_pkg}_DAQSHARE path variable.")
+          message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
         endif()
       endif()
 
-      list(APPEND mpaths "${${m_pkg}_DAQSHARE}/schema")
-      # message(NOTICE "${PROJECT_NAME} mpath ${mpaths}")
+      list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}/schema")
+      # message(NOTICE "${PROJECT_NAME} mpath ${dep_paths}")
     endforeach()
   endif()
-
-  # Build the list of template paths
-  set(tpaths ${schema_dir})
-  if (DEFINED CGOPTS_TPATH_PKGS)
-    foreach(t_pkg ${CGOPTS_TPATH_PKGS})
-      # message(NOTICE "${PROJECT_NAME} t_pkg ${t_pkg}")
-      if (NOT DEFINED "${t_pkg}_DAQSHARE")
-        if (NOT DEFINED "${t_pkg}_CONFIG")
-          message(FATAL_ERROR "ERROR: package ${t_pkg} not found/imported.")
-        else()
-          message(FATAL_ERROR "ERROR: package ${t_pkg} does not provide the ${t_pkg}_DAQSHARE path variable.")
-        endif()
-      endif()
-
-      list(APPEND tpaths "${${t_pkg}_DAQSHARE}/schema")
-      # message(NOTICE "${PROJECT_NAME} tpath ${tpaths}")
-    endforeach()
-  endif()
-
 
   # Expect <pkgA>/<templA.ext.j2> <pkgB>/<templB.ext.j2> Struct.hpp.j2
   # -> outfiles = templA.ext templB.ext Struct.hpp
   # -> templates = pkgA/templA.ext.j2 pkgB/templB.ext.j2 ostruct.hpp.j2
   set(outfiles)
   set(templates)
-  foreach(tname ${CGOPTS_TEMPL})
+  foreach(tname ${CGOPTS_TEMPLATES})
     get_filename_component(tbase ${tname} NAME)
     get_filename_component(tdir ${tname} DIRECTORY)
     get_filename_component(text ${tname} LAST_EXT)
@@ -265,8 +265,8 @@ function(daq_codegen_schema)
       # Run moo
       moo_render(
         TARGET ${moo_target}
-        MPATH "${mpaths}"
-        TPATH "${tpaths}"
+        MPATH "${dep_paths}"
+        TPATH "${dep_paths}"
         GRAFT /lang:ocpp.jsonnet
         TLAS  path=dunedaq.${PROJECT_NAME}.${schema_lc}
               ctxpath=dunedaq       
@@ -420,17 +420,6 @@ function(daq_add_plugin pluginname plugintype)
     install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
     set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
   endif()
-
-  # Figure out if we need to generate code off of a schema and
-  # rebuild the plugin whenever the schema is edited
-
-  # if (${PLUGOPTS_SCHEMA})
-  #   if (${PLUGOPTS_TEST})
-  #     set(options TEST)
-  #   endif()
-  #   daq_codegen_schema(${PROJECT_NAME}/${pluginname}.jsonnet ${PLUGOPTS_TEST} TEMPL Structs Nljs)
-
-  # endif()
 
 endfunction()
 

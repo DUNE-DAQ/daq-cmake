@@ -3,34 +3,13 @@
 set(MOO_CMD "moo" CACHE STRING "The 'moo' command")
 
 
-# https://cmake.org/pipermail/cmake/2009-December/034253.html
 
-# Given a source file name set <prefix>_DEPS_FILE to a file name and
-# <prefix>_DEPS_NAME to a variable name.  The file name is suitable
-# for use in "moo imports -o ${<prefix>_DEPS_FILE} ..." such that when
-# this file is included into cmake the ${${<prefix>_DEPS_NAME}} will
-# contain the list of import dependencies that moo calculated.
-# function(moo_deps_name source prefix)
-#   get_filename_component(basename ${source} NAME)
-#   get_filename_component(fullpath ${source} REALPATH)
-#   string(CONCAT DEPS_NAME "${basename}" "_deps") #make unique
-#   string(REGEX REPLACE "[^a-zA-Z0-9]" "_" DEPS_NAME "${DEPS_NAME}")
-#   set("${prefix}_DEPS_FILE" "${CMAKE_CURRENT_BINARY_DIR}/${DEPS_NAME}.cmake" PARENT_SCOPE)
-#   string(TOUPPER "${DEPS_NAME}" DEPS_NAME)
-#   set("${prefix}_DEPS_NAME" "${DEPS_NAME}" PARENT_SCOPE)
-# endfunction()
-
-# ----
-# function(moo_deps_name deps_dir target source prefix)
-#   get_filename_component(basename ${source} NAME)
-#   string(REGEX REPLACE "[^a-zA-Z0-9]" "_" basename "${basename}")
-#   set("${prefix}_DEPS_TARGET" "${target}__${basename}_deps" PARENT_SCOPE)
-#   set("${prefix}_DEPS_FILE" "${deps_dir}/${target}__${basename}.d" PARENT_SCOPE)
-#   set("${prefix}_DEPS_PHONY" "${deps_dir}/${target}__${basename}.d.phony" PARENT_SCOPE)
-#   # set("${prefix}_DEPS_PHONY" "${${prefix}_DEPS_NAME}.phony" PARENT_SCOPE)
-# endfunction()
-
-# ----
+####################################################################################################
+# moo_update_deps:
+#
+# moo_update_deps is an utility function to handle moo dependencies behind the scenes.
+# It creates a custom target to generate a moo dependency files and sets its modification date to 
+# the most reacent file listed in the dependencies
 function(moo_update_deps base_args deps_dir main_target source target_prefix)
 
   get_filename_component(basename ${source} NAME)
@@ -62,7 +41,27 @@ function(moo_update_deps base_args deps_dir main_target source target_prefix)
 endfunction()
 
 
-#-----
+####################################################################################################
+# moo_update_deps:
+# Usage:
+# moo_render( TARGET <target name> MODEL <model name> TEMPL <template> CODEGEN <output file> 
+#             DEPS_DIR <dependency file dir>  CODEDEP <extra dependency> [GRAFT <graft name>] 
+#             [MPATH <module path 1> ...] [TPATH <template path 1> ...] [TLA <arg1>...]) 
+#
+# moo_update_deps is an utility function to handle moo dependencies behind the scenes.
+# It creates a custom target to generate a moo dependency files and sets its modification date to 
+# the most reacent file listed in the dependencies
+# 
+# Arguments:
+#    TARGET: Custom target name for this code generation
+#    MODEL: Model file
+#    TEMPL: Template file
+#    DEPS_DIR: destination directory of the dependency file
+#    CODEDEP: schema file path ()
+#    GRAFT: name of the graft
+#    MPATH, TPATH: Module and template search paths
+#    TLA: Top-level arguments
+#
 function(moo_render)
   # message(NOTICE "moo_render ${ARGN}")
   cmake_parse_arguments(MC "" "TARGET;MODEL;TEMPL;CODEGEN;GRAFT;CODEDEP;DEPS_DIR" "TPATH;MPATH;TLAS" ${ARGN})
