@@ -189,7 +189,7 @@ function(daq_codegen)
       string(TOLOWER ${tname} tname_lc)
       list(APPEND templates "o${tname_lc}")
     else()
-      list(APPEND templates ${tbase})
+      list(APPEND templates ${tname})
     endif()
 
     list(APPEND outfiles ${tout})
