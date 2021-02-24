@@ -52,7 +52,7 @@ macro(daq_setup_environment)
   enable_testing()
 
   set(PRE_BUILD_STAGE_DONE_TRGT ${PROJECT_NAME}_pre_build_stage_done)
-  add_custom_target(${PRE_BUILD_STAGE_DONE_TRGT})
+  add_custom_target(${PRE_BUILD_STAGE_DONE_TRGT} ALL)
 
   set(directories_to_copy)
   file(GLOB directories_to_copy CONFIGURE_DEPENDS 
