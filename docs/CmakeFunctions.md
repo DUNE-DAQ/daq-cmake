@@ -3,7 +3,8 @@
 ## daq_setup_environment:
 Usage:  
 
-```daq_setup_environment()
+```
+daq_setup_environment()
 ```
 
 This macro should be called immediately after this DAQ module is
@@ -44,7 +45,8 @@ Arguments:
 
 ## daq_add_library:
 Usage:  
-```daq_add_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
+```
+daq_add_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
 ```
 
 `daq_add_library` is designed to produce the main library provided by
@@ -62,7 +64,8 @@ System) library
 
 ## daq_add_plugin:
 Usage:  
-```daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...])
+```
+daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...])
 ```
 
 `daq_add_plugin` will build a plugin of type <plugin type> with the
@@ -82,7 +85,8 @@ plugin, it will look in `test/src/`.
 ## daq_add_application
 
 Usage:  
-```daq_add_application(<application name> <file | glob expression> ... [TEST] [LINK_LIBRARIES <lib1> ...])
+```
+daq_add_application(<application name> <file | glob expression> ... [TEST] [LINK_LIBRARIES <lib1> ...])
 ```
 
 This function is designed to build a standalone application in your
@@ -98,7 +102,8 @@ libraries to link against, following the `LINK_LIBRARIES` token.
 
 ## daq_add_unit_test
 Usage:  
-```daq_add_unit_test(<unit test name> [LINK_LIBRARIES <lib1> ...])
+```
+daq_add_unit_test(<unit test name> [LINK_LIBRARIES <lib1> ...])
 ```
 
 This function, when given the extension-free name of a unit test
@@ -110,7 +115,9 @@ token.
 
 ## daq_install
 Usage:  
-```daq_install()```
+```
+daq_install()
+```
 
 This function should be called at the bottom of a project's
 `CMakeLists.txt` file in order to install the project's targets. It takes no
