@@ -345,7 +345,8 @@ function(daq_add_library)
     add_library(${libname} INTERFACE)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
     target_include_directories(${libname} INTERFACE 
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include> 
       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
   endif()
