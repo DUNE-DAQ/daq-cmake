@@ -62,19 +62,42 @@ These are its key features:
 
 ## Upgrade guide
 
+### Schema files
+
+1. Create the `schema/<package>` directory and move existing schema files in there
+2. Rename the schema file according to the schema path
+
+e.g. `schema/appfwk-cmd-schema.jsonnet` to `schema/appfwk/cmd.jsonnet`
+
 ### CMakeList.txt
+
+1. Remove `SCHEMA` from `daq_add_plugin(...)` if it's used
+2. Add `daq_codegen(...)` with appropriate parameters. In most of the cases the following should work
+   ```
+   daq_codegen(*.jsonnet TEMPLATES Struct.hpp.j2 Nljs.hpp.j2)
+   ```
 
 ### config.cmake.in
 
-Add the following line to `<pkg>Config.cmake.in`:
+1. Add the following lines to `<pkg>Config.cmake.in`:
 
-```diff
-add_library(@PROJECT_NAME@::@PROJECT_NAME@ ALIAS @PROJECT_NAME@)
-
-+ get_filename_component(@PROJECT_NAME@_DAQSHARE "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
-
-else()
-```
+   ```diff
+   add_library(@PROJECT_NAME@::@PROJECT_NAME@ ALIAS @PROJECT_NAME@)
+   
+   + get_filename_component(@PROJECT_NAME@_DAQSHARE "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
+   
+   else()
+   ```
+   
+   and
+   
+   ```diff
+   include(${targets_file})
+   
+   + set(@PROJECT_NAME@_DAQSHARE "${CMAKE_CURRENT_LIST_DIR}/../../../share")
+   
+   endif()
+   ```
 
 
 
