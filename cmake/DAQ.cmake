@@ -103,9 +103,8 @@ endmacro()
 # daq_codegen( <schema filename> [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>] 
 #              [TEMPLATES <template filename1> ...] )
 #
-# daq_codegen will take the provided schema files (minus
-# its path), and generate code from it using moo given the names of
-# the template files provided. 
+#`daq_codegen` uses `moo` to generate C++ headers from schema files from schema/<package> applying 
+# them to one or more templates.
 # 
 # Arguments:
 #    <schema filenames>: The list of schema files to process from <package>/schema/<package>. 
