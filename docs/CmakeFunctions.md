@@ -2,7 +2,9 @@
 
 ## daq_setup_environment:
 Usage:  
-```daq_setup_environment()```
+
+```daq_setup_environment()
+```
 
 This macro should be called immediately after this DAQ module is
 included in your DUNE DAQ project's CMakeLists.txt file; it ensures
@@ -16,8 +18,7 @@ daq_codegen( <schema filename> [TEST] [DEP_PKGS <package 1> ...] [MODEL <model f
              [TEMPLATES <template filename1> ...] )
 ```
 
-`daq_codegen` will take the provided schema files (without path), and generate code from it using moo given the names of
-the template files provided. 
+`daq_codegen` takes the schema files (without path) and uses `moo` to generate C++ headers from the templates.
 
 Arguments:
    `<schema filenames>`: The list of schema files to process from `<package>/schema/<package>`. 
@@ -43,7 +44,8 @@ Arguments:
 
 ## daq_add_library:
 Usage:  
-```daq_add_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])```
+```daq_add_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
+```
 
 `daq_add_library` is designed to produce the main library provided by
 a project for its dependencies to link in. It will compile a group
@@ -60,7 +62,8 @@ System) library
 
 ## daq_add_plugin:
 Usage:  
-```daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...])```
+```daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...])
+```
 
 `daq_add_plugin` will build a plugin of type <plugin type> with the
 user-defined name `<plugin name>`. It will expect that there's a file
@@ -79,7 +82,8 @@ plugin, it will look in `test/src/`.
 ## daq_add_application
 
 Usage:  
-```daq_add_application(<application name> <file | glob expression> ... [TEST] [LINK_LIBRARIES <lib1> ...])```
+```daq_add_application(<application name> <file | glob expression> ... [TEST] [LINK_LIBRARIES <lib1> ...])
+```
 
 This function is designed to build a standalone application in your
 project. Its first argument is simply the desired name of the
@@ -94,7 +98,8 @@ libraries to link against, following the `LINK_LIBRARIES` token.
 
 ## daq_add_unit_test
 Usage:  
-```daq_add_unit_test(<unit test name> [LINK_LIBRARIES <lib1> ...])```
+```daq_add_unit_test(<unit test name> [LINK_LIBRARIES <lib1> ...])
+```
 
 This function, when given the extension-free name of a unit test
 sourcefile in `unittest/`, will handle the needed boost functionality
