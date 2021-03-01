@@ -103,9 +103,8 @@ endmacro()
 # daq_codegen( <schema filename> [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>] 
 #              [TEMPLATES <template filename1> ...] )
 #
-# daq_codegen will take the provided schema files (minus
-# its path), and generate code from it using moo given the names of
-# the template files provided. 
+#`daq_codegen` uses `moo` to generate C++ headers from schema files from schema/<package> applying 
+# them to one or more templates.
 # 
 # Arguments:
 #    <schema filenames>: The list of schema files to process from <package>/schema/<package>. 
@@ -229,8 +228,6 @@ function(daq_codegen)
     foreach(outfile templfile IN ZIP_LISTS outfiles templates)
       # message(NOTICE ${schema} ${outfile} ${templfile})
 
-      string(TOLOWER ${schema} schema_lc)
-
       # define the output dir 
       set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
       if (${CGOPTS_TEST}) 
@@ -238,7 +235,7 @@ function(daq_codegen)
       else()
         set(outdir "${outdir}/include")
       endif()
-      set(outdir "${outdir}/${PROJECT_NAME}/${schema_lc}")
+      set(outdir "${outdir}/${PROJECT_NAME}/${schema}")
 
 
       if (NOT EXISTS ${outdir})
@@ -263,7 +260,7 @@ function(daq_codegen)
         MPATH "${dep_paths}"
         TPATH "${dep_paths}"
         GRAFT /lang:ocpp.jsonnet
-        TLAS  path=dunedaq.${PROJECT_NAME}.${schema_lc}
+        TLAS  path=dunedaq.${PROJECT_NAME}.${schema}
               ctxpath=dunedaq       
               os=${schema_file}
         MODEL ${CGOPTS_MODEL}
