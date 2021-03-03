@@ -31,6 +31,9 @@ macro(daq_setup_environment)
   # Needed for clang-tidy (called by our linters) to work
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+  set(CMAKE_CODEGEN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/codegen")
+
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_SCHEMADIR  ${CMAKE_INSTALL_DATADIR}/schema ) # Not defined in GNUInstallDirs
@@ -49,7 +52,7 @@ macro(daq_setup_environment)
   enable_testing()
 
   set(PRE_BUILD_STAGE_DONE_TRGT ${PROJECT_NAME}_pre_build_stage_done)
-  add_custom_target(${PRE_BUILD_STAGE_DONE_TRGT})
+  add_custom_target(${PRE_BUILD_STAGE_DONE_TRGT} ALL)
 
   set(directories_to_copy)
   file(GLOB directories_to_copy CONFIGURE_DEPENDS 
@@ -62,7 +65,6 @@ macro(daq_setup_environment)
   )
         
   foreach(directory_to_copy ${directories_to_copy})
-    message(WARNING "${directory_to_copy}   ${CMAKE_CURRENT_SOURCE_DIR}")
     string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" directory_to_copy_short "${directory_to_copy}")
     string(REPLACE "/" "_" directory_as_target ${directory_to_copy_short})
     set(source "${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy_short}")
@@ -93,6 +95,185 @@ endmacro()
 macro( _daq_define_exportname )
   set( DAQ_PROJECT_EXPORTNAME ${PROJECT_NAME}Targets )
 endmacro()
+
+
+####################################################################################################
+# daq_codegen:
+# Usage:
+# daq_codegen( <schema filename> [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>] 
+#              [TEMPLATES <template filename1> ...] )
+#
+#`daq_codegen` uses `moo` to generate C++ headers from schema files from schema/<package> applying 
+# them to one or more templates.
+# 
+# Arguments:
+#    <schema filenames>: The list of schema files to process from <package>/schema/<package>. 
+#    Each schema file will applied to each template (specified by the TEMPLATE argument).
+#    Each schema/template pair will generate a code file in 
+#       build/<package>/codegen/include/<schema basename>/<template basename>
+#    e.g. myschema.jsonnet (from my_pkg) + your_pkg/YourStruct.hpp.j2 will result in
+#        build/codegen/my_pkg/my_schema/YourStruct.hpp
+#
+#    TEST: If the code is meant for an entity in the package's test/ subdirectory, "TEST"
+#      should be passed as an argument, and the schema file's path will be assumed to be
+#      "test/schema/" rather than merely "schema/". 
+#
+#    DEP_PKGS: If schema, template or model files depend on files provided by other DAQ packages,
+#      the "DEP_PKGS" argument must contain the list of packages.
+#
+#    MODEL: The MODEL argument is # optional; if no model file name is explicitly provided,
+#      omodel.jsonnet from the moo package itself is used.
+#
+#    TEMPLATES: The list of templates to use. This is a mandatory argument. The template file format is 
+#        <template package>/<template name>.j2
+#      If <template package> is omitted, the template is expected to be made available by moo.
+#    
+
+function(daq_codegen)
+
+  cmake_parse_arguments(CGOPTS "TEST" "MODEL" "DEP_PKGS;TEMPLATES" ${ARGN})
+
+  # insert test in schema_dir if a TEST schema
+  set(schema_dir "${PROJECT_SOURCE_DIR}")
+  if (${CGOPTS_TEST}) 
+    set(schema_dir "${schema_dir}/test")
+  endif()
+  set(schema_dir  "${schema_dir}/schema")
+
+  # TEMPLATES is mandatory
+  if (NOT DEFINED CGOPTS_TEMPLATES)
+    message(FATAL_ERROR "ERROR: No template defined.")
+  endif()
+
+  # Fall back on omodel.jsonnet if no model is defined
+  if (NOT DEFINED CGOPTS_MODEL)
+    set(CGOPTS_MODEL omodel.jsonnet)
+  endif()
+
+  # Build the list of module paths
+  set(dep_paths ${schema_dir})
+  if (DEFINED CGOPTS_DEP_PKGS)
+    foreach(dep_pkg ${CGOPTS_DEP_PKGS})
+      # message(NOTICE "${PROJECT_NAME} dep_pkg ${dep_pkg}")
+      if (NOT DEFINED "${dep_pkg}_DAQSHARE")
+        if (NOT DEFINED "${dep_pkg}_CONFIG")
+          message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
+        else()
+          message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
+        endif()
+      endif()
+
+      list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}/schema")
+      # message(NOTICE "${PROJECT_NAME} mpath ${dep_paths}")
+    endforeach()
+  endif()
+
+  # Expect <pkgA>/<templA.ext.j2> <pkgB>/<templB.ext.j2> Struct.hpp.j2
+  # -> outfiles = templA.ext templB.ext Struct.hpp
+  # -> templates = pkgA/templA.ext.j2 pkgB/templB.ext.j2 ostruct.hpp.j2
+  set(outfiles)
+  set(templates)
+  foreach(tname ${CGOPTS_TEMPLATES})
+    get_filename_component(tbase ${tname} NAME)
+    get_filename_component(tdir ${tname} DIRECTORY)
+    get_filename_component(text ${tname} LAST_EXT)
+    get_filename_component(tout ${tname} NAME_WLE)
+
+    if (NOT "${text}" STREQUAL ".j2")
+      message(FATAL_ERROR "ERROR: ${tname} is not a jinja template. '${text}' ")
+    endif()
+
+    # Fall back on moo templates if the template has no "namespace"
+    if ("${tdir}" STREQUAL "")
+      string(TOLOWER ${tname} tname_lc)
+      list(APPEND templates "o${tname_lc}")
+    else()
+      list(APPEND templates ${tname})
+    endif()
+
+    list(APPEND outfiles ${tout})
+  endforeach()
+
+
+  # Resolve the list of schema files
+  set(schemas)
+  foreach(f ${CGOPTS_UNPARSED_ARGUMENTS})
+
+    if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
+
+      set(fpaths)
+      file(GLOB fpaths CONFIGURE_DEPENDS ${schema_dir}/${PROJECT_NAME}/${f})
+
+      if (fpaths)
+        set(schemas ${schemas} ${fpaths})
+      else()
+        message(WARNING "When defining list of schema files to perform code generation on, no files in ${CMAKE_CURRENT_SOURCE_DIR}/${schema_dir} match the glob \"${f}\"")
+      endif()
+    else()
+       # may be generated file, so just add
+      set(schemas ${schemas} ${schema_dir}/${PROJECT_NAME}/${f})
+    endif()
+  endforeach()
+
+  # Generate!
+  foreach(schema_path ${schemas})
+    string(REPLACE "${schema_dir}/" "" schema_file "${schema_path}")
+
+    if (NOT EXISTS ${schema_path})
+      message(FATAL_ERROR "ERROR: auto-generation of schema-based headers from \"${schema_file}\" failed because ${schema_path} could not be found")
+    endif()
+
+    get_filename_component(schema ${schema_file} NAME_WE)
+
+    foreach(outfile templfile IN ZIP_LISTS outfiles templates)
+      # message(NOTICE ${schema} ${outfile} ${templfile})
+
+      # define the output dir 
+      set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
+      if (${CGOPTS_TEST}) 
+        set(outdir "${outdir}/test/src")
+      else()
+        set(outdir "${outdir}/include")
+      endif()
+      set(outdir "${outdir}/${PROJECT_NAME}/${schema}")
+
+
+      if (NOT EXISTS ${outdir})
+        message(NOTICE "Creating ${outdir} to hold moo-generated plugin headers for ${schema_file} since it doesn't yet exist")
+        file(MAKE_DIRECTORY ${outdir})
+      endif()
+
+      # Convenience variable
+      set(outpath ${outdir}/${outfile})
+
+      # Make up a target name
+      string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outpath})
+      string(REGEX REPLACE "[\./-]" "_" moo_target "moo_${PROJECT_NAME}${moo_target}")
+
+      # Creare a unique file for dependency tracking
+      string(REGEX REPLACE "[^a-zA-Z0-9]" "_" codedeps_filename "moo_render__${schema_file}__${model}__${templ_pkg}_${templfile}")
+      
+
+      # Run moo
+      moo_render(
+        TARGET ${moo_target}
+        MPATH "${dep_paths}"
+        TPATH "${dep_paths}"
+        GRAFT /lang:ocpp.jsonnet
+        TLAS  path=dunedaq.${PROJECT_NAME}.${schema}
+              ctxpath=dunedaq       
+              os=${schema_file}
+        MODEL ${CGOPTS_MODEL}
+        TEMPL ${templfile}
+        CODEGEN ${outpath}
+        CODEDEP ${schema_dir}/${schema_file}
+        DEPS_DIR ${CMAKE_CODEGEN_BINARY_DIR}/deps
+      )
+      add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
+    endforeach()
+
+  endforeach()
+endfunction()
 
 
 ####################################################################################################
@@ -147,15 +328,24 @@ function(daq_add_library)
   if (libsrcs)
     add_library(${libname} SHARED ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
-    target_include_directories(${libname} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> )
-    target_include_directories(${libname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-    target_include_directories(${libname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+    target_include_directories(${libname} PUBLIC 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+    )
+    target_include_directories(${libname} PRIVATE 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    )
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
   else()
     add_library(${libname} INTERFACE)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
-    target_include_directories(${libname} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> )
+    target_include_directories(${libname} INTERFACE 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include> 
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    )
   endif()
 
   _daq_define_exportname()
@@ -163,6 +353,7 @@ function(daq_add_library)
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
+
 
 ####################################################################################################
 # daq_add_plugin:
@@ -204,78 +395,29 @@ function(daq_add_plugin pluginname plugintype)
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
 
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
-  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-  target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  target_include_directories(${pluginlibname} PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+  )
   add_dependencies( ${pluginlibname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
 
   if ( ${PLUGOPTS_TEST} ) 
-    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
-    target_include_directories(${pluginlibname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
+    target_include_directories(${pluginlibname} PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
+  )
   else()
     _daq_define_exportname()
     install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
     set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
   endif()
 
-  # Figure out if we need to generate code off of a schema and
-  # rebuild the plugin whenever the schema is edited
-
-  if (${PLUGOPTS_SCHEMA})
-
-    if (NOT ${PLUGOPTS_TEST})
-      set(schemadir  ${PROJECT_SOURCE_DIR}/schema)
-    else()
-      set(schemadir  ${PROJECT_SOURCE_DIR}/test/schema)
-    endif()
-
-    set(schemafile ${PROJECT_NAME}-${pluginname}-schema.jsonnet)
-
-    if (NOT EXISTS ${schemadir}/${schemafile})
-      message(FATAL_ERROR "Error: auto-generation of schema-based headers for plugin \"${pluginname}\" was requested, but required file ${schemadir}/${schemafile} wasn't found")
-    endif()
-
-    foreach (WHAT Structs Nljs)
-
-      string(TOLOWER ${WHAT} WHAT_LC)
-      string(TOLOWER ${pluginname} pluginname_LC)
-
-      if(NOT ${PLUGOPTS_TEST})
-         set(outdir ${CMAKE_CURRENT_BINARY_DIR}/codegen/src/${PROJECT_NAME}/${pluginname_LC})
-      else()
-         set(outdir ${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src/${PROJECT_NAME}/${pluginname_LC})
-      endif()
-
-      if (NOT EXISTS ${outdir})
-        message(WARNING "Creating ${outdir} to hold moo-generated plugin headers for ${pluginname} since it doesn't yet exist")
-        file(MAKE_DIRECTORY ${outdir})
-      endif()
-
-      # string(REGEX REPLACE "[\./-]" "_" unique_target_name ${MC_CODEGEN})
-
-      set(outfile ${outdir}/${WHAT}.hpp)
-      string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outfile})
-      string(REGEX REPLACE "[\./-]" "_" moo_target "moo${moo_target}")
-      moo_associate(MPATH ${schemadir}
-                    TPATH ${schemadir}
-                    GRAFT /lang:ocpp.jsonnet
-                    TLAS  path=dunedaq.${PROJECT_NAME}.${pluginname_LC}
-                          ctxpath=dunedaq       
-                          os=${schemafile}
-                    MODEL omodel.jsonnet
-                    TEMPL o${WHAT_LC}.hpp.j2
-                    CODEGEN ${outfile}
-                    CODEDEP ${schemadir}/${schemafile}
-                    TARGET ${moo_target}
-                    )
-      add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
-    endforeach()
-
-  endif()
+endfunction()
 
 
-  endfunction()
+
 
 ####################################################################################################
 # daq_add_application:
@@ -329,16 +471,18 @@ function(daq_add_application appname)
   add_executable(${appname} ${appsrcs})
   target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES}) 
   # Add src to the include path for private headers
-  target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-  target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
+  target_include_directories( ${appname} PRIVATE 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> 
+    $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+  )
   add_dependencies( ${appname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   _daq_set_target_output_dirs( ${appname} ${APP_PATH} )
 
   if( ${APPOPTS_TEST} )
-    # Add test/src to the include path for private "test" headers
-    target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
-    target_include_directories(${appname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
+    target_include_directories( ${appname} 
+      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
+  )
   else()
     _daq_define_exportname()
     install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
@@ -371,11 +515,16 @@ function(daq_add_unit_test testname)
   target_link_libraries( ${testname} ${UTEST_LINK_LIBRARIES} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
   target_compile_definitions(${testname} PRIVATE "BOOST_TEST_DYN_LINK=1")
 
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> )
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> )
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins> )
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/src> )
-  target_include_directories(${testname} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src> )
+
+  target_include_directories( ${testname} PRIVATE 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins>
+
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src>
+  )
+
   add_dependencies( ${testname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   add_test(NAME ${testname} COMMAND ${testname})
@@ -395,28 +544,28 @@ macro(_daq_gather_info)
   set(DAQ_PROJECT_SUMMARY_FILENAME ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt)
 
   set(dgi_cmds 
-   "echo \"user for build:         $USER\""
-         "echo \"hostname for build:     $HOSTNAME\""
-   "echo \"build time:             `date`\""
-   "echo \"local repo dir:         `pwd`\""
-   "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
-   "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
-   "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
-   "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
-   "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
+    "echo \"user for build:         $USER\""
+    "echo \"hostname for build:     $HOSTNAME\""
+    "echo \"build time:             `date`\""
+    "echo \"local repo dir:         `pwd`\""
+    "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
+    "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
+    "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
+    "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
+    "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
          "echo \"uncommitted changes:    `git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\n' ' '`\""
-   )
+    )
 
-   set (dgi_fullcmd "")
-   foreach( dgi_cmd ${dgi_cmds} )
-     set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
-   endforeach()
+  set (dgi_fullcmd "")
+  foreach( dgi_cmd ${dgi_cmds} )
+    set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
+  endforeach()
 
-   execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
+  execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
               OUTPUT_FILE ${DAQ_PROJECT_SUMMARY_FILENAME}
               ERROR_FILE  ${DAQ_PROJECT_SUMMARY_FILENAME}
-       WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-       )
+              WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+              )
 
 endmacro()
 
@@ -449,6 +598,7 @@ function(daq_install)
   endif()
 
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
+  install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )
@@ -463,13 +613,13 @@ function(daq_install)
   if (DEFINED PROJECT_VERSION)
     write_basic_package_version_file(${versionfile} COMPATIBILITY ExactVersion)
   else()
-    message(FATAL_ERROR "Error: the PROJECT_VERSION CMake variable needs to be defined in order to install. The way to do this is by adding the version to the project() call at the top of your CMakeLists.txt file, e.g. \"project(${PROJECT_NAME} VERSION 1.0.0)\"")
+    message(FATAL_ERROR "ERROR: the PROJECT_VERSION CMake variable needs to be defined in order to install. The way to do this is by adding the version to the project() call at the top of your CMakeLists.txt file, e.g. \"project(${PROJECT_NAME} VERSION 1.0.0)\"")
   endif()
 
   if (EXISTS ${configfiletemplate})
     configure_package_config_file(${configfiletemplate} ${configfile} INSTALL_DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
   else()
-     message(FATAL_ERROR "Error: unable to find needed file ${configfiletemplate} for ${PROJECT_NAME} installation")
+     message(FATAL_ERROR "ERROR: unable to find needed file ${configfiletemplate} for ${PROJECT_NAME} installation")
   endif()
 
   install(FILES ${versionfile} ${configfile} DESTINATION ${CMAKE_INSTALL_CMAKEDIR})
