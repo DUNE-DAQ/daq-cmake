@@ -1,8 +1,9 @@
 # daq-cmake
 
-This package provides the cmake support for DUNE-DAQ packages.
+This package provides CMake support for DUNE-DAQ packages.
 
-* Description of the CMAKE functions provided by `daq-cmake` [link](CmakeFunctions.md)
+* [Overview of how to create a new package](Creating-a-new-package.md)
+* Description of the CMake functions provided by `daq-cmake` [link](CmakeFunctions.md)
 * Schemas and code generation: [link](SchemaAndCodeGen.md)
-* Toy library : **TODO**
+
 

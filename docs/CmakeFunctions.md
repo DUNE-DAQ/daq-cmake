@@ -53,7 +53,7 @@ daq_add_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
 a project for its dependencies to link in. It will compile a group
 of files defined by a set of one or more individual filenames and/or
 glob expressions, and link against the libraries listed after
-`LINK_LIBRARIE`S. The set of files is assumed to be in the `src/`
+`LINK_LIBRARIES`. The set of files is assumed to be in the `src/`
 subdirectory of the project.
 
 As an example, 
@@ -62,13 +62,17 @@ will create a library off of `src/MyProj.cpp` and any file in `src/`
 ending in "Utils.cpp", and links against the ERS (Error Reporting
 System) library
 
+Public headers for users of the library should go in the project's
+`include/<project name>` directory. Private headers used in the
+library's implementation should be put in the `src/` directory.
+
 ## daq_add_plugin:
 Usage:  
 ```
 daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...])
 ```
 
-`daq_add_plugin` will build a plugin of type <plugin type> with the
+`daq_add_plugin` will build a plugin of type `<plugin type>` with the
 user-defined name `<plugin name>`. It will expect that there's a file
 with the name `<plugin name>.cpp` located either in the `plugins/`
 subdirectory of the project (if the `TEST` option isn't used) or in
@@ -99,6 +103,10 @@ the plugin is deemed a "TEST" plugin, it's not installed as the
 assumption is that it's meant for developer testing. Like
 daq_add_library, daq_add_application can be provided a list of
 libraries to link against, following the `LINK_LIBRARIES` token.
+
+Your application will look in `include/` for your project's public
+headers and `src/` for its private headers. Additionally, if it's a
+"TEST" plugin, it will look in `test/src/`.
 
 ## daq_add_unit_test
 Usage:  
