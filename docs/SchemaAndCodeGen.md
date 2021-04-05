@@ -2,7 +2,11 @@
 
 `daq-cmake` supports for schema distribution and code generation with [moo](https://github.com/brettviren/moo/)
 
+
+
 1. Schemas (jsonnet), models (jsonnet) and templates (jinjia) in the `schema/<package name>` folder are automatically copied to the installation driector and into ups products eventually.
+
+
 1. The `daq_codegen` cmake function provides a simpliefied interface to `moo render` to generate C++ files from jinjia templates. It provides a mechanism to easily import schemas, templates or models from other packages and implements an out-of-date dependency check.
 
 ## Schema files
@@ -56,7 +60,7 @@ These are its key features:
 - One or more template files must be defined.
 - The path of the generated C++ headers is a combination of the schema path and the template name:  
   `mypkg.myschema` applied to `MyTemplate.hpp.j2` will result in `include/mypkg/myschema/MyTemplate.hpp.j2`.  
-  **NOTE** The schema filename is converted to lowercase
+    **NOTE** The schema filename is converted to lowercase
 - Templates are specified as `<template package>/<template name .j2>`. If `<template package>` is omitted, a moo template will be assumed. Othewise `daq_codegen` will search for the template file in `<template package>/<template name .j2>`
 
 
@@ -64,14 +68,22 @@ These are its key features:
 
 ### Schema files
 
+
+
 1. Create the `schema/<package>` directory and move existing schema files in there
+
+
 2. Rename the schema file according to the schema path
 
 e.g. `schema/appfwk-cmd-schema.jsonnet` to `schema/appfwk/cmd.jsonnet`
 
 ### CMakeList.txt
 
+
+
 1. Remove `SCHEMA` from `daq_add_plugin(...)` if it's used
+
+
 2. Add `daq_codegen(...)` with appropriate parameters. In most of the cases the following should work
    ```
    daq_codegen(*.jsonnet TEMPLATES Struct.hpp.j2 Nljs.hpp.j2)
@@ -79,25 +91,38 @@ e.g. `schema/appfwk-cmd-schema.jsonnet` to `schema/appfwk/cmd.jsonnet`
 
 ### config.cmake.in
 
+
+
 1. Add the following lines to `<pkg>Config.cmake.in`:
 
-   ```diff
-   add_library(@PROJECT_NAME@::@PROJECT_NAME@ ALIAS @PROJECT_NAME@)
+```
+add_library(@PROJECT_NAME@::@PROJECT_NAME@ ALIAS @PROJECT_NAME@)
    
-   + get_filename_component(@PROJECT_NAME@_DAQSHARE "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
-   
-   else()
-   ```
++ get_filename_component(@PROJECT_NAME@_DAQSHARE "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
+  
+else()
+```
    
    and
    
-   ```diff
-   include(${targets_file})
+```
+include(${targets_file})
    
-   + set(@PROJECT_NAME@_DAQSHARE "${CMAKE_CURRENT_LIST_DIR}/../../../share")
++ set(@PROJECT_NAME@_DAQSHARE "${CMAKE_CURRENT_LIST_DIR}/../../../share")
    
-   endif()
-   ```
+endif()
+```
 
 
 
+
+-----
+
+_Last git commit to the markdown source of this page:_
+
+
+_Author: Alessandro Thea_
+
+_Date: Fri Feb 26 01:35:54 2021 +0100_
+
+_If you see a problem with the documentation on this page, please file an Issue at [https://github.com/DUNE-DAQ/daq-cmake/issues](https://github.com/DUNE-DAQ/daq-cmake/issues)_
