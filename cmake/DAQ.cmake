@@ -361,7 +361,7 @@ endfunction()
 ####################################################################################################
 # daq_add_plugin:
 # Usage:
-# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...] [SCHEMA] )
+# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...] )
 #
 
 # daq_add_plugin will build a plugin of type <plugin type> with the
@@ -374,19 +374,13 @@ endfunction()
 # daq_add_library, daq_add_plugin can be provided a list of libraries
 # to link against, following the LINK_LIBRARIES argument. 
 
-# If the "SCHEMA" option is used, daq_add_plugin will automatically generate
-# C++ headers describing the configuration structure of the plugin as
-# well as how to translate this structure between C++ and JSON, as long as 
-# a schema file <package name>-<plugin name>-schema.jsonnet is available in
-# the package's ./schema subdirectory
-
 # Your plugin will look in include/ for your project's public headers
 # and src/ for its private headers. Additionally, if it's a "TEST"
 # plugin, it will look in test/src/.
 
 function(daq_add_plugin pluginname plugintype)
 
-  cmake_parse_arguments(PLUGOPTS "TEST;SCHEMA" "" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(PLUGOPTS "TEST" "" "LINK_LIBRARIES" ${ARGN})
 
   set(pluginlibname "${PROJECT_NAME}_${pluginname}_${plugintype}")
 
