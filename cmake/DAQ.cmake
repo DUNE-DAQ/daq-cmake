@@ -413,8 +413,81 @@ function(daq_add_plugin pluginname plugintype)
 
 endfunction()
 
+####################################################################################################
+# daq_add_python_library:
+# Usage:
+# daq_add_python_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
+#
+# daq_add_python_library is designed to produce a library providing
+# a python interface to C++ code. It will compile a group
+# of files, which are expected to expose the desired C++ interface via pybind11. 
+# The set of files is defined by a set of one or more individual filenames and/or
+# glob expressions, and link against the libraries listed after
+# LINK_LIBRARIES. The set of files is assumed to be in the pysrc/
+# subdirectory of the project.
+#
+# As an example, 
+# daq_add_python_library(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME}) 
+# will create a library from pysrc/my_wrapper.cpp and link against 
+# the main project library which would have been created via daq_add_library
 
+# Please note that library shared object will be named _daq_${PROJECT_NAME}_py.so, and will be placed 
+# in the python/${PROJECT_NAME} directory. You will need to have the corresponding init file, 
+# python/${PROJECT_NAME}/__init__.py to import the appropiate componenets of the module.
+# See toylibrary for a working example.
 
+function(daq_add_python_library)
+
+  cmake_parse_arguments(LIBOPTS "" "" "LINK_LIBRARIES" ${ARGN})
+
+  set(libname _daq_${PROJECT_NAME}_py)
+
+  set(LIB_PATH "pysrc")
+
+  set(libsrcs)
+  foreach(f ${LIBOPTS_UNPARSED_ARGUMENTS})
+
+    if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
+
+      set(fpaths)
+      file(GLOB fpaths CONFIGURE_DEPENDS ${LIB_PATH}/${f})
+
+      if (fpaths)
+        set(libsrcs ${libsrcs} ${fpaths})
+      else()
+        message(WARNING "When defining list of files from which to build library \"${libname}\", no files in ${CMAKE_CURRENT_SOURCE_DIR}/${LIB_PATH} match the glob \"${f}\"")
+      endif()
+    else()
+       # may be generated file, so just add
+      set(libsrcs ${libsrcs} ${LIB_PATH}/${f})
+    endif()
+  endforeach()
+
+  if (libsrcs)
+    pybind11_add_module(${libname} ${libsrcs})
+    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
+    target_include_directories(${libname} PUBLIC 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+    )
+    target_include_directories(${libname} PRIVATE 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    )
+    set_target_properties(${libname} PROPERTIES SUFFIX ".so")
+    
+    add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
+    
+    _daq_set_target_output_dirs( ${libname} python/${PROJECT_NAME} )
+  else()
+    message(FATAL_ERROR "ERROR: No source files found for python library: ${libname}.")
+  endif()
+
+  _daq_define_exportname()
+  install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME})
+  set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
+
+endfunction()
 
 ####################################################################################################
 # daq_add_application:
