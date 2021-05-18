@@ -30,6 +30,8 @@ void PlayInts(const std::vector<int>& numbers, bool new_line=false)
 
 namespace python {
 
+// The name of the top level python module supplied here (via the first argument of PYBIND11_MODULE()) must match the file name of the compiled .so file.
+// With daq_add_python_library(), the shared object is named "_daq_${PROJECT_NAME}_py.so".
 PYBIND11_MODULE(_daq_toylibrary_py, top_module) {
 
     top_module.doc() = "Python module wrapper for C++ library, toylibrary"; // optional module docstring
