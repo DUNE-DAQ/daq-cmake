@@ -29,7 +29,8 @@ In terms of its actual functionality, it's pretty useless (it contains a class w
 * *unittest*: contains the [unit tests](https://en.wikipedia.org/wiki/Unit_testing) you write to ensure that your individual classes, functions, etc. behave as expected
 * *test*: contains any applications or plugins you've written for the purpose of [integration testing](https://en.wikipedia.org/wiki/Integration_testing) - ensuring that your software components interact as expected
 * *pybindsrc* contains source files which expose C++ code to python via the `pybind11` library. In `toylibrary`, we have only one source file, `toy_wrapper.cpp`. The file provides a python interface to the `IntPrinter` and `ValueWrapper<int>` classes from main `toylibrary` library. `toy_wrapper.cpp` also implements several "toy" functions, `WindUp`, `WindDown`, and `PlayInts`, which are used to demonstrate how C++ code can also be exposed via python sub-modules.
-* *scripts* This directory is inteneded to hold executable scripts. In this case it contains the script, `toyscript.py`. The `python` script demonstrate how the C++ code exposed in `toy_wrapper.cpp` can be used from within `python`.
+* *scripts* This directory is inteneded to hold executable scripts. In this case it contains the script, `toyscript.py`. The `python` script demonstrates how the C++ code exposed in `toy_wrapper.cpp` can be used from within `python`.
+
 If your package contains applications intended not for testing but for the end user, you'd put the code for it in a subdirectory called `apps/`. toylibrary doesn't have this type of application, but, e.g., the appfwk package does. Similarly, plugins not intended for testing but for the end user would go in `plugins/`. 
 
 
@@ -217,7 +218,7 @@ daq_add_python_binding_library( <file | glob expression 1> ... [LINK_LIBRARIES <
 
 `daq_add_python_binding_library` is designed to produce a library providing 
 a python interface to C++ code. It will compile a group
-of files, which are expected to expose the desired C++ interface via pybind11. 
+of files, which are expected to expose the desired C++ interface via `pybind11`. 
 The set of files is defined by a set of one or more individual filenames and/or
 glob expressions, and link against the libraries listed after
 LINK_LIBRARIES. The set of files is expected to be in the `pybindsrc`
