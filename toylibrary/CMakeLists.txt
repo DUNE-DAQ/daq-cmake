@@ -22,7 +22,7 @@ find_package(pybind11)
 daq_add_library(IntPrinter.cpp LINK_LIBRARIES ers::ers)
 
 ##############################################################################
-daq_add_python_binding_library(toy_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME})
+daq_add_python_bindings(toy_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME})
 
 ##############################################################################
 daq_add_application( toylibrary_test_program toylibrary_test_program.cxx TEST LINK_LIBRARIES ${Boost_PROGRAM_OPTIONS_LIBRARY} toylibrary )

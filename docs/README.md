@@ -72,11 +72,11 @@ daq_add_library(IntPrinter.cpp LINK_LIBRARIES ers::ers)
 ```
 What `daq_add_library` does here is create the main project library. It looks in the project's `./src` subdirectory for a file called `IntPrinter.cpp`, which it then compiles and links against the ERS library. The result is output in the build area as a shared object library named after the project itself, in a subdirectory of the same name as that of the source file it used - `build/toylibrary/src/libtoylibrary.so`. When `--install` is passed to `./build_daq_software.sh`, as it was in the instructions above, this library in turn is installed in a subdirectory of the installation area called `toylibrary/lib64/libtoylibrary.so`. 
 
-The next function you see called in the CMakeLists.txt file is `daq_add_python_binding_library`:
+The next function you see called in the CMakeLists.txt file is `daq_add_python_bindings`:
 ```
-daq_add_python_binding_library( toy_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME} )
+daq_add_python_bindings( toy_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME} )
 ```
-is a function designed to allow the binding of C++ code to python. To do so, it relies on the header only library, `pybind11`. The function expects to find the source files exposing the C++ code, in the package directory, `pybindsrc`. In this `toylibrary` case, we have specified that the bindings are located in the file `toy_wrapper.cpp`. The resulting compiled file will be called, `_daq_${PROJECT_NAME}_py.so`, and will be placed in the output directory, `python/${PROJECT_NAME}`. Similarly to `daq_add_library`, `_daq_${PROJECT_NAME}_py.so` will be linked against the libraries specified after `LINK_LIBRARIES`. For how to import the exposed C++ in, see detailed description section. After the call of `daq_add_python_binding_library`, you will see the call to the function `daq_add_application`.
+is a function designed to allow the binding of C++ code to python. To do so, it relies on the header only library, `pybind11`. The function expects to find the source files exposing the C++ code, in the package directory, `pybindsrc`. In this `toylibrary` case, we have specified that the bindings are located in the file `toy_wrapper.cpp`. The resulting compiled file will be called, `_daq_${PROJECT_NAME}_py.so`, and will be placed in the output directory, `python/${PROJECT_NAME}`. Similarly to `daq_add_library`, `_daq_${PROJECT_NAME}_py.so` will be linked against the libraries specified after `LINK_LIBRARIES`. For how to import the exposed C++ in, see detailed description section. After the call of `daq_add_python_bindings`, you will see the call to the function `daq_add_application`.
 ```
 daq_add_application( toylibrary_test_program toylibrary_test_program.cxx TEST LINK_LIBRARIES ${Boost_PROGRAM_OPTIONS_LIBRARY} toylibrary )
 ```
@@ -210,13 +210,13 @@ Public headers for users of the library should go in the project's
 `include/<project name>` directory. Private headers used in the
 library's implementation should be put in the `src/` directory.
 
-## daq_add_python_binding_library:
+## daq_add_python_bindings:
 Usage:  
 ```
-daq_add_python_binding_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
+daq_add_python_bindings( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
 ```
 
-`daq_add_python_binding_library` is designed to produce a library providing 
+`daq_add_python_bindings` is designed to produce a library providing 
 a python interface to C++ code. It will compile a group
 of files, which are expected to expose the desired C++ interface via `pybind11`. 
 The set of files is defined by a set of one or more individual filenames and/or
@@ -225,7 +225,7 @@ LINK_LIBRARIES. The set of files is expected to be in the `pybindsrc`
 subdirectory of the project.
 
 As an example,
-`daq_add_python_binding_library(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME})`
+`daq_add_python_bindings(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME})`
 will create a library from `pybindsrc/my_wrapper.cpp` and link against 
 the main project library which would have been created via daq_add_library
 

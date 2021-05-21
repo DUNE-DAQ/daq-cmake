@@ -414,11 +414,11 @@ function(daq_add_plugin pluginname plugintype)
 endfunction()
 
 ####################################################################################################
-# daq_add_python_binding_library:
+# daq_add_python_bindings:
 # Usage:
-# daq_add_python_binding_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
+# daq_add_python_bindings( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
 #
-# daq_add_python_binding_library is designed to produce a library providing
+# daq_add_python_bindings is designed to produce a library providing
 # a python interface to C++ code. It will compile a group
 # of files, which are expected to expose the desired C++ interface via pybind11. 
 # The set of files is defined by a set of one or more individual filenames and/or
@@ -427,7 +427,7 @@ endfunction()
 # subdirectory of the project.
 #
 # As an example, 
-# daq_add_python_binding_library(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME}) 
+# daq_add_python_bindings(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME}) 
 # will create a library from pybindsrc/my_wrapper.cpp and link against 
 # the main project library which would have been created via daq_add_library
 
@@ -436,7 +436,7 @@ endfunction()
 # python/${PROJECT_NAME}/__init__.py to import the appropiate componenets of the module.
 # See toylibrary for a working example.
 
-function(daq_add_python_binding_library)
+function(daq_add_python_bindings)
 
   cmake_parse_arguments(LIBOPTS "" "" "LINK_LIBRARIES" ${ARGN})
 
