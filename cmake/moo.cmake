@@ -2,45 +2,6 @@
 # For now, use eg cmake -DMOO_CMD=$(which moo)
 set(MOO_CMD "moo" CACHE STRING "The 'moo' command")
 
-
-
-####################################################################################################
-# moo_update_deps:
-#
-# moo_update_deps is an utility function to handle moo dependencies behind the scenes.
-# It creates a custom target to generate a moo dependency files and sets its modification date to 
-# the most reacent file listed in the dependencies
-function(moo_update_deps base_args deps_dir main_target source target_prefix)
-
-  get_filename_component(basename ${source} NAME)
-  string(REGEX REPLACE "[^a-zA-Z0-9]" "_" basename "${basename}")
-  set(DEPS_TARGET "${main_target}__${basename}_deps")
-  set(DEPS_FILE "${deps_dir}/${main_target}__${basename}.d")
-  set(DEPS_PHONY "${deps_dir}/${main_target}__${basename}.d.phony")
-
-  # moo_deps_name(${MC_DEPS_DIR} ${MC_TARGET} ${MC_CODEDEP} MC_CODEDEP)
-
-  set(DEPS_ARGS ${base_args} imports -o ${DEPS_FILE} ${source})
-  add_custom_command(
-      COMMAND ${MOO_CMD} ARGS ${DEPS_ARGS}
-      COMMAND bash ARGS -c "touch -r $(ls -t $(cat ${DEPS_FILE} ) | head -n1) ${DEPS_FILE}"
-      VERBATIM
-      COMMENT "Updating moo dependencies of ${source}"
-      OUTPUT ${DEPS_FILE}
-      OUTPUT ${DEPS_PHONY}
-  )
-
-  # # Custom target to force the update of jsonnet dependencies at build time
-  # # Note the phony dependency to force it to be re-run every time
-  add_custom_target(${DEPS_TARGET}
-      ALL
-      DEPENDS ${DEPS_FILE} ${DEPS_PHONY}
-  )
-
-  set(${target_prefix}_DEPS_TARGET ${DEPS_TARGET} PARENT_SCOPE)
-endfunction()
-
-
 ####################################################################################################
 # moo_update_deps:
 # Usage:
@@ -89,14 +50,22 @@ function(moo_render)
     endforeach()
   endif()
 
+  set(DEPS_FILE "${MC_CODEGEN}.d")
+  # ninja wants the target name in the deps file to be relative to ${CMAKE_BINARY_DIR}, so do that
+  file(RELATIVE_PATH MC_CODEGEN_TARGET_NAME "${CMAKE_BINARY_DIR}" ${MC_CODEGEN})
+
   set(MC_CODEGEN_ARGS ${MC_BASE_ARGS} render -o ${MC_CODEGEN} ${MC_MODEL} ${MC_TEMPL})
+  set(MC_RENDER_DEPS_ARGS ${MC_BASE_ARGS} render-deps -t ${MC_CODEGEN_TARGET_NAME} -o  ${DEPS_FILE} ${MC_MODEL} ${MC_TEMPL})
 
-  moo_update_deps("${MC_BASE_ARGS}" ${MC_DEPS_DIR} ${MC_TARGET} ${MC_CODEDEP} MC_CODEDEP)
-  moo_update_deps("${MC_BASE_ARGS}" ${MC_DEPS_DIR} ${MC_TARGET} ${MC_TEMPL} MC_TEMPL)
-
-  add_custom_command(OUTPUT ${MC_CODEGEN} COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS} DEPENDS ${MC_CODEDEP})
-  add_custom_target(${MC_TARGET} DEPENDS ${MC_CODEGEN} ${MC_CODEDEP_DEPS_TARGET} ${MC_TEMPL_DEPS_TARGET})
-
+  add_custom_command(
+    OUTPUT ${MC_CODEGEN}
+    COMMAND ${MOO_CMD} ${MC_CODEGEN_ARGS}
+    COMMAND ${MOO_CMD} ${MC_RENDER_DEPS_ARGS}
+    DEPENDS ${MC_CODEDEP}
+    DEPFILE ${DEPS_FILE}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+  add_custom_target(${MC_TARGET} DEPENDS  ${MC_CODEGEN} )
 endfunction()
 
 

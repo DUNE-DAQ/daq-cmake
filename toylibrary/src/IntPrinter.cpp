@@ -11,7 +11,7 @@
 
 #include "toylibrary/IntPrinter.hpp"
 
-#include <ers/ers.h>
+#include "ers/ers.hpp"
 
 namespace dunedaq::toylibrary {
 
@@ -19,8 +19,7 @@ void
 IntPrinter::Show() const
 {
 
-  //  ERS_INFO("The integer is " << int_to_print_);
-  ERS_INFO(int_to_print_);
+  std::cout << int_to_print_ << std::endl;
 }
 
 } // namespace dunedaq::toylibrary
