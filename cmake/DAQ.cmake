@@ -37,6 +37,7 @@ macro(daq_setup_environment)
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_SCHEMADIR  ${CMAKE_INSTALL_DATADIR}/schema ) # Not defined in GNUInstallDirs
+  set(CMAKE_INSTALL_CONFIGDIR  ${CMAKE_INSTALL_DATADIR}/config ) # Not defined in GNUInstallDirs
 
   set(DAQ_PROJECT_INSTALLS_TARGETS false)
 
@@ -100,19 +101,19 @@ endmacro()
 ####################################################################################################
 # daq_codegen:
 # Usage:
-# daq_codegen( <schema filename> [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>] 
+# daq_codegen( <schema filename1> ... [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>] 
 #              [TEMPLATES <template filename1> ...] )
 #
 #`daq_codegen` uses `moo` to generate C++ headers from schema files from schema/<package> applying 
 # them to one or more templates.
 # 
 # Arguments:
-#    <schema filenames>: The list of schema files to process from <package>/schema/<package>. 
+#    <schema filename1> ...: The list of schema files to process from <package>/schema/<package>. 
 #    Each schema file will applied to each template (specified by the TEMPLATE argument).
-#    Each schema/template pair will generate a code file in 
-#       build/<package>/codegen/include/<schema basename>/<template basename>
-#    e.g. myschema.jsonnet (from my_pkg) + your_pkg/YourStruct.hpp.j2 will result in
-#        build/codegen/my_pkg/my_schema/YourStruct.hpp
+#    Each schema/template pair will generate a code file named 
+#       build/<package>/codegen/include/<package>/<schema minus *.jsonnet extension>/<template minus *.j2 extension>
+#    e.g. my_schema.jsonnet (from my_pkg) + your_pkg/YourStruct.hpp.j2 will result in
+#        build/my_pkg/codegen/include/my_pkg/my_schema/YourStruct.hpp
 #
 #    TEST: If the code is meant for an entity in the package's test/ subdirectory, "TEST"
 #      should be passed as an argument, and the schema file's path will be assumed to be
@@ -125,7 +126,7 @@ endmacro()
 #      omodel.jsonnet from the moo package itself is used.
 #
 #    TEMPLATES: The list of templates to use. This is a mandatory argument. The template file format is 
-#        <template package>/<template name>.j2
+#        <template package>/<template name including *.j2 extension>
 #      If <template package> is omitted, the template is expected to be made available by moo.
 #    
 
@@ -154,16 +155,22 @@ function(daq_codegen)
   set(dep_paths ${schema_dir})
   if (DEFINED CGOPTS_DEP_PKGS)
     foreach(dep_pkg ${CGOPTS_DEP_PKGS})
-      # message(NOTICE "${PROJECT_NAME} dep_pkg ${dep_pkg}")
-      if (NOT DEFINED "${dep_pkg}_DAQSHARE")
-        if (NOT DEFINED "${dep_pkg}_CONFIG")
-          message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
-        else()
-          message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
+
+      if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
+        list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}/schema")
+      else()      					
+        # message(NOTICE "${PROJECT_NAME} dep_pkg ${dep_pkg}")
+        if (NOT DEFINED "${dep_pkg}_DAQSHARE")
+          if (NOT DEFINED "${dep_pkg}_CONFIG")
+            message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
+          else()
+            message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
+          endif()
         endif()
+        
+        list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}/schema")
       endif()
 
-      list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}/schema")
       # message(NOTICE "${PROJECT_NAME} mpath ${dep_paths}")
     endforeach()
   endif()
@@ -246,6 +253,7 @@ function(daq_codegen)
       # Convenience variable
       set(outpath ${outdir}/${outfile})
 
+      
       # Make up a target name
       string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outpath})
       string(REGEX REPLACE "[\./-]" "_" moo_target "moo_${PROJECT_NAME}${moo_target}")
@@ -269,7 +277,8 @@ function(daq_codegen)
         CODEDEP ${schema_dir}/${schema_file}
         DEPS_DIR ${CMAKE_CODEGEN_BINARY_DIR}/deps
       )
-      add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
+    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${moo_target})
+
     endforeach()
 
   endforeach()
@@ -358,7 +367,7 @@ endfunction()
 ####################################################################################################
 # daq_add_plugin:
 # Usage:
-# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...] [SCHEMA] )
+# daq_add_plugin( <plugin name> <plugin type> [TEST] [LINK_LIBRARIES <lib1> ...] )
 #
 
 # daq_add_plugin will build a plugin of type <plugin type> with the
@@ -371,19 +380,13 @@ endfunction()
 # daq_add_library, daq_add_plugin can be provided a list of libraries
 # to link against, following the LINK_LIBRARIES argument. 
 
-# If the "SCHEMA" option is used, daq_add_plugin will automatically generate
-# C++ headers describing the configuration structure of the plugin as
-# well as how to translate this structure between C++ and JSON, as long as 
-# a schema file <package name>-<plugin name>-schema.jsonnet is available in
-# the package's ./schema subdirectory
-
 # Your plugin will look in include/ for your project's public headers
 # and src/ for its private headers. Additionally, if it's a "TEST"
 # plugin, it will look in test/src/.
 
 function(daq_add_plugin pluginname plugintype)
 
-  cmake_parse_arguments(PLUGOPTS "TEST;SCHEMA" "" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(PLUGOPTS "TEST" "" "LINK_LIBRARIES" ${ARGN})
 
   set(pluginlibname "${PROJECT_NAME}_${pluginname}_${plugintype}")
 
@@ -416,8 +419,81 @@ function(daq_add_plugin pluginname plugintype)
 
 endfunction()
 
+####################################################################################################
+# daq_add_python_bindings:
+# Usage:
+# daq_add_python_bindings( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
+#
+# daq_add_python_bindings is designed to produce a library providing
+# a python interface to C++ code. It will compile a group
+# of files, which are expected to expose the desired C++ interface via pybind11. 
+# The set of files is defined by a set of one or more individual filenames and/or
+# glob expressions, and link against the libraries listed after
+# LINK_LIBRARIES. The set of files is assumed to be in the pybindsrc/
+# subdirectory of the project.
+#
+# As an example, 
+# daq_add_python_bindings(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME}) 
+# will create a library from pybindsrc/my_wrapper.cpp and link against 
+# the main project library which would have been created via daq_add_library
 
+# Please note that library shared object will be named _daq_${PROJECT_NAME}_py.so, and will be placed 
+# in the python/${PROJECT_NAME} directory. You will need to have the corresponding init file, 
+# python/${PROJECT_NAME}/__init__.py to import the appropiate componenets of the module.
+# See toylibrary for a working example.
 
+function(daq_add_python_bindings)
+
+  cmake_parse_arguments(LIBOPTS "" "" "LINK_LIBRARIES" ${ARGN})
+
+  set(libname _daq_${PROJECT_NAME}_py)
+
+  set(LIB_PATH "pybindsrc")
+
+  set(libsrcs)
+  foreach(f ${LIBOPTS_UNPARSED_ARGUMENTS})
+
+    if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
+
+      set(fpaths)
+      file(GLOB fpaths CONFIGURE_DEPENDS ${LIB_PATH}/${f})
+
+      if (fpaths)
+        set(libsrcs ${libsrcs} ${fpaths})
+      else()
+        message(WARNING "When defining list of files from which to build library \"${libname}\", no files in ${CMAKE_CURRENT_SOURCE_DIR}/${LIB_PATH} match the glob \"${f}\"")
+      endif()
+    else()
+       # may be generated file, so just add
+      set(libsrcs ${libsrcs} ${LIB_PATH}/${f})
+    endif()
+  endforeach()
+
+  if (libsrcs)
+    pybind11_add_module(${libname} ${libsrcs})
+    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
+    target_include_directories(${libname} PUBLIC 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+    )
+    target_include_directories(${libname} PRIVATE 
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    )
+    set_target_properties(${libname} PROPERTIES SUFFIX ".so")
+    
+    add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
+    
+    _daq_set_target_output_dirs( ${libname} python/${PROJECT_NAME} )
+  else()
+    message(FATAL_ERROR "ERROR: No source files found for python library: ${libname}.")
+  endif()
+
+  _daq_define_exportname()
+  install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME})
+  set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
+
+endfunction()
 
 ####################################################################################################
 # daq_add_application:
@@ -603,8 +679,8 @@ function(daq_install)
 
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMADIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet")
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/config/  DESTINATION ${CMAKE_INSTALL_SCHEMADIR} OPTIONAL FILES_MATCHING PATTERN "*.json")
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMADIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2")
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/config/  DESTINATION ${CMAKE_INSTALL_CONFIGDIR} OPTIONAL)
 
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)
