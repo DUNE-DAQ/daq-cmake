@@ -154,7 +154,7 @@ no arguments.
 ## daq_codegen:
 Usage:
 ```
-daq_codegen( <schema filenames> [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>]
+daq_codegen( <schema filename1> ... [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>]
              [TEMPLATES <template filename1> ...] )
 ```             
 
@@ -163,9 +163,9 @@ them to one or more templates.
 
 Arguments:
   
-* `<schema filenames>`: 
+* `<schema filename1> ...`: 
 
-  The list of schema files to process from `<package>/schema/<package>`. Each schema file will applied to each template (specified by the TEMPLATE argument). Each schema/template pair will generate a code file in `build/<package>/codegen/include/<package>/<schema minus *.jsonnet extension>/<template minus *.j2 extension>`
+  The list of schema files to process from `<package>/schema/<package>`. Each schema file will applied to each template (specified by the TEMPLATE argument). Each schema/template pair will generate a code file named `build/<package>/codegen/include/<package>/<schema minus *.jsonnet extension>/<template minus *.j2 extension>`
 e.g. `my_schema.jsonnet` (from `my_pkg`) + `your_pkg/YourStruct.hpp.j2` will result in `build/my_pkg/codegen/include/my_pkg/my_schema/YourStruct.hpp`
 
 * `TEST`: 
