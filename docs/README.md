@@ -6,22 +6,19 @@ This package provides CMake support for DUNE-DAQ packages.
 
 ## Setting up a development area
 
-To create a new package, you'll want to install a DUNE-DAQ development environment and then create a new CMake project for the package. How to install and build the DUNE-DAQ development environment is described [here](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/Compiling-and-running/).
+To create a new package, you'll want to install a DUNE-DAQ development environment and then create a new CMake project for the package. How to install and build the DUNE-DAQ development environment is described [in the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/); some familiarity with the daq-buildtools documentation is assumed in these instructions. 
 
 
 ## A package's subdirectory structure
 
 To learn a bit more about how to structure your package so that it can be incorporated into the DUNE DAQ software suite, we'll play with a contrived package called "toylibrary". It's actually contained within a subdirectory of the daq-cmake repo; however, in order to be able to build toylibrary we'll want to copy it into the `./sourcecode` directory so the build system can work with it. Assuming you're already in the base directory of your development environment, do the following: 
 ```
-git clone https://github.com/DUNE-DAQ/daq-cmake.git -b dunedaq-v2.4.0
+git clone https://github.com/DUNE-DAQ/daq-cmake -b v1.4.1
 mv daq-cmake/toylibrary sourcecode
 rm -rf daq-cmake
 ```
-You can now build it using the normal commands:
-```
-dbt-setup-build-environment  # Assumption is you've already sourced daq-buildtools' dbt-setup-env.sh 
-dbt-build.sh --install
-```
+You can now build toylibrary like you would a standard DUNE DAQ package. 
+
 In terms of its actual functionality, it's pretty useless (it contains a class which can wrap an integer, and another class which can print that wrapped integer). However, its functionality is beside the point; toylibrary contains many features which DUNE DAQ packages have in common, in particular DUNE DAQ packages which provide a library other developers want to link against. For starters, take a look at the subdirectories, `ls sourcecode/toylibrary`:
 
 * *src*: contains the source files meant to be built into the package's shared object library/libraries
@@ -40,9 +37,9 @@ Along with having a standard directory structure, the C++ code itself in toylibr
 
 ## Your project's CMakeLists.txt file
 
-Every DUNE DAQ package should have one and only one `CMakeLists.txt` file, in the base directory of the package's repo (not to be confused with the base directory of the overall development area). To learn a bit about what that `CMakeLists.txt` file should look like, let's take a look at `sourcecode/toylibrary/CMakeLists.txt`. Because CMake is widely used and extensively documented online, this documentation will primarily focus on DUNE-specific CMake functions. The full documentation of the DUNE-specific CMake functions for users can be found [here](CmakeFunctions.md). Depending on your learning style, however, you may find it easier to start learning about some of what these functions are capable of by reading on in this wiki. 
+Every DUNE DAQ package should have one and only one `CMakeLists.txt` file, in the base directory of the package's repo (not to be confused with the base directory of the overall development area). To learn a bit about what that `CMakeLists.txt` file should look like, let's take a look at `sourcecode/toylibrary/CMakeLists.txt`. Because CMake is widely used and extensively documented online, this documentation will primarily focus on DUNE-specific CMake functions. The full documentation of the DUNE-specific CMake functions for users can be found [below](#cmake_function_descriptions). Depending on your learning style, however, you may find it easier to start learning about some of what these functions are capable of by reading on without skipping. 
 
-At the top of CMakeLists.txt: before doing anything else, we want to define the minimum version of CMake used (currently 3.12, which supports [modern CMake style](https://cliutils.gitlab.io/modern-cmake/)) as well as the name and version of the project. Concerning the version: it may not literally be the case that the code you're working with is exactly the same as the version-in-question's release code, because you may be on a feature branch, or there may have been commits to the develop branch since the last release. 
+At the top of `CMakeLists.txt`: before doing anything else, we want to define the minimum version of CMake used (currently 3.12, which supports [modern CMake style](https://cliutils.gitlab.io/modern-cmake/)) as well as the name and version of the project. Concerning the version: it may not literally be the case that the code you're working with is exactly the same as the version-in-question's release code, because you may be on a feature branch, or there may have been commits to the develop branch since the last release. 
 ```
 cmake_minimum_required(VERSION 3.12)
 project(toylibrary VERSION 1.1.0)
@@ -51,9 +48,9 @@ Next, we want to make CMake functions written specifically for DUNE DAQ developm
 ```
 find_package(daq-cmake REQUIRED)
 ```
-This is how we ensure that the CMakeLists.txt file has access to the standard DUNE DAQ CMake functions previously mentioned. When `find_package` is called here it imports daq-cmake's `DAQ` CMake module. Note that by convention all functions/macros within the module begin with `daq_`, so as to distinguish them from functions/macros from CMake modules written outside of DUNE DAQ. 
+This is how we ensure that the `CMakeLists.txt` file has access to the standard DUNE DAQ CMake functions previously mentioned. When `find_package` is called here it imports daq-cmake's `DAQ` CMake module. Note that by convention all functions/macros within the module begin with `daq_`, so as to distinguish them from functions/macros from CMake modules written outside of DUNE DAQ. 
 
-The next step is to call a macro from the `DAQ` module which sets up a standard DUNE CMake environment for your CMakeLists.txt file:
+The next step is to call a macro from the `DAQ` module which sets up a standard DUNE CMake environment for your `CMakeLists.txt` file:
 ```
 daq_setup_environment()
 ```
@@ -70,13 +67,13 @@ Then, you'll see a call to a function called `daq_add_library`.
 ```
 daq_add_library(IntPrinter.cpp LINK_LIBRARIES ers::ers)
 ```
-What `daq_add_library` does here is create the main project library. It looks in the project's `./src` subdirectory for a file called `IntPrinter.cpp`, which it then compiles and links against the ERS library. The result is output in the build area as a shared object library named after the project itself, in a subdirectory of the same name as that of the source file it used - `build/toylibrary/src/libtoylibrary.so`. When `--install` is passed to `./build_daq_software.sh`, as it was in the instructions above, this library in turn is installed in a subdirectory of the installation area called `toylibrary/lib64/libtoylibrary.so`. 
+What `daq_add_library` does here is create the main project library. It looks in the project's `./src` subdirectory for a file called `IntPrinter.cpp`, which it then compiles and links against the ERS library. The result is output in the build area as a shared object library named after the project itself, in a subdirectory of the same name as that of the source file it used - `build/toylibrary/src/libtoylibrary.so`. If you build toylibrary using the `--install` option, this library in turn is installed in a subdirectory of the installation area called `toylibrary/lib64/libtoylibrary.so`. 
 
 The next function you see called in the CMakeLists.txt file is `daq_add_python_bindings`:
 ```
 daq_add_python_bindings( toy_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME} )
 ```
-is a function designed to allow the binding of C++ code to python. To do so, it relies on the header only library, `pybind11`. The function expects to find the source files exposing the C++ code, in the package directory, `pybindsrc`. In this `toylibrary` case, we have specified that the bindings are located in the file `toy_wrapper.cpp`. The resulting compiled file will be called, `_daq_${PROJECT_NAME}_py.so`, and will be placed in the output directory, `python/${PROJECT_NAME}`. Similarly to `daq_add_library`, `_daq_${PROJECT_NAME}_py.so` will be linked against the libraries specified after `LINK_LIBRARIES`. For how to import the exposed C++ in, see detailed description section. After the call of `daq_add_python_bindings`, you will see the call to the function `daq_add_application`.
+which is a function designed to allow the binding of C++ code to python. To do so, it relies on the header only library, `pybind11`. The function expects to find the source files exposing the C++ code, in the package directory, `pybindsrc`. In this `toylibrary` case, we have specified that the bindings are located in the file `toy_wrapper.cpp`. The resulting compiled file will be called, `_daq_${PROJECT_NAME}_py.so`, and will be placed in the output directory, `python/${PROJECT_NAME}`. Similarly to `daq_add_library`, `_daq_${PROJECT_NAME}_py.so` will be linked against the libraries specified after `LINK_LIBRARIES`. For how to import the exposed C++ in, see detailed description section. After the call of `daq_add_python_bindings`, you will see the call to the function `daq_add_application`.
 ```
 daq_add_application( toylibrary_test_program toylibrary_test_program.cxx TEST LINK_LIBRARIES ${Boost_PROGRAM_OPTIONS_LIBRARY} toylibrary )
 ```
@@ -94,13 +91,9 @@ daq_install()
 ```
 When you call it it will install the targets (executables, shared object libraries) you wish to make available to others who want to use your package in a directory called `<your installation directory>/<pkgname>` (by default that would be `./install/toylibrary`). You'll also need to add a special file to your project for this function to work; this is discussed more fully in the "Installing your project as a local package" section later in this document. 
 
-## In-depth documentation of the DUNE DAQ CMake functions
-
-...can be found [here](CmakeFunctions.md)
-
 ## If your package relies on nonstandard dependencies
 
-...go back and take a look at the "Adding extra UPS products and product pools" section of [the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/Compiling-and-running/)
+...go back and take a look at the "Adding extra UPS products and product pools" section of [the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/#adding_extra_ups_products)
 
 ## Installing your project as a local package
 
@@ -117,7 +110,7 @@ A major thing you should be aware of is that when you call CMake's `find_package
 cd ./sourcecode/mypackage
 mkdir cmake
 cd cmake
-curl -O https://raw.githubusercontent.com/DUNE-DAQ/daq-cmake/dunedaq-v2.4.0/configs/Config.cmake.in
+curl -O https://raw.githubusercontent.com/DUNE-DAQ/daq-cmake/dunedaq-v2.6.0/configs/Config.cmake.in
 mv Config.cmake.in mypackageConfig.cmake.in
 ```
 and then let's look at the opening lines of `mypackageConfig.cmake.in`:
@@ -142,6 +135,7 @@ dbt-build.sh --install
 
 without receiving an error message informing you that installation isn't an option. 
 
+<a name="cmake_function_descriptions"></a>
 # Description of the CMake functions provided by `daq-cmake`
 
 ## daq_setup_environment:
