@@ -151,35 +151,38 @@ that DUNE DAQ projects all have a common build environment. It takes
 no arguments. 
 
 ## daq_codegen:
-Usage:  
+Usage:
 ```
-daq_codegen( <schema filename> [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>] 
+daq_codegen( <schema filenames> [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>]
              [TEMPLATES <template filename1> ...] )
-```
+```             
 
-`daq_codegen` takes the schema files (without path) and uses `moo` to generate C++ headers from the templates.
+`daq_codegen` uses `moo` to generate C++ headers from schema files from schema/<package> applying
+them to one or more templates.
 
 Arguments:
-   `<schema filenames>`: The list of schema files to process from `<package>/schema/<package>`. 
-   Each schema file will applied to each template (specified by the TEMPLATE argument).
-   Each schema/template pair will generate a code file in 
-      `build/<package>/codegen/include/<schema basename>/<template basename>`
-   e.g. `myschema.jsonnet` (from my_pkg) + `your_pkg/YourStruct.hpp.j2` will result in
-       `build/codegen/my_pkg/my_schema/YourStruct.hpp`
+  
+* `<schema filenames>`: 
 
-   `TEST`: If the code is meant for an entity in the package's `test/` subdirectory, "TEST"
-     should be passed as an argument, and the schema file's path will be assumed to be
-     "test/schema/" rather than merely "schema/". 
+  The list of schema files to process from `<package>/schema/<package>`. Each schema file will applied to each template (specified by the TEMPLATE argument). Each schema/template pair will generate a code file in `build/<package>/codegen/include/<package>/<schema minus *.jsonnet extension>/<template minus *.j2 extension>`
+e.g. `my_schema.jsonnet` (from `my_pkg`) + `your_pkg/YourStruct.hpp.j2` will result in `build/my_pkg/codegen/include/my_pkg/my_schema/YourStruct.hpp`
 
-   `DEP_PKGS`: If schema, template or model files depend on files provided by other DAQ packages,
-     the "DEP_PKGS" argument must contain the list of packages.
+* `TEST`: 
+  
+   If the code is meant for an entity in the package's test/ subdirectory, `TEST` should be passed as an argument, and the schema file's path will be assumed to be
+`test/schema/` rather than merely `schema/`.
+  
+* `DEP_PKGS`: 
+  
+   If schema, template or model files depend on files provided by other DAQ packages, the `DEP_PKGS` argument must contain the list of packages.
+  
+* `MODEL`:
+  
+   The `MODEL` argument is optional; if no model file name is explicitly provided, `omodel.jsonnet` from the moo package itself is used.
 
-   `MODEL`: The MODEL argument is # optional; if no model file name is explicitly provided,
-     omodel.jsonnet from the moo package itself is used.
-
-   `TEMPLATES`: The list of templates to use. This is a mandatory argument. The template file format is 
-       `<template package>/<template name>.j2`
-     If `<template package>` is omitted, the template is expected to be made available by moo.
+* `TEMPLATES`:
+  
+   The list of templates to use. This is a mandatory argument. The template file format is `<template package>/<template name including *.j2 extension>`. If `<template package>` is omitted, the template is expected to be made available by moo.
 
 ## daq_add_library:
 Usage:  
