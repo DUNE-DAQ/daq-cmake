@@ -8,7 +8,6 @@
  * received with this code.
  */
 
-
 #include "toylibrary/IntPrinter.hpp"
 
 #include "ers/ers.hpp"
@@ -19,8 +18,7 @@ void
 IntPrinter::Show() const
 {
 
-  std::cout << int_to_print_ << std::endl;
+  std::cout << int_to_print_ << std::endl; // NOLINT
 }
 
 } // namespace dunedaq::toylibrary
-
