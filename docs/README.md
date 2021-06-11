@@ -158,7 +158,7 @@ daq_codegen( <schema filename1> ... [TEST] [DEP_PKGS <package 1> ...] [MODEL <mo
              [TEMPLATES <template filename1> ...] )
 ```             
 
-`daq_codegen` uses `moo` to generate C++ headers from schema files from schema/<package> applying
+`daq_codegen` uses `moo` to generate C++ headers from schema files from `schema/<package>` applying
 them to one or more templates.
 
 Arguments:
@@ -306,6 +306,7 @@ arguments.
 
 1. The `daq_codegen` cmake function provides a simpliefied interface to `moo render` to generate C++ files from jinjia templates. It provides a mechanism to easily import schemas, templates or models from other packages and implements an out-of-date dependency check. Details are [above](#daq_codegen_documentation).
 
+<a name="daq_cmake_schema"></a>
 ## Schema files
 
 `daq-cmake` handles schemas in a similar fashion to C++ headers. Where header files are located according to the namespace of the class they declare (e.g. `mypkg::MyClass` in `include/mypkg/MyClass.hpp`, schemas location in the package is determined by the schema path (e.g. `mypkg.myschema` in `schema/mypkg/myschema.jsonnet`). In both cases the package name is integral part of the namespace/path to ensure uniqueness of the declared entities.
