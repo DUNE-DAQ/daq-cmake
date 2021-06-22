@@ -365,7 +365,7 @@ function(daq_add_library)
     )
 
     if (${DAQ_PROJECT_GENERATES_CODE})
-      target_include_directories(${libname} PUBLIC
+      target_include_directories(${libname} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
       )
     endif()
