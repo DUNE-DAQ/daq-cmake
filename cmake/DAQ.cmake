@@ -340,10 +340,13 @@ function(daq_add_library)
   if (libsrcs)
     add_library(${libname} SHARED ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
-    target_include_directories(${libname} PUBLIC 
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
-      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
-    )
+
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+      target_include_directories(${libname} PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+      )
+    endif()
 
     if (${DAQ_PROJECT_GENERATES_CODE})
       target_include_directories(${libname} PUBLIC
@@ -359,10 +362,13 @@ function(daq_add_library)
   else()
     add_library(${libname} INTERFACE)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
-    target_include_directories(${libname} INTERFACE 
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    )
+
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+      target_include_directories(${libname} INTERFACE 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+      )
+    endif()
 
     if (${DAQ_PROJECT_GENERATES_CODE})
       target_include_directories(${libname} INTERFACE
@@ -487,10 +493,13 @@ function(daq_add_python_bindings)
   if (libsrcs)
     pybind11_add_module(${libname} ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
-    target_include_directories(${libname} PUBLIC 
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
-      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
-    )
+
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+      target_include_directories(${libname} PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+      )
+    endif()
 
     if (${DAQ_PROJECT_GENERATES_CODE})
       target_include_directories(${libname} PUBLIC
