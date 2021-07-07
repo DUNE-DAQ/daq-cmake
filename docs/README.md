@@ -67,7 +67,7 @@ Then, you'll see a call to a function called `daq_add_library`.
 ```
 daq_add_library(IntPrinter.cpp LINK_LIBRARIES ers::ers)
 ```
-What `daq_add_library` does here is create the main project library. It looks in the project's `./src` subdirectory for a file called `IntPrinter.cpp`, which it then compiles and links against the ERS library. The result is output in the build area as a shared object library named after the project itself, in a subdirectory of the same name as that of the source file it used - `build/toylibrary/src/libtoylibrary.so`. If you build toylibrary using the `--install` option, this library in turn is installed in a subdirectory of the installation area called `toylibrary/lib64/libtoylibrary.so`. 
+What `daq_add_library` does here is create the main project library. It looks in the project's `./src` subdirectory for a file called `IntPrinter.cpp`, which it then compiles and links against the ERS library. The result is output in the installation area (`$DBT_INSTALL_DIR`) as a shared object library named after the project itself, `toylibrary/lib64/libtoylibrary.so`. 
 
 The next function you see called in the CMakeLists.txt file is `daq_add_python_bindings`:
 ```
@@ -89,7 +89,7 @@ At the bottom of CMakeLists.txt, you'll see the following function:
 ```
 daq_install()
 ```
-When you call it it will install the targets (executables, shared object libraries) you wish to make available to others who want to use your package in a directory called `<your installation directory>/<pkgname>` (by default that would be `./install/toylibrary`). You'll also need to add a special file to your project for this function to work; this is discussed more fully in the "Installing your project as a local package" section later in this document. 
+When you call it it will install the targets (executables, shared object libraries) you wish to make available to others who want to use your package in a directory called `$DBT_INSTALL_DIR/<pkgname>` (by default that would be `./install/toylibrary`). You'll also need to add a special file to your project for this function to work; this is discussed more fully in the "Installing your project as a local package" section later in this document. 
 
 ## If your package relies on nonstandard dependencies
 
@@ -130,7 +130,7 @@ You can see a simple example of this kind of file with `toylibrary/cmake/toylibr
 
 Once you've edited this file as described, from the base of your development area you can then run 
 ```
-dbt-build.sh --install 
+dbt-build.sh 
 ```
 
 without receiving an error message informing you that installation isn't an option. 
