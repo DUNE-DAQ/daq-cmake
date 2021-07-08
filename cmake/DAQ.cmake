@@ -39,6 +39,12 @@ macro(daq_setup_environment)
   set(CMAKE_INSTALL_SCHEMADIR  ${CMAKE_INSTALL_DATADIR}/schema ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_CONFIGDIR  ${CMAKE_INSTALL_DATADIR}/config ) # Not defined in GNUInstallDirs
 
+  # Insert a test/ directory one level up
+  foreach(token LIB BIN SCHEMA CONFIG)
+    string(REGEX REPLACE "(.*)(/[^/]+$)" "\\1/test\\2"  CMAKE_INSTALL_${token}_TESTDIR ${CMAKE_INSTALL_${token}DIR})
+    #set(CMAKE_INSTALL_${token}_TESTDIR "/tmp")
+  endforeach()
+
   set(DAQ_PROJECT_INSTALLS_TARGETS false)
 
   set(COMPILER_OPTS -g -pedantic -Wall -Wextra -fdiagnostics-color=always)
@@ -54,26 +60,6 @@ macro(daq_setup_environment)
 
   set(PRE_BUILD_STAGE_DONE_TRGT ${PROJECT_NAME}_pre_build_stage_done)
   add_custom_target(${PRE_BUILD_STAGE_DONE_TRGT} ALL)
-
-  set(directories_to_copy)
-  file(GLOB directories_to_copy CONFIGURE_DEPENDS 
-    "scripts" 
-    "python" 
-    "schema" 
-    "config"
-    "test/scripts" 
-    "test/schema" 
-  )
-        
-  foreach(directory_to_copy ${directories_to_copy})
-    string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" directory_to_copy_short "${directory_to_copy}")
-    string(REPLACE "/" "_" directory_as_target ${directory_to_copy_short})
-    set(source "${CMAKE_CURRENT_SOURCE_DIR}/${directory_to_copy_short}")
-    set(dest "${CMAKE_CURRENT_BINARY_DIR}/${directory_to_copy_short}")
-    add_custom_target(copy_files_${PROJECT_NAME}_${directory_as_target} ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${source} ${dest})
-    add_dependencies(${PRE_BUILD_STAGE_DONE_TRGT} copy_files_${PROJECT_NAME}_${directory_as_target})
-  endforeach()
-
 
 endmacro()
 
@@ -374,9 +360,7 @@ endfunction()
 # user-defined name <plugin name>. It will expect that there's a file
 # with the name <plugin name>.cpp located either in the plugins/
 # subdirectory of the project (if the "TEST" option isn't used) or in
-# the test/plugins/ subdirectory of the project (if it is). Note that if the
-# plugin is deemed a "TEST" plugin, it's not installed as the
-# assumption is that it's meant for developer testing. Like
+# the test/plugins/ subdirectory of the project (if it is). Like
 # daq_add_library, daq_add_plugin can be provided a list of libraries
 # to link against, following the LINK_LIBRARIES argument. 
 
@@ -405,17 +389,19 @@ function(daq_add_plugin pluginname plugintype)
   add_dependencies( ${pluginlibname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
+  _daq_define_exportname()
 
   if ( ${PLUGOPTS_TEST} ) 
     target_include_directories(${pluginlibname} PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
       $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
   )
+    install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIB_TESTDIR})
   else()
-    _daq_define_exportname()
     install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
-    set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
   endif()
+
+  set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
 
@@ -505,9 +491,7 @@ endfunction()
 # executable, followed by a list of filenames and/or file glob
 # expressions meant to build the executable. It expects the filenames
 # to be either in the apps/ subdirectory of the project, or, if the
-# "TEST" option is chosen, the test/apps/ subdirectory. Note that if
-# the plugin is deemed a "TEST" plugin, it's not installed as the
-# assumption is that it's meant for developer testing. Like
+# "TEST" option is chosen, the test/apps/ subdirectory. Like
 # daq_add_library, daq_add_application can be provided a list of
 # libraries to link against, following the LINK_LIBRARIES token.
 
@@ -554,16 +538,18 @@ function(daq_add_application appname)
   add_dependencies( ${appname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
   _daq_set_target_output_dirs( ${appname} ${APP_PATH} )
+  _daq_define_exportname()
 
   if( ${APPOPTS_TEST} )
     target_include_directories( ${appname} 
       PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
   )
+    install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_BIN_TESTDIR})
   else()
-    _daq_define_exportname()
-    install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
-    set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
+    install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
+
+  set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
 
@@ -677,10 +663,16 @@ function(daq_install)
   install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMADIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2")
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/config/  DESTINATION ${CMAKE_INSTALL_CONFIGDIR} OPTIONAL)
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )
+  
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/scripts/ DESTINATION ${CMAKE_INSTALL_BIN_TESTDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
+
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMADIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2")
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMA_TESTDIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2")
+
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config/  DESTINATION ${CMAKE_INSTALL_CONFIGDIR} OPTIONAL)
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/config/  DESTINATION ${CMAKE_INSTALL_CONFIG_TESTDIR} OPTIONAL)
 
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)
