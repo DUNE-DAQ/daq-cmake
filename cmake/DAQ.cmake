@@ -46,6 +46,7 @@ macro(daq_setup_environment)
   endforeach()
 
   set(DAQ_PROJECT_INSTALLS_TARGETS false)
+  set(DAQ_PROJECT_GENERATES_CODE false)
 
   set(COMPILER_OPTS -g -pedantic -Wall -Wextra -fdiagnostics-color=always)
   if (${DBT_DEBUG})
@@ -268,6 +269,8 @@ function(daq_codegen)
     endforeach()
 
   endforeach()
+
+  set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
 endfunction()
 
 
@@ -323,11 +326,20 @@ function(daq_add_library)
   if (libsrcs)
     add_library(${libname} SHARED ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
-    target_include_directories(${libname} PUBLIC 
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
-      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
-      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
-    )
+
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+      target_include_directories(${libname} PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+      )
+    endif()
+
+    if (${DAQ_PROJECT_GENERATES_CODE})
+      target_include_directories(${libname} PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+      )
+    endif()
+
     target_include_directories(${libname} PRIVATE 
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     )
@@ -336,11 +348,20 @@ function(daq_add_library)
   else()
     add_library(${libname} INTERFACE)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
-    target_include_directories(${libname} INTERFACE 
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include> 
-      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    )
+
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+      target_include_directories(${libname} INTERFACE 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+      )
+    endif()
+
+    if (${DAQ_PROJECT_GENERATES_CODE})
+      target_include_directories(${libname} INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+      )
+    endif()
+
   endif()
 
   _daq_define_exportname()
@@ -458,11 +479,20 @@ function(daq_add_python_bindings)
   if (libsrcs)
     pybind11_add_module(${libname} ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
-    target_include_directories(${libname} PUBLIC 
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
-      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
-      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
-    )
+
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+      target_include_directories(${libname} PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+      )
+    endif()
+
+    if (${DAQ_PROJECT_GENERATES_CODE})
+      target_include_directories(${libname} PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+      )
+    endif()
+
     target_include_directories(${libname} PRIVATE 
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     )
