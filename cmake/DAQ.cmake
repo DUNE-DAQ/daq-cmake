@@ -337,6 +337,7 @@ function(daq_add_library)
     if (${DAQ_PROJECT_GENERATES_CODE})
       target_include_directories(${libname} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
       )
     endif()
 
@@ -359,6 +360,7 @@ function(daq_add_library)
     if (${DAQ_PROJECT_GENERATES_CODE})
       target_include_directories(${libname} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
       )
     endif()
 
@@ -490,6 +492,7 @@ function(daq_add_python_bindings)
     if (${DAQ_PROJECT_GENERATES_CODE})
       target_include_directories(${libname} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
       )
     endif()
 
