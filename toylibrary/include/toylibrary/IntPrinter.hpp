@@ -44,5 +44,4 @@ private:
 
 } // namespace dunedaq::toylibrary
 
-
 #endif // TOYLIBRARY_INCLUDE_TOYLIBRARY_INTPRINTER_HPP_
