@@ -6,17 +6,14 @@ This package provides CMake support for DUNE-DAQ packages.
 
 ## Setting up a development area
 
-To create a new package, you'll want to install a DUNE-DAQ development environment and then create a new CMake project for the package. How to install and build the DUNE-DAQ development environment is described [in the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/); some familiarity with the daq-buildtools documentation is assumed in these instructions. 
+To create a new package, you'll want to install a DUNE-DAQ development environment and then create a new CMake project for the package. How to install and build the DUNE-DAQ development environment is described [in the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/dunedaq-v2.8.0/packages/daq-buildtools/); some familiarity with the daq-buildtools documentation is assumed in these instructions. 
 
 
 ## A package's subdirectory structure
 
 To learn a bit more about how to structure your package so that it can be incorporated into the DUNE DAQ software suite, we'll play with a contrived package called "toylibrary". It's actually contained within a subdirectory of the daq-cmake repo; however, in order to be able to build toylibrary we'll want to copy it into the `./sourcecode` directory so the build system can work with it. Assuming you're already in the base directory of your development environment, do the following: 
 ```
-git clone https://github.com/DUNE-DAQ/daq-cmake
-cd daq-cmake
-git checkout 5e2dd1378
-cd ..
+git clone https://github.com/DUNE-DAQ/daq-cmake -b dunedaq-v2.8.0
 mv daq-cmake/toylibrary sourcecode
 rm -rf daq-cmake
 ```
@@ -96,7 +93,7 @@ When you call it it will install the targets (executables, shared object librari
 
 ## If your package relies on nonstandard dependencies
 
-...go back and take a look at the "Adding extra UPS products and product pools" section of [the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/#adding_extra_ups_products)
+...go back and take a look at the "Adding extra UPS products and product pools" section of [the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/dunedaq-v2.8.0/packages/daq-buildtools/#adding_extra_ups_products)
 
 ## Installing your project as a local package
 
@@ -113,7 +110,7 @@ A major thing you should be aware of is that when you call CMake's `find_package
 cd ./sourcecode/mypackage
 mkdir cmake
 cd cmake
-curl -O https://raw.githubusercontent.com/DUNE-DAQ/daq-cmake/dunedaq-v2.6.0/configs/Config.cmake.in
+curl -O https://raw.githubusercontent.com/DUNE-DAQ/daq-cmake/dunedaq-v2.8.0/configs/Config.cmake.in
 mv Config.cmake.in mypackageConfig.cmake.in
 ```
 and then let's look at the opening lines of `mypackageConfig.cmake.in`:
