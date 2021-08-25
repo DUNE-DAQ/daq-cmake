@@ -96,7 +96,7 @@ endmacro()
 # 
 # Arguments:
 #    <schema filename1> ...: The list of schema files to process from <package>/schema/<package>. 
-#    Each schema file will applied to each template (specified by the TEMPLATE argument).
+#    Each schema file will applied to each template (specified by the TEMPLATES argument).
 #    Each schema/template pair will generate a code file named 
 #       build/<package>/codegen/include/<package>/<schema minus *.jsonnet extension>/<template minus *.j2 extension>
 #    e.g. my_schema.jsonnet (from my_pkg) + your_pkg/YourStruct.hpp.j2 will result in
