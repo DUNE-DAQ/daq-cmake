@@ -6,8 +6,13 @@ if(EXISTS $ENV{CETLIB_LIB})
   find_library(CETLIB_EXCEPT NAMES libcetlib_except.so)
   set(cetlib_FOUND TRUE)
 else()
-	# Spack
-	find_package(cetlib REQUIRED CONFIG)
-	set(CETLIB cetlib)
-	set(CETLIB_EXCEPT cetlib_except)
+ # Spack
+  find_package(cetlib REQUIRED CONFIG)
+
+  foreach (dir ${cetlib_INCLUDE_DIRS})
+    include_directories(${dir})
+  endforeach()
+
+  find_library(CETLIB NAMES libcetlib.so PATHS ${cetlib_LIBRARY_DIR})
+
 endif()
