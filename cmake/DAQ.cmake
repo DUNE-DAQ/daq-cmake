@@ -364,6 +364,8 @@ function(daq_add_library)
       )
     endif()
 
+    add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
+
   endif()
 
   _daq_define_exportname()
