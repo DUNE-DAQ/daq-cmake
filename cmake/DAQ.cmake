@@ -731,6 +731,9 @@ function(daq_install)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)
   set(configfile         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake)
 
+  # Copy python namespace init file into position
+  file(COPY ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../configs/python/init.py DESTINATION ${CMAKE_INSTALL_PYTHONDIR})
+
   if (DEFINED PROJECT_VERSION)
     write_basic_package_version_file(${versionfile} COMPATIBILITY ExactVersion)
   else()
