@@ -1,9 +1,7 @@
-if(EXISTS $ENV{CETLIB_LIB})
+if(EXISTS $ENV{CETLIB_EXCEPT_LIB})
 
-  message(FATAL_ERROR "Tell John Freeman to fix this")	
-  include_directories($ENV{CETLIB_EXCEPT_INC})
-  find_library(CETLIB_EXCEPT NAMES libcetlib_except.so)
-  set(cetlib_except_FOUND TRUE)
+  message(FATAL_ERROR "find_package(cetlib_except) is unnecessary as this is brought in by find_package(cetlib). Please contact John Freeman at jcfree@fnal.gov if you have any questions")	
+
 else()
   # Spack
 
