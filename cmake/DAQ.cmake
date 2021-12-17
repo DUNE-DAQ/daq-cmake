@@ -81,9 +81,10 @@ macro(daq_setup_environment)
 
 
   set(CMAKE_CODEGEN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/codegen")
+  set(CMAKE_INSTALL_PYTHONBASEDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
 
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
-  set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_LIBDIR}/python/dunedaq ) # Not defined in GNUInstallDirs
+  set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_PYTHONBASEDIR}/dunedaq ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_SCHEMADIR  ${CMAKE_INSTALL_DATADIR}/schema ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_CONFIGDIR  ${CMAKE_INSTALL_DATADIR}/config ) # Not defined in GNUInstallDirs
 
@@ -732,7 +733,13 @@ function(daq_install)
   set(configfile         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake)
 
   # Copy python namespace init file into position
-  file(COPY ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../configs/python/init.py DESTINATION ${CMAKE_INSTALL_PYTHONDIR})
+  # file(COPY ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../configs/python/init.py DESTINATION ${CMAKE_INSTALL_PYTHONDIR})
+  message(CHECK_START "Finding my things ${CMAKE_INSTALL_PYTHONBASEDIR}")
+
+  file(WRITE "${CMAKE_INSTALL_PYTHONBASEDIR}/__init__.py"
+    "from pkgutil import extend_path\n"
+    "__path__ = extend_path(__path__, __name__)"
+  )
 
   if (DEFINED PROJECT_VERSION)
     write_basic_package_version_file(${versionfile} COMPATIBILITY ExactVersion)
