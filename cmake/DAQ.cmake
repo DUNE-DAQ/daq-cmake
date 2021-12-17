@@ -8,6 +8,9 @@ include(moo)
 # Usage:
 # _daq_gather_info()
 
+# Will take info both about the build and the source, and save it in a *.json file 
+# referred to by the variable CI_DAQ_PROJECT_SUMMARY_FILENAME
+
 function(_daq_gather_info)
 
   cmake_parse_arguments(GI "" "TARGET;SUMMARY_FILE" "" ${ARGN})
@@ -681,41 +684,6 @@ function(daq_add_unit_test testname)
 
 endfunction()
 
-####################################################################################################
-
-# _daq_gather_info:
-# Will take info both about the build and the source, and save it in a *.txt file 
-# referred to by the variable DAQ_PROJECT_SUMMARY_FILENAME
-
-# macro(_daq_gather_info)
-
-#   set(DAQ_PROJECT_SUMMARY_FILENAME ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt)
-
-#   set(dgi_cmds 
-#     "echo \"user for build:         $USER\""
-#     "echo \"hostname for build:     $HOSTNAME\""
-#     "echo \"build time:             `date`\""
-#     "echo \"local repo dir:         `pwd`\""
-#     "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
-#     "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
-#     "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
-#     "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
-#     "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
-#          "echo \"uncommitted changes:    `git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\n' ' '`\""
-#     )
-
-#   set (dgi_fullcmd "")
-#   foreach( dgi_cmd ${dgi_cmds} )
-#     set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
-#   endforeach()
-
-#   execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
-#               OUTPUT_FILE ${DAQ_PROJECT_SUMMARY_FILENAME}
-#               ERROR_FILE  ${DAQ_PROJECT_SUMMARY_FILENAME}
-#               WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-#               )
-
-# endmacro()
 
 ####################################################################################################
 
