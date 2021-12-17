@@ -4,6 +4,51 @@ include(GNUInstallDirs)
 include(moo)
 
 ####################################################################################################
+# _daq_gather_info:
+# Usage:
+# _daq_gather_info()
+
+function(_daq_gather_info)
+
+  cmake_parse_arguments(GI "" "TARGET;SUMMARY_FILE" "" ${ARGN})
+  # TEMPLATES is mandatory
+  if (NOT DEFINED GI_TARGET)
+    message(FATAL_ERROR "ERROR: undefined TARGET argument.")
+  endif()
+
+  set(SUMMARY_FILEPATH ${CMAKE_CURRENT_BINARY_DIR}/${GI_SUMMARY_FILE})
+  set(DAQ_PROJECT_SUMMARY_PHONY_TARGET phony_${PROJECT_NAME}_build_info.json)
+
+
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gather_info
+  "#!/usr/bin/env bash
+cat << EOF > ${SUMMARY_FILEPATH}
+{
+\"user for build\":         \"$USER\",
+\"hostname for build\":     \"$HOSTNAME\",
+\"build time\":             \"$(date)\",
+\"local repo dir\":         \"$(pwd)\",
+\"git branch\":             \"$(git branch | sed -r -n 's/^\\*.//p')\",
+\"git commit hash\":        \"$(git log --pretty=\"%H\" -1)\",
+\"git commit time\":        \"$(git log --pretty=\"%ad\" -1)\",
+\"git commit description\": \"$(git log --pretty=\"%s\" -1)\",
+\"git commit author\":      \"$(git log --pretty=\"%an\" -1)\",
+\"uncommitted changes\":    \"$(git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\\n' ' ')\"
+}
+EOF
+")
+
+  add_custom_command(
+    OUTPUT ${DAQ_PROJECT_SUMMARY_PHONY_TARGET}
+    COMMAND "bash" "${CMAKE_CURRENT_BINARY_DIR}/gather_info"
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    )
+  add_custom_target( ${GI_TARGET} ALL DEPENDS ${DAQ_PROJECT_SUMMARY_PHONY_TARGET} )
+
+endfunction()
+
+
+####################################################################################################
 
 # daq_setup_environment:
 # Usage:
@@ -62,6 +107,11 @@ macro(daq_setup_environment)
   set(PRE_BUILD_STAGE_DONE_TRGT ${PROJECT_NAME}_pre_build_stage_done)
   add_custom_target(${PRE_BUILD_STAGE_DONE_TRGT} ALL)
 
+  set(DAQ_PROJECT_SUMMARY_FILENAME ${PROJECT_NAME}_build_info.json)
+
+  _daq_gather_info( TARGET ${PROJECT_NAME}_build_info SUMMARY_FILE ${DAQ_PROJECT_SUMMARY_FILENAME} )
+  add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${PROJECT_NAME}_build_info )
+
 endmacro()
 
 
@@ -116,6 +166,7 @@ endmacro()
 #        <template package>/<template name including *.j2 extension>
 #      If <template package> is omitted, the template is expected to be made available by moo.
 #    
+
 
 function(daq_codegen)
 
@@ -636,35 +687,35 @@ endfunction()
 # Will take info both about the build and the source, and save it in a *.txt file 
 # referred to by the variable DAQ_PROJECT_SUMMARY_FILENAME
 
-macro(_daq_gather_info)
+# macro(_daq_gather_info)
 
-  set(DAQ_PROJECT_SUMMARY_FILENAME ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt)
+#   set(DAQ_PROJECT_SUMMARY_FILENAME ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_build_info.txt)
 
-  set(dgi_cmds 
-    "echo \"user for build:         $USER\""
-    "echo \"hostname for build:     $HOSTNAME\""
-    "echo \"build time:             `date`\""
-    "echo \"local repo dir:         `pwd`\""
-    "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
-    "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
-    "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
-    "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
-    "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
-         "echo \"uncommitted changes:    `git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\n' ' '`\""
-    )
+#   set(dgi_cmds 
+#     "echo \"user for build:         $USER\""
+#     "echo \"hostname for build:     $HOSTNAME\""
+#     "echo \"build time:             `date`\""
+#     "echo \"local repo dir:         `pwd`\""
+#     "echo \"git branch:             `git branch | sed -r -n 's/^\\*.//p'`\""
+#     "echo \"git commit hash:        `git log --pretty=\"%H\" -1`\"" 
+#     "echo \"git commit time:        `git log --pretty=\"%ad\" -1`\""
+#     "echo \"git commit description: `git log --pretty=\"%s\" -1`\""
+#     "echo \"git commit author:      `git log --pretty=\"%an\" -1`\""
+#          "echo \"uncommitted changes:    `git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\n' ' '`\""
+#     )
 
-  set (dgi_fullcmd "")
-  foreach( dgi_cmd ${dgi_cmds} )
-    set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
-  endforeach()
+#   set (dgi_fullcmd "")
+#   foreach( dgi_cmd ${dgi_cmds} )
+#     set(dgi_fullcmd "${dgi_fullcmd}${dgi_cmd}; ")
+#   endforeach()
 
-  execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
-              OUTPUT_FILE ${DAQ_PROJECT_SUMMARY_FILENAME}
-              ERROR_FILE  ${DAQ_PROJECT_SUMMARY_FILENAME}
-              WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-              )
+#   execute_process(COMMAND "bash" "-c" "${dgi_fullcmd}"  
+#               OUTPUT_FILE ${DAQ_PROJECT_SUMMARY_FILENAME}
+#               ERROR_FILE  ${DAQ_PROJECT_SUMMARY_FILENAME}
+#               WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+#               )
 
-endmacro()
+# endmacro()
 
 ####################################################################################################
 
@@ -678,8 +729,7 @@ endmacro()
 
 function(daq_install) 
 
-  _daq_gather_info()                  
-  install(FILES ${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
 
   ## AT HACK ALERT
   file(GLOB cmks CONFIGURE_DEPENDS cmake/*.cmake)
