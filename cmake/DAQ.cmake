@@ -27,8 +27,8 @@ function(_daq_gather_info)
   "#!/usr/bin/env bash
 cat << EOF > ${SUMMARY_FILEPATH}
 {
-\"user for build\":         \"$USER\",
-\"hostname for build\":     \"$HOSTNAME\",
+\"user for build\":         \"$(whoami)\",
+\"hostname for build\":     \"$(hostname)\",
 \"build time\":             \"$(date)\",
 \"local repo dir\":         \"$(pwd)\",
 \"git branch\":             \"$(git branch | sed -r -n 's/^\\*.//p')\",
