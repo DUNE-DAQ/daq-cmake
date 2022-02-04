@@ -4,14 +4,14 @@ include(GNUInstallDirs)
 include(moo)
 
 ####################################################################################################
-# _daq_gather_info:
+# _add_daq_gather_info_target:
 # Usage:
-# _daq_gather_info()
+# _add_daq_gather_info_target()
 
 # Will take info both about the build and the source, and save it in a *.json file 
 # referred to by the variable CI_DAQ_PROJECT_SUMMARY_FILENAME
 
-function(_daq_gather_info)
+function(_add_daq_gather_info_target)
 
   cmake_parse_arguments(GI "" "TARGET;SUMMARY_FILE" "" ${ARGN})
   # TEMPLATES is mandatory
@@ -51,6 +51,38 @@ EOF
 endfunction()
 
 
+
+function(_add_python_namespace_file)
+
+  cmake_parse_arguments(PYNS "" "TARGET" "" ${ARGN})
+  # TEMPLATES is mandatory
+  if (NOT DEFINED PYNS_TARGET)
+    message(FATAL_ERROR "ERROR: undefined TARGET argument.")
+  endif()
+
+  set(pypath)
+  file(GLOB pypath CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/python)
+
+  # if (NOT pypath)
+  #   message(WARNING "No 'python/' in ${PROJECT_NAME}")
+  #   return()
+  # endif()
+
+  # set(DAQ_PYTHON_NAMESPACE_PHONY_TARGET phony_${PROJECT_NAME}_init_py)
+
+  # set(init_py "from pkgutil import extend_path\\n__path__ = extend_path(__path__, __name__)")
+  add_custom_command(
+    OUTPUT "${CMAKE_PYTHON_BINARY_DIR}/__init__.py"
+    # COMMAND ${CMAKE_COMMAND} -E echo \"${init_py}\" > "${CMAKE_PYTHON_BINARY_DIR}/__init__.py"
+    COMMAND ${CMAKE_COMMAND} -E echo "from pkgutil import extend_path" > "${CMAKE_PYTHON_BINARY_DIR}/__init__.py"
+    COMMAND ${CMAKE_COMMAND} -E echo "__path__ = extend_path\\(__path__, __name__\\)" >> "${CMAKE_PYTHON_BINARY_DIR}/__init__.py"
+    # COMMAND ${CMAKE_COMMAND} -E echo "xxxx" >> "${CMAKE_PYTHON_BINARY_DIR}/__init__.py"
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    )
+  add_custom_target( ${PYNS_TARGET} ALL DEPENDS "${CMAKE_PYTHON_BINARY_DIR}/__init__.py" )
+
+endfunction()
+
 ####################################################################################################
 
 # daq_setup_environment:
@@ -81,7 +113,8 @@ macro(daq_setup_environment)
 
 
   set(CMAKE_CODEGEN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/codegen")
-  set(CMAKE_INSTALL_PYTHONBASEDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
+  set(CMAKE_PYTHON_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/python")
+  set(CMAKE_INSTALL_PYTHONBASEDIR  "${CMAKE_INSTALL_LIBDIR}/python" ) # Not defined in GNUInstallDirs
 
   set(CMAKE_INSTALL_CMAKEDIR   ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_PYTHONBASEDIR}/dunedaq ) # Not defined in GNUInstallDirs
@@ -113,8 +146,11 @@ macro(daq_setup_environment)
 
   set(DAQ_PROJECT_SUMMARY_FILENAME ${PROJECT_NAME}_build_info.json)
 
-  _daq_gather_info( TARGET ${PROJECT_NAME}_build_info SUMMARY_FILE ${DAQ_PROJECT_SUMMARY_FILENAME} )
+  _add_daq_gather_info_target( TARGET ${PROJECT_NAME}_build_info SUMMARY_FILE ${DAQ_PROJECT_SUMMARY_FILENAME} )
   add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${PROJECT_NAME}_build_info )
+
+  _add_python_namespace_file( TARGET ${PROJECT_NAME}_pyns_init)
+  add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${PROJECT_NAME}_pyns_init )
 
 endmacro()
 
@@ -717,6 +753,7 @@ function(daq_install)
   install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
+  install(DIRECTORY ${CMAKE_PYTHON_BINARY_DIR}/ DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )
   
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
@@ -731,15 +768,6 @@ function(daq_install)
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)
   set(configfile         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake)
-
-  # Copy python namespace init file into position
-  # file(COPY ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../configs/python/init.py DESTINATION ${CMAKE_INSTALL_PYTHONDIR})
-  message(CHECK_START "Finding my things ${CMAKE_INSTALL_PYTHONBASEDIR}")
-
-  file(WRITE "${CMAKE_INSTALL_PYTHONBASEDIR}/__init__.py"
-    "from pkgutil import extend_path\n"
-    "__path__ = extend_path(__path__, __name__)"
-  )
 
   if (DEFINED PROJECT_VERSION)
     write_basic_package_version_file(${versionfile} COMPATIBILITY ExactVersion)
