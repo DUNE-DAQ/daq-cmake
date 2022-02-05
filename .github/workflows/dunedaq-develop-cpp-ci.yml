@@ -63,8 +63,8 @@ jobs:
     - name: setup build env, build and lint the repo against the development release
       run: |
           export REPO=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')
-          source /cvmfs/dunedaq.opensciencegrid.org/tools/dbt/latest/env.sh
           cd $GITHUB_WORKSPACE/dev-${{ matrix.os_name }}
+          source dbt-env.sh
           dbt-workarea-env || true
           setup_repo_env="SETUP_$REPO"
           [[ -z ${!setup_env_repo+x} ]] || unsetup $REPO
