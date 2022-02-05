@@ -33,7 +33,6 @@ jobs:
             os_name: "c8"
             link: "last_successful_cs8"
     container:
-    container:
       image: ${{ matrix.image }}
     defaults:
       run:
