@@ -26,10 +26,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - image: "dunedaq/sl7-minimal:dev-ext"
+          - image: "dunedaq/sl7-minimal:dev"
             os_name: "c7"
             link: "last_successful"
-          - image: "dunedaq/c8-minimal:dev-ext"
+          - image: "dunedaq/c8-minimal:dev"
             os_name: "c8"
             link: "last_successful_cs8"
     container:
