@@ -34,7 +34,7 @@ cat << EOF > ${SUMMARY_FILEPATH}
 \"git branch\":             \"$(git branch | sed -r -n 's/^\\*.//p')\",
 \"git commit hash\":        \"$(git log --pretty=\"%H\" -1)\",
 \"git commit time\":        \"$(git log --pretty=\"%ad\" -1)\",
-\"git commit description\": \"$(git log --pretty=\"%s\" -1)\",
+\"git commit description\": \"$(git log --pretty=\"%s\" -1 | sed -r 's/\"/\\\\\"/g' )\",
 \"git commit author\":      \"$(git log --pretty=\"%an\" -1)\",
 \"uncommitted changes\":    \"$(git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\\n' ' ')\"
 }
