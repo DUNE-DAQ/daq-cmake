@@ -340,6 +340,3 @@ local s = moo.oschema.schema("dunedaq.appfwk.cmd");
 The same applies to `app.jsonnet`, `appinfo.jsonnet` and `queueinfo.jsonnet` for `dunedaq.appfwk.app`,`dunedaq.appfwk.appinfo` and `dunedaq.appfwk.queueinfo` respectively.
 
 The matching between the schema file name/path and the jsonnet namespace is essential for code generation with `daq-cmake`. A mismatch between the two will result in empty generated files in most of the cases.
-
-
-
