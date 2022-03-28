@@ -27,14 +27,14 @@ function(_daq_gather_info)
   "#!/usr/bin/env bash
 cat << EOF > ${SUMMARY_FILEPATH}
 {
-\"user for build\":         \"$USER\",
-\"hostname for build\":     \"$HOSTNAME\",
+\"user for build\":         \"$(whoami)\",
+\"hostname for build\":     \"$(hostname)\",
 \"build time\":             \"$(date)\",
 \"local repo dir\":         \"$(pwd)\",
 \"git branch\":             \"$(git branch | sed -r -n 's/^\\*.//p')\",
 \"git commit hash\":        \"$(git log --pretty=\"%H\" -1)\",
 \"git commit time\":        \"$(git log --pretty=\"%ad\" -1)\",
-\"git commit description\": \"$(git log --pretty=\"%s\" -1)\",
+\"git commit description\": \"$(git log --pretty=\"%s\" -1 | sed -r 's/\"/\\\\\"/g' )\",
 \"git commit author\":      \"$(git log --pretty=\"%an\" -1)\",
 \"uncommitted changes\":    \"$(git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\\n' ' ')\"
 }
@@ -341,10 +341,9 @@ endfunction()
 # subdirectory of the project.
 #
 # As an example, 
-# daq_add_library(MyProj.cpp *Utils.cpp LINK_LIBRARIES ers::ers) 
+# daq_add_library(MyProj.cpp *Utils.cpp LINK_LIBRARIES logging::logging) 
 # will create a library off of src/MyProj.cpp and any file in src/
-# ending in "Utils.cpp", and links against the ERS (Error Reporting
-# System) library
+# ending in "Utils.cpp", and links against the logging library (https://dune-daq-sw.readthedocs.io/en/latest/packages/logging/)
 
 # Public headers for users of the library should go in the project's
 # include/<project name> directory. Private headers used in the
