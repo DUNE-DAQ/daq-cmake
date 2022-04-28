@@ -31,12 +31,12 @@ cat << EOF > ${SUMMARY_FILEPATH}
 \"hostname for build\":     \"$(hostname)\",
 \"build time\":             \"$(date)\",
 \"local repo dir\":         \"$(pwd)\",
-\"git branch\":             \"$(git branch | sed -r -n 's/^\\*.//p')\",
-\"git commit hash\":        \"$(git log --pretty=\"%H\" -1)\",
-\"git commit time\":        \"$(git log --pretty=\"%ad\" -1)\",
-\"git commit description\": \"$(git log --pretty=\"%s\" -1 | sed -r 's/\"/\\\\\"/g' )\",
-\"git commit author\":      \"$(git log --pretty=\"%an\" -1)\",
-\"uncommitted changes\":    \"$(git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\\n' ' ')\"
+\"git branch\":             \"$( (git rev-parse 2>/dev/null && git branch | sed -r -n 's/^\\*.//p') || echo 'no git repo found' )\",
+\"git commit hash\":        \"$( (git rev-parse 2>/dev/null && git log --pretty=\"%H\" -1)  || echo 'no git repo found' )\",
+\"git commit time\":        \"$( (git rev-parse 2>/dev/null && git log --pretty=\"%ad\" -1)  || echo 'no git repo found' )\",
+\"git commit description\": \"$( (git rev-parse 2>/dev/null && git log --pretty=\"%s\" -1 | sed -r 's/\"/\\\\\"/g' ) || echo 'no git repo found' )\",
+\"git commit author\":      \"$( (git rev-parse 2>/dev/null && git log --pretty=\"%an\" -1)  || echo 'no git repo found' )\",
+\"uncommitted changes\":    \"$( (git rev-parse 2>/dev/null && git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\\n' ' ' ) || echo 'no git repo found')\"
 }
 EOF
 ")
