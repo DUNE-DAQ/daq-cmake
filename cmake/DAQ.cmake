@@ -96,7 +96,7 @@ macro(daq_setup_environment)
   set(DAQ_PROJECT_INSTALLS_TARGETS false)
   set(DAQ_PROJECT_GENERATES_CODE false)
 
-  set(COMPILER_OPTS -g -pedantic -Wall -Wextra -fdiagnostics-color=always)
+  set(COMPILER_OPTS -g -pedantic -Wall -Wextra -Wnon-virtual-dtor -fdiagnostics-color=always)
   if (${DBT_DEBUG})
     set(COMPILER_OPTS ${COMPILER_OPTS} -Og)
   else()
