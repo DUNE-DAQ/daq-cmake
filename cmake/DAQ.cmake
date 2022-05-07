@@ -39,7 +39,13 @@ cat << EOF > ${SUMMARY_FILEPATH}
 \"uncommitted changes\":    \"$( (git rev-parse 2>/dev/null && git diff HEAD --name-status | awk  '{print $2}' | sort -n | tr '\\n' ' ' ) || echo 'no git repo found')\"
 }
 EOF
+YELLOW=\"\\033[0;33m\"
+PURPLE=\"\\033[0;35m\"
+NC=\"\\033[0m\"
+git rev-parse --is-inside-work-tree > /dev/null 2>&1|| printf \"\${YELLOW}Warning: local source code directory \${PURPLE} \$(pwd) \${YELLOW} is not inside a git repo work tree \${NC}\n\"
+
 ")
+
 
   add_custom_command(
     OUTPUT ${DAQ_PROJECT_SUMMARY_PHONY_TARGET}
