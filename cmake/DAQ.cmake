@@ -42,7 +42,7 @@ EOF
 YELLOW=\"\\033[0;33m\"
 PURPLE=\"\\033[0;35m\"
 NC=\"\\033[0m\"
-git rev-parse --is-inside-work-tree > /dev/null 2>&1|| printf \"\${YELLOW}Warning: local source code directory \${PURPLE} \$(pwd) \${YELLOW} is not inside a git repo work tree \${NC}\n\"
+git rev-parse --is-inside-work-tree > /dev/null 2>&1|| printf \"\${YELLOW}Warning: local source code directory \${PURPLE}\$(pwd)\${YELLOW} is not inside a git repo work tree.\${NC}\n\"
 
 ")
 
