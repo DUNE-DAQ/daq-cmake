@@ -1,5 +1,7 @@
 /**
- * @file RenameMe.cpp RenameMe class implementation
+ * @file RenameMe.cpp 
+ *
+ * Implementations of RenameMe's functions
  *
  * This is part of the DUNE DAQ Software Suite, copyright 2020.
  * Licensing/copyright details are in the COPYING file that you should have

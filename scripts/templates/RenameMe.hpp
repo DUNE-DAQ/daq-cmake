@@ -1,7 +1,7 @@
 /**
  * @file RenameMe.hpp
  *
- * Developer(s) of this DAQModule have yet to replace this line with a brief description of it. 
+ * Developer(s) of this DAQModule have yet to replace this line with a brief description of the DAQModule. 
  *
  * This is part of the DUNE DAQ Software Suite, copyright 2020.
  * Licensing/copyright details are in the COPYING file that you should have

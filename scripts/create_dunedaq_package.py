@@ -15,7 +15,7 @@ if "DBT_ROOT" not in os.environ:
 else:
     sys.path.append(f'{os.environ["DBT_ROOT"]}/scripts')
 
-from dbt_setup_tools import error
+from dbt_setup_tools import error, get_time
 
 if len(sys.argv) != 2:
     error(f"\n\nUsage:\n\n{os.path.basename(__file__)} <name of package>\n\n")
@@ -76,7 +76,16 @@ This script can only be run on repositories which haven't yet been worked on.
 """)
 
 with open("CMakeLists.txt", "w") as cmakelists:
+    generation_time = get_time("as_date")
     cmakelists.write(f"""
+
+# This is a skeleton CMakeLists.txt file, auto-generated on {generation_time}. 
+# The developer(s) of this package should delete this comment as well
+# as adding dependent targets, packages, etc.  which the
+# auto-generator can't know about. For details on how to write a
+# package, please see
+# https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-cmake/
+
 cmake_minimum_required(VERSION 3.12)
 project({package} VERSION 0.0.0)
 
@@ -98,7 +107,19 @@ find_package(appfwk REQUIRED)
 
 """)
 
-        os.mkdir(f"{repodir}/plugins")
+        cmakelists.write("""
+
+daq_codegen( *.jsonnet TEMPLATES Structs.hpp.j2 Nljs.hpp.j2 )  # Add DEP_PKGS if needed
+
+""")
+        cmakelists.write("""
+
+##############################################################################
+
+""")
+
+        os.makedirs(f"{repodir}/plugins")
+        os.makedirs(f"{repodir}/schema/{package}")
 
         modules = input("""
 If you know the name(s) of your DAQModule(s), please type them here on a single line, separated by spaces, no quotes.
@@ -107,8 +128,7 @@ If you hit <Enter> without typing any names this will create a DAQModule called 
         modules = modules.split()
         
         if len(modules) == 0:
-            for filename in ["RenameMe.hpp", "RenameMe.cpp"]:
-                shutil.copyfile(f"{templatedir}/{filename}", f"{repodir}/plugins/{filename}")
+            modules = ["RenameMe"]
 
         for module in modules:
             if not re.search(r"^[A-Z][^_]+", module):
@@ -118,12 +138,20 @@ Suggested module name \"{module}\" needs to be in PascalCase.
 Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for more.
 """)
 
-            for filename in ["RenameMe.hpp", "RenameMe.cpp"]:
+            for src_filename in ["RenameMe.hpp", "RenameMe.cpp", "renameme.jsonnet"]:
 
-                newfilename = filename.replace("RenameMe", module)
-                shutil.copyfile(f"{templatedir}/{filename}", f"{repodir}/plugins/{newfilename}")
+                if pathlib.Path(src_filename).suffix in [".hpp", ".cpp"]:
+                    dest_filename = src_filename.replace("RenameMe", module)
+                    dest_filename = f"{repodir}/plugins/{dest_filename}"
+                elif pathlib.Path(src_filename).suffix in [".jsonnet"]:
+                    dest_filename = src_filename.replace("renameme", module.lower())
+                    dest_filename = f"{repodir}/schema/{package}/{dest_filename}"
+                else:
+                    assert False, "DEVELOPER ERROR: unknown file extension"
 
-                with open(f"{templatedir}/{filename}", "r") as inf:
+                shutil.copyfile(f"{templatedir}/{src_filename}", dest_filename)
+
+                with open(f"{templatedir}/{src_filename}", "r") as inf:
                     sourcecode = inf.read()
                     
                 sourcecode = sourcecode.replace("RenameMe", module)
@@ -135,8 +163,13 @@ Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for
                 # Handle namespace
                 sourcecode = sourcecode.replace("package", package.lower())
 
-                with open(f"{repodir}/plugins/{newfilename}", "w") as outf:
+                # And schema files
+                sourcecode = sourcecode.replace("renameme", module.lower())
+
+                with open(dest_filename, "w") as outf:
                     outf.write(sourcecode)
+
+            cmakelists.write(f"daq_add_plugin({module} duneDAQModule LINK_LIBRARIES ) # Libraries to link in not yet determined\n")
                  
     cmakelists.write("""
 
