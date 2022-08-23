@@ -4,6 +4,7 @@ import os
 import pathlib
 import re
 import shutil
+import string
 import subprocess
 import sys
 import tempfile
@@ -87,6 +88,9 @@ daq_setup_environment()
     contains_modules = get_yes_or_no("Will your package contain DAQModule(s) [yY/nN]? ")
     if contains_modules:
 
+        for filename in ["RenameMe.hpp", "RenameMe.cpp"]:
+            assert os.path.exists(f"{templatedir}/{filename}")
+
         # Will likely replace this with a list which gets augmented as various yes/no questions get asked, before being formatted into CMakeLists.txt at the end
 
         cmakelists.write("""
@@ -97,15 +101,13 @@ find_package(appfwk REQUIRED)
         os.mkdir(f"{repodir}/plugins")
 
         modules = input("""
-If you know the name(s) of your DAQModule(s), please type them here without surrounding quotes. 
-If you hit <Enter> without any additional input this will create a DAQModule called RenameMe which you can edit later:
+If you know the name(s) of your DAQModule(s), please type them here on a single line, separated by spaces, no quotes.
+If you hit <Enter> without typing any names this will create a DAQModule called RenameMe which you should edit later:
 """)
         modules = modules.split()
         
         if len(modules) == 0:
             for filename in ["RenameMe.hpp", "RenameMe.cpp"]:
-                print(f"Looking for {templatedir}/{filename}")
-                assert os.path.exists(f"{templatedir}/{filename}")
                 shutil.copyfile(f"{templatedir}/{filename}", f"{repodir}/plugins/{filename}")
 
         for module in modules:
@@ -115,7 +117,27 @@ If you hit <Enter> without any additional input this will create a DAQModule cal
 Suggested module name \"{module}\" needs to be in PascalCase. 
 Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for more.
 """)
-                             
+
+            for filename in ["RenameMe.hpp", "RenameMe.cpp"]:
+
+                newfilename = filename.replace("RenameMe", module)
+                shutil.copyfile(f"{templatedir}/{filename}", f"{repodir}/plugins/{newfilename}")
+
+                with open(f"{templatedir}/{filename}", "r") as inf:
+                    sourcecode = inf.read()
+                    
+                sourcecode = sourcecode.replace("RenameMe", module)
+
+                # Handle the header guards
+                sourcecode = sourcecode.replace("PACKAGE", package.upper())
+                sourcecode = sourcecode.replace("RENAMEME", module.upper())
+
+                # Handle namespace
+                sourcecode = sourcecode.replace("package", package.lower())
+
+                with open(f"{repodir}/plugins/{newfilename}", "w") as outf:
+                    outf.write(sourcecode)
+                 
     cmakelists.write("""
 
 ######################################################################
