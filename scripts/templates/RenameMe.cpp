@@ -27,6 +27,11 @@ RenameMe::init(const data_t& /* structured args */)
 
 }
 
+void 
+get_info(opmonlib::InfoCollector&, int /*level*/)
+{
+}
+
 void
 RenameMe::do_conf(const data_t& /* structured args */ )
 {

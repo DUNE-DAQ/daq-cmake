@@ -21,12 +21,16 @@ public:
 
   explicit RenameMe(const std::string& name);
 
+  void init(const data_t&) override;
+
+  void get_info(opmonlib::InfoCollector&, int /*level*/) override;
+
   RenameMe(const RenameMe&) = delete;            
   RenameMe& operator=(const RenameMe&) = delete;
   RenameMe(RenameMe&&) = delete;
   RenameMe& operator=(RenameMe&&) = delete;
-
-  void init(const data_t&) override;
+  
+  ~RenameMe() = default;
 
 private:
   // Commands RenameMe can receive

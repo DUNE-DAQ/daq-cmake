@@ -1,8 +1,7 @@
 local moo = import "moo.jsonnet";
-local ns = "dunedaq.package.renameme";
-local s = moo.oschema.schema(ns);
+local s = moo.oschema.schema(dunedaq.package.renameme");
 
-local types = {
+local info = {
 
     int8 :   s.number(  "int8",    "i8",          doc="A signed integer of 8 bytes"),
     uint8 :  s.number(  "uint8",   "u8",          doc="An unsigned integer of 8 bytes"),
@@ -10,8 +9,8 @@ local types = {
     boolean: s.boolean( "Boolean",                doc="A boolean"),
     string:  s.string(  "String",   moo.re.ident, doc="A string")   
 
-    // ...Replace this comment with the configuration record...
+    // ...Replace this comment with the info record...
 
 };
 
-moo.oschema.sort_select(types, ns)
+moo.oschema.sort_select(info)
