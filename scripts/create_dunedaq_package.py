@@ -23,7 +23,7 @@ if len(sys.argv) != 2:
 package=sys.argv[1]
 
 #package_repo = f"https://github.com/DUNE-DAQ/{package}/"
-package_repo = f"https://github.com/jcfreeman2/{package}/"  # jcfreeman2 is for testing purposes
+package_repo = f"https://github.com/jcfreeman2/{package}/"  # jcfreeman2 is for testing purposes since there's no guaranteed-empty-repo in DUNE-DAQ
 
 this_scripts_directory=pathlib.Path(__file__).parent.resolve()
 templatedir = f"{this_scripts_directory}/templates"
@@ -32,24 +32,23 @@ tmpdir=tempfile.mkdtemp()
 origdir=os.getcwd()
 os.chdir(tmpdir)
 
-proc = subprocess.Popen(f"git clone {package_repo}" , shell=True, stdout=subprocess.PIPE)
-out = proc.communicate()
-retval = proc.returncode
-
 repodir = f"{tmpdir}/{package}"
+proc = subprocess.Popen(f"git clone {package_repo}" , shell=True, stdout=subprocess.PIPE)
+proc.communicate()
+retval = proc.returncode
 
 if retval == 0:
     print(f"Should find package at {repodir}")
 elif retval == 128:
     error(f"git was unable to find a {package_repo} repository")
 else:
-    error(f"Totally unexpected error occurred when running \"git clone {package_repo}\"")
+    error(f"Totally unexpected error (return value {retval}) occurred when running \"git clone {package_repo}\"")
 
 def get_yes_or_no(prompt):
     answer = input(prompt)
-    if re.search(r"[yY]", answer):
+    if re.search(r"^\s*[yY]\s*$", answer):
         return True
-    elif re.search(r"[nN]", answer):
+    elif re.search(r"^\s*[nN]\s*$", answer):
         return False
 
     raise ValueError
@@ -58,7 +57,7 @@ def cleanup(repodir):
     if os.path.exists(repodir):
 
         # This code is very cautious so that it rm -rf's the directory it expects 
-        if re.search(r"/tmp\w+/", repodir):
+        if re.search(r"^/tmp/tmp\w+/", repodir):
             shutil.rmtree(repodir)
         else:
             assert False, f"DEVELOPER ERROR: This script does not trust that the temporary github repo \"{repodir}\" is something it should delete since it doesn't look like a directory in a tempfile.mkdtemp()-generated directory"
@@ -67,16 +66,35 @@ def cleanup(repodir):
 
 os.chdir(repodir)
 
-if os.path.exists("CMakeLists.txt"):
+if os.listdir(repodir) != [".git"] and os.listdir(repodir) != [".git", "README.md"]:
     error(f"""
 
-After running \"git clone {package_repo}\", it looks like this repo isn't empty. 
+Just ran \"git clone {package_repo}\", and it looks like this repo isn't empty. 
 This script can only be run on repositories which haven't yet been worked on.
 """)
 
 find_package_calls = []
 daq_codegen_calls = []
 daq_add_plugin_calls = []
+daq_add_unit_test_calls = []
+
+contains_modules=False
+
+os.makedirs(f"{repodir}/unittest")
+shutil.copyfile(f"{templatedir}/Placeholder_test.cxx", f"{repodir}/unittest/Placeholder_test.cxx")
+daq_add_unit_test_calls.append("daq_add_unit_test(Placeholder_test LINK_LIBRARIES)  # Any libraries to link in not yet determined")
+find_package_calls.append("find_package(Boost COMPONENTS unit_test_framework REQUIRED)")
+
+os.makedirs(f"{repodir}/docs")
+if not os.path.exists(f"{repodir}/README.md"):
+    with open(f"{repodir}/docs/README.md", "w") as outf:
+        generation_time = get_time("as_date")
+        outf.write(f"# No Official User Documentation Has Been Written Yet ({generation_time})\n")
+else:
+    print("A pre-existing README.md file has been found in the base of this repo. Will move this into a docs/ subdirectory")
+    shutil.move(f"{repodir}/README.md", f"{repodir}/docs/README.md")
+    
+print("")
 
 contains_modules = get_yes_or_no("Will your package contain DAQModule(s) [yY/nN]? ")
 if contains_modules:
@@ -107,7 +125,7 @@ Suggested module name \"{module}\" needs to be in PascalCase.
 Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for more.
 """)
 
-        daq_add_plugin_calls.append(f"daq_add_plugin({module} duneDAQModule LINK_LIBRARIES ) # Libraries to link in not yet determined\n")
+        daq_add_plugin_calls.append(f"daq_add_plugin({module} duneDAQModule LINK_LIBRARIES ) # Any libraries to link in not yet determined")
         daq_codegen_calls.append(f"daq_codegen({module.lower()}.jsonnet TEMPLATES Structs.hpp.j2 Nljs.hpp.j2)") 
         daq_codegen_calls.append(f"daq_codegen({module.lower()}info.jsonnet DEP_PKGS opmonlib TEMPLATES opmonlib/InfoStructs.hpp.j2 opmonlib/InfoNljs.hpp.j2)")
 
@@ -120,7 +138,7 @@ Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for
                 dest_filename = src_filename.replace("renameme", module.lower())
                 dest_filename = f"{repodir}/schema/{package}/{dest_filename}"
             else:
-                assert False, "DEVELOPER ERROR: unknown file extension"
+                assert False, "DEVELOPER ERROR: unhandled filename"
 
             shutil.copyfile(f"{templatedir}/{src_filename}", dest_filename)
 
@@ -141,7 +159,6 @@ Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for
 
             with open(dest_filename, "w") as outf:
                 outf.write(sourcecode)
-
 
 with open("CMakeLists.txt", "w") as cmakelists:
     generation_time = get_time("as_date")
@@ -182,6 +199,15 @@ daq_setup_environment()
 """)
 
     for line in daq_add_plugin_calls:
+        cmakelists.write("\n" + line)
+
+    cmakelists.write("""
+
+##############################################################################
+
+""")
+
+    for line in daq_add_unit_test_calls:
         cmakelists.write("\n" + line)
 
     cmakelists.write("""
