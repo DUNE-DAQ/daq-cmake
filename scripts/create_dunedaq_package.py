@@ -75,17 +75,26 @@ This script can only be run on repositories which haven't yet been worked on.
 
 find_package_calls = []
 daq_codegen_calls = []
+daq_add_library_calls = []
 daq_add_plugin_calls = []
 daq_add_unit_test_calls = []
 
+contains_package_library=False
 contains_modules=False
+contains_standalone_apps=False
 
-os.makedirs(f"{repodir}/unittest")
+print("")
+
+contains_package_library = get_yes_or_no("Will your package contain a package-wide library [yY/nN]? ")
+contains_modules = get_yes_or_no("Will your package contain DAQModule(s) [yY/nN]? ")
+contains_standalone_apps = get_yes_or_no("Will your package contain any standalone apps [yY/nN]? ")
+
+os.makedirs(f"{repodir}/unittest", exist_ok=True)
 shutil.copyfile(f"{templatedir}/Placeholder_test.cxx", f"{repodir}/unittest/Placeholder_test.cxx")
 daq_add_unit_test_calls.append("daq_add_unit_test(Placeholder_test LINK_LIBRARIES)  # Any libraries to link in not yet determined")
 find_package_calls.append("find_package(Boost COMPONENTS unit_test_framework REQUIRED)")
 
-os.makedirs(f"{repodir}/docs")
+os.makedirs(f"{repodir}/docs", exist_ok=True)
 if not os.path.exists(f"{repodir}/README.md"):
     with open(f"{repodir}/docs/README.md", "w") as outf:
         generation_time = get_time("as_date")
@@ -94,9 +103,11 @@ else:
     print("A pre-existing README.md file has been found in the base of this repo. Will move this into a docs/ subdirectory")
     shutil.move(f"{repodir}/README.md", f"{repodir}/docs/README.md")
     
-print("")
+if contains_package_library:
+    os.makedirs(f"{repodir}/src", exist_ok=True)
+    os.makedirs(f"{repodir}/include", exist_ok=True)
+    daq_add_library_calls.append("daq_add_library( LIBRARIES ) # Any source files and/or dependent libraries to link in not yet determined")
 
-contains_modules = get_yes_or_no("Will your package contain DAQModule(s) [yY/nN]? ")
 if contains_modules:
 
     for filename in ["RenameMe.hpp", "RenameMe.cpp"]:
@@ -105,8 +116,9 @@ if contains_modules:
     for pkg in ["appfwk", "opmonlib"]:
         find_package_calls.append(f"find_package({pkg} REQUIRED)")
 
-    os.makedirs(f"{repodir}/plugins")
-    os.makedirs(f"{repodir}/schema/{package}")
+    os.makedirs(f"{repodir}/src", exist_ok=True)
+    os.makedirs(f"{repodir}/plugins", exist_ok=True)
+    os.makedirs(f"{repodir}/schema/{package}", exist_ok=True)
 
     modules = input("""
 If you know the name(s) of your DAQModule(s), please type them here on a single line, separated by spaces, no quotes.
@@ -160,6 +172,22 @@ Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for
             with open(dest_filename, "w") as outf:
                 outf.write(sourcecode)
 
+if contains_standalone_apps:
+    pass  # To be implemented
+
+def print_cmakelists_section(list_of_calls, section_of_webpage = None):
+    for i, line in enumerate(list_of_calls):
+        if i == 0 and section_of_webpage is not None:
+            cmakelists.write(f"\n# See https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-cmake/#{section_of_webpage}\n") 
+        cmakelists.write("\n" + line)
+
+    if len(list_of_calls) > 0:
+        cmakelists.write("""
+
+##############################################################################
+
+""")
+
 with open("CMakeLists.txt", "w") as cmakelists:
     generation_time = get_time("as_date")
     cmakelists.write(f"""
@@ -180,43 +208,13 @@ daq_setup_environment()
 
 """)
 
-    for line in find_package_calls:
-        cmakelists.write("\n" + line)
+    print_cmakelists_section(find_package_calls)
+    print_cmakelists_section(daq_codegen_calls, "daq_codegen")
+    print_cmakelists_section(daq_add_library_calls, "daq_add_library")
+    print_cmakelists_section(daq_add_plugin_calls, "daq_add_plugin")
+    print_cmakelists_section(daq_add_unit_test_calls, "daq_add_unit_test")
 
-    cmakelists.write("""
+    cmakelists.write("daq_install()\n\n")
 
-##############################################################################
-
-""")
-    
-    for line in daq_codegen_calls:
-        cmakelists.write("\n" + line)
-
-    cmakelists.write("""
-
-##############################################################################
-
-""")
-
-    for line in daq_add_plugin_calls:
-        cmakelists.write("\n" + line)
-
-    cmakelists.write("""
-
-##############################################################################
-
-""")
-
-    for line in daq_add_unit_test_calls:
-        cmakelists.write("\n" + line)
-
-    cmakelists.write("""
-
-######################################################################
-
-daq_install()
-"""
-)
-
-if False:  # While developing the script, don't delete the repo at the end
+if False:  # While developing the script, don't delete the local repo at the end
     cleanup(repodir)
