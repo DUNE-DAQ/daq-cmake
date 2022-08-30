@@ -162,7 +162,7 @@ Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for
 Exiting...
 """)
 
-        daq_add_plugin_calls.append(f"daq_add_plugin({module} duneDAQModule LINK_LIBRARIES ) # Any libraries to link in not yet determined")
+        daq_add_plugin_calls.append(f"daq_add_plugin({module} duneDAQModule LINK_LIBRARIES appfwk::appfwk) # Replace appfwk library with a more specific library when appropriate")
         daq_codegen_calls.append(f"daq_codegen({module.lower()}.jsonnet TEMPLATES Structs.hpp.j2 Nljs.hpp.j2)") 
         daq_codegen_calls.append(f"daq_codegen({module.lower()}info.jsonnet DEP_PKGS opmonlib TEMPLATES opmonlib/InfoStructs.hpp.j2 opmonlib/InfoNljs.hpp.j2)")
 
@@ -253,7 +253,6 @@ if not os.path.exists(f"{repodir}/README.md"):
         generation_time = get_time("as_date")
         outf.write(f"# No Official User Documentation Has Been Written Yet ({generation_time})\n")
 else:
-    print("A pre-existing README.md file has been found in the base of this repo. Will move this into a docs/ subdirectory")
     os.chdir(repodir)
     proc = subprocess.Popen(f"pwd; git mv README.md docs/README.md", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     proc.communicate()
@@ -316,6 +315,13 @@ daq_setup_environment()
     cmakelists.write("daq_install()\n\n")
 
 os.chdir(repodir)
+
+# Only need .gitkeep if the directory is otherwise empty
+for filename, ignored, ignored in os.walk(repodir):
+    if os.path.isdir(filename) and os.listdir(filename) != [".gitkeep"]:
+        if os.path.exists(f"{filename}/.gitkeep"):
+            os.unlink(f"{filename}/.gitkeep")
+
 proc = subprocess.Popen("git add -A", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 proc.communicate()
 retval = proc.returncode
@@ -324,3 +330,14 @@ if retval != 0:
     error(f"""
 There was a problem trying to "git add" the newly-created files and directories in {repodir}; exiting...
 """)
+
+command=" ".join(sys.argv)
+proc = subprocess.Popen(f"git commit -m \"This {os.path.basename (__file__)}-generated boilerplate for the {package} package was created by this command: {command}\"", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+proc.communicate()
+retval = proc.returncode
+
+if retval != 0:
+    error(f"""
+There was a problem trying to auto-generate the commit off the newly auto-generated files in {repodir}. Exiting...
+""")
+

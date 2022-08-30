@@ -1,5 +1,5 @@
 local moo = import "moo.jsonnet";
-local s = moo.oschema.schema(dunedaq.package.renameme");
+local s = moo.oschema.schema("dunedaq.package.renameme");
 
 local info = {
 
