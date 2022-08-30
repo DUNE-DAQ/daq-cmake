@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import pathlib
 import re
@@ -17,10 +18,50 @@ else:
 
 from dbt_setup_tools import error, get_time
 
-if len(sys.argv) != 2:
-    error(f"\n\nUsage:\n\n{os.path.basename(__file__)} <name of package>\n\n")
+usage_blurb=f"""
 
-package=sys.argv[1]
+Usage
+-----
+
+This script creates the boilerplate of a new DUNE DAQ package. In
+general, the more you know about your package in advance (e.g. whether
+it should contain DAQModules and what their names should be, etc.) the
+more work this script can do for you.
+
+Simplest usage:
+{os.path.basename (__file__)} <name of new repo in DUNE-DAQ>\n\n")
+
+...where the new repo must be empty with the exception of an optional README.md. 
+
+Arguments and options:
+
+--main-library: package will contain a main, package-wide library which other packages can link in
+
+--python-bindings: whether there will be python bindings to components in a main library
+
+--daq-module: for each "--daq-module <module name>" provided at the commandline, the framework for a DAQModule will be auto-generated
+
+--user-app: same as --daq-module, but for user applications
+
+--test-app: same as --daq-module, but for integration test applications
+
+"""
+
+parser = argparse.ArgumentParser(usage=usage_blurb)
+parser.add_argument("--main-library", action="store_true", dest="contains_main_library", help=argparse.SUPPRESS)
+parser.add_argument("--python-bindings", action="store_true", dest="contains_python_bindings", help=argparse.SUPPRESS)
+parser.add_argument("--daq-module", action="append", dest="daq_modules", help=argparse.SUPPRESS)
+parser.add_argument("--user-app", action="append", dest="user_apps", help=argparse.SUPPRESS)
+parser.add_argument("--test-app", action="append", dest="test_apps", help=argparse.SUPPRESS)
+parser.add_argument("package", nargs="?", help=argparse.SUPPRESS)
+
+args = parser.parse_args()
+
+if args.package is not None: 
+    package = args.package
+else:
+    print(usage_blurb)
+    sys.exit(1)
 
 #package_repo = f"https://github.com/DUNE-DAQ/{package}/"
 package_repo = f"https://github.com/jcfreeman2/{package}/"  # jcfreeman2 is for testing purposes since there's no guaranteed-empty-repo in DUNE-DAQ
@@ -33,7 +74,7 @@ origdir=os.getcwd()
 os.chdir(tmpdir)
 
 repodir = f"{tmpdir}/{package}"
-proc = subprocess.Popen(f"git clone {package_repo}" , shell=True, stdout=subprocess.PIPE)
+proc = subprocess.Popen(f"git clone {package_repo}" , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 proc.communicate()
 retval = proc.returncode
 
@@ -43,15 +84,6 @@ elif retval == 128:
     error(f"git was unable to find a {package_repo} repository")
 else:
     error(f"Totally unexpected error (return value {retval}) occurred when running \"git clone {package_repo}\"")
-
-def get_yes_or_no(prompt):
-    answer = input(prompt)
-    if re.search(r"^\s*[yY]\s*$", answer):
-        return True
-    elif re.search(r"^\s*[nN]\s*$", answer):
-        return False
-
-    raise ValueError
 
 def cleanup(repodir):
     if os.path.exists(repodir):
@@ -66,7 +98,8 @@ def cleanup(repodir):
 
 os.chdir(repodir)
 
-if os.listdir(repodir) != [".git"] and os.listdir(repodir) != [".git", "README.md"]:
+if os.listdir(repodir) != [".git"] and os.listdir(repodir) != [".git", "README.md"] and os.listdir(repodir) != [".git", "docs"]:
+    cleanup(repodir)
     error(f"""
 
 Just ran \"git clone {package_repo}\", and it looks like this repo isn't empty. 
@@ -81,31 +114,21 @@ daq_add_plugin_calls = []
 daq_add_application_calls = []
 daq_add_unit_test_calls = []
 
-contains_package_library=False
-contains_python_bindings = False
-contains_modules=False
-contains_user_apps=False
-contains_test_apps=False
-
 print("")
 
-contains_package_library = get_yes_or_no("Will your package contain a main, package-wide library [yY/nN]? ")    
-if contains_package_library:
+if args.contains_main_library:
     os.makedirs(f"{repodir}/src", exist_ok=True)
     os.makedirs(f"{repodir}/include", exist_ok=True)
     daq_add_library_calls.append("daq_add_library( LIBRARIES ) # Any source files and/or dependent libraries to link in not yet determined")
 
-if contains_package_library:
-    contains_python_bindings = get_yes_or_no("Will your package contain python bindings to its classes, etc. [yY/nN]? ")
-    if contains_python_bindings:
-        os.makedirs(f"{repodir}/pybindsrc", exist_ok=True)
-        daq_add_python_bindings_calls.append("\ndaq_add_python_bindings(*.cpp LINK_LIBRARIES ${PROJECT_NAME} ) # Any additional libraries to link in beyond the main library not yet determined\n")
+if args.contains_python_bindings:
+    os.makedirs(f"{repodir}/pybindsrc", exist_ok=True)
+    daq_add_python_bindings_calls.append("\ndaq_add_python_bindings(*.cpp LINK_LIBRARIES ${PROJECT_NAME} ) # Any additional libraries to link in beyond the main library not yet determined\n")
 
-        for src_filename in ["module.cpp", "renameme.cpp"]:
-            shutil.copyfile(f"{templatedir}/{src_filename}", f"{repodir}/pybindsrc/{src_filename}")
+    for src_filename in ["module.cpp", "renameme.cpp"]:
+        shutil.copyfile(f"{templatedir}/{src_filename}", f"{repodir}/pybindsrc/{src_filename}")
 
-contains_modules = get_yes_or_no("Will your package contain DAQModule(s) [yY/nN]? ")
-if contains_modules:
+if args.daq_modules:
 
     for filename in ["RenameMe.hpp", "RenameMe.cpp"]:
         assert os.path.exists(f"{templatedir}/{filename}")
@@ -117,16 +140,7 @@ if contains_modules:
     os.makedirs(f"{repodir}/plugins", exist_ok=True)
     os.makedirs(f"{repodir}/schema/{package}", exist_ok=True)
 
-    modules = input("""
-If you know the name(s) of your DAQModule(s), please type them here on a single line, separated by spaces, no quotes.
-If you hit <Enter> without typing any names this will create a DAQModule called RenameMe which you should edit later:
-""")
-    modules = modules.split()
-        
-    if len(modules) == 0:
-        modules = ["RenameMe"]
-
-    for module in modules:
+    for module in args.daq_modules:
         if not re.search(r"^[A-Z][^_]+", module):
             cleanup(repodir)
             error(f"""
@@ -170,24 +184,14 @@ Exiting...
             with open(dest_filename, "w") as outf:
                 outf.write(sourcecode)
 
-contains_user_apps = get_yes_or_no("Will your package contain any apps for end users [yY/nN]? ")
-if contains_user_apps:
+if args.user_apps:
     os.makedirs(f"{repodir}/apps", exist_ok=True)
 
-    user_apps = input("""
-If you know the name(s) of your user application(s), please type them here on a single line, separated by spaces, no quotes.
-If you hit <Enter> without typing any names this will create an application called renameme which you should edit later:
-""")
-    user_apps = user_apps.split()
-
-    if len(user_apps) == 0:
-        user_apps = ["renameme"]
-
-    for user_app in user_apps:
+    for user_app in args.user_apps:
         if re.search(r"[A-Z]", user_app):
             cleanup(repodir)
             error(f"""
-            Requested user application name \"{user_app}\" needs to be in snake_case. 
+Requested user application name \"{user_app}\" needs to be in snake_case. 
 Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for more on naming conventions.
 Exiting...
 """)
@@ -202,24 +206,15 @@ Exiting...
 
         daq_add_application_calls.append(f"daq_add_application({user_app} {user_app}.cxx LINK_LIBRARIES ) # Any libraries to link in not yet determined")
     
-contains_test_apps = get_yes_or_no("Will your package contains any apps meant for integration testing the package [yY/nN]? ")
-if contains_test_apps:
+
+if args.test_apps:
     os.makedirs(f"{repodir}/test/apps", exist_ok=True)
 
-    test_apps = input("""
-If you know the name(s) of your integration test application(s), please type them here on a single line, separated by spaces, no quotes.
-If you hit <Enter> without typing any names this will create an application called renameme which you should edit later:
-""")
-    test_apps = test_apps.split()
-
-    if len(test_apps) == 0:
-        test_apps = ["renameme"]
-
-    for test_app in test_apps:
+    for test_app in args.test_apps:
         if re.search(r"[A-Z]", test_app):
             cleanup(repodir)
             error(f"""
-            Requested test application name \"{test_app}\" needs to be in snake_case. 
+Requested test application name \"{test_app}\" needs to be in snake_case. 
 Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ for more on naming conventions.
 Exiting...
 """)
