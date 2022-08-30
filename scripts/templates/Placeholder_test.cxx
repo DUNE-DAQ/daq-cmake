@@ -20,7 +20,7 @@ BOOST_AUTO_TEST_SUITE(Placeholder_test)
 
 BOOST_AUTO_TEST_CASE(ReplaceThisTest)
 {
-  BOOST_TEST_MESSAGE("This unit test is designed to fail. If you're reading this it means developers haven't yet replaced this test with an actual test of their code.");
+  BOOST_TEST_MESSAGE("This unit test is designed to fail. If you're reading this it means developers haven't replaced this test with any actual unit tests test of their code.");
   BOOST_REQUIRE_EQUAL(1, 2);
 }
 

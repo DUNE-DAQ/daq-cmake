@@ -69,36 +69,49 @@ package_repo = f"https://github.com/jcfreeman2/{package}/"  # jcfreeman2 is for 
 this_scripts_directory=pathlib.Path(__file__).parent.resolve()
 templatedir = f"{this_scripts_directory}/templates"
 
-tmpdir=tempfile.mkdtemp()
-origdir=os.getcwd()
-os.chdir(tmpdir)
+if "DBT_AREA_ROOT" in os.environ:
+    sourcedir = os.environ["DBT_AREA_ROOT"] + "/sourcecode"
+else:
+    error("""
+The environment variable DBT_AREA_ROOT doesn't appear to be defined. 
+You need to have a work area environment set up for this script to work. Exiting...
+""")
 
-repodir = f"{tmpdir}/{package}"
-proc = subprocess.Popen(f"git clone {package_repo}" , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+repodir = f"{sourcedir}/{package}"
+os.chdir(f"{sourcedir}")
+
+proc = subprocess.Popen(f"git clone {package_repo}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 proc.communicate()
 retval = proc.returncode
 
-if retval == 0:
-    print(f"Should find package at {repodir}")
-elif retval == 128:
-    error(f"git was unable to find a {package_repo} repository")
-else:
+if retval == 128:
+    error(f"""
+git was either unable to find a {package_repo} repository or it already existed 
+in {os.getcwd()} and couldn't be overwritten
+    """)
+elif retval != 0:
     error(f"Totally unexpected error (return value {retval}) occurred when running \"git clone {package_repo}\"")
 
 def cleanup(repodir):
     if os.path.exists(repodir):
 
         # This code is very cautious so that it rm -rf's the directory it expects 
-        if re.search(r"^/tmp/tmp\w+/", repodir):
+        if re.search(f"/{package}", repodir):
             shutil.rmtree(repodir)
         else:
-            assert False, f"DEVELOPER ERROR: This script does not trust that the temporary github repo \"{repodir}\" is something it should delete since it doesn't look like a directory in a tempfile.mkdtemp()-generated directory"
+            assert False, f"DEVELOPER ERROR: This script does not trust that the directory \"{repodir}\" is something it should delete since it doesn't look like a local repo for {package}"
     else:
         assert False, f"DEVELOPER ERROR: This script is unable to locate the expected repo directory {repodir}"
 
+def make_package_dir(dirname):
+    os.makedirs(dirname, exist_ok=True)
+    if not os.path.exists(f"{dirname}/.gitkeep"):
+        open(f"{dirname}/.gitkeep", "w")
+
 os.chdir(repodir)
 
-if os.listdir(repodir) != [".git"] and os.listdir(repodir) != [".git", "README.md"] and os.listdir(repodir) != [".git", "docs"]:
+if os.listdir(repodir) != [".git"] and sorted(os.listdir(repodir)) != [".git", "README.md"] and sorted(os.listdir(repodir)) != [".git", "docs"]:
     cleanup(repodir)
     error(f"""
 
@@ -117,12 +130,12 @@ daq_add_unit_test_calls = []
 print("")
 
 if args.contains_main_library:
-    os.makedirs(f"{repodir}/src", exist_ok=True)
-    os.makedirs(f"{repodir}/include", exist_ok=True)
-    daq_add_library_calls.append("daq_add_library( LIBRARIES ) # Any source files and/or dependent libraries to link in not yet determined")
+    make_package_dir(f"{repodir}/src")
+    make_package_dir(f"{repodir}/include")
+    daq_add_library_calls.append("daq_add_library( LINK_LIBRARIES ) # Any source files and/or dependent libraries to link in not yet determined")
 
 if args.contains_python_bindings:
-    os.makedirs(f"{repodir}/pybindsrc", exist_ok=True)
+    make_package_dir(f"{repodir}/pybindsrc")
     daq_add_python_bindings_calls.append("\ndaq_add_python_bindings(*.cpp LINK_LIBRARIES ${PROJECT_NAME} ) # Any additional libraries to link in beyond the main library not yet determined\n")
 
     for src_filename in ["module.cpp", "renameme.cpp"]:
@@ -136,9 +149,9 @@ if args.daq_modules:
     for pkg in ["appfwk", "opmonlib"]:
         find_package_calls.append(f"find_package({pkg} REQUIRED)")
 
-    os.makedirs(f"{repodir}/src", exist_ok=True)
-    os.makedirs(f"{repodir}/plugins", exist_ok=True)
-    os.makedirs(f"{repodir}/schema/{package}", exist_ok=True)
+    make_package_dir(f"{repodir}/src")
+    make_package_dir(f"{repodir}/plugins")
+    make_package_dir(f"{repodir}/schema/{package}")
 
     for module in args.daq_modules:
         if not re.search(r"^[A-Z][^_]+", module):
@@ -185,7 +198,7 @@ Exiting...
                 outf.write(sourcecode)
 
 if args.user_apps:
-    os.makedirs(f"{repodir}/apps", exist_ok=True)
+    make_package_dir(f"{repodir}/apps")
 
     for user_app in args.user_apps:
         if re.search(r"[A-Z]", user_app):
@@ -208,7 +221,7 @@ Exiting...
     
 
 if args.test_apps:
-    os.makedirs(f"{repodir}/test/apps", exist_ok=True)
+    make_package_dir(f"{repodir}/test/apps")
 
     for test_app in args.test_apps:
         if re.search(r"[A-Z]", test_app):
@@ -229,19 +242,35 @@ Exiting...
 
         daq_add_application_calls.append(f"daq_add_application({test_app} {test_app}.cxx TEST LINK_LIBRARIES ) # Any libraries to link in not yet determined")
 
-os.makedirs(f"{repodir}/unittest", exist_ok=True)
+make_package_dir(f"{repodir}/unittest")
 shutil.copyfile(f"{templatedir}/Placeholder_test.cxx", f"{repodir}/unittest/Placeholder_test.cxx")
 daq_add_unit_test_calls.append("daq_add_unit_test(Placeholder_test LINK_LIBRARIES)  # Any libraries to link in not yet determined")
 find_package_calls.append("find_package(Boost COMPONENTS unit_test_framework REQUIRED)")
 
-os.makedirs(f"{repodir}/docs", exist_ok=True)
+make_package_dir(f"{repodir}/docs")
 if not os.path.exists(f"{repodir}/README.md"):
     with open(f"{repodir}/docs/README.md", "w") as outf:
         generation_time = get_time("as_date")
         outf.write(f"# No Official User Documentation Has Been Written Yet ({generation_time})\n")
 else:
     print("A pre-existing README.md file has been found in the base of this repo. Will move this into a docs/ subdirectory")
-    shutil.move(f"{repodir}/README.md", f"{repodir}/docs/README.md")
+    os.chdir(repodir)
+    proc = subprocess.Popen(f"pwd; git mv README.md docs/README.md", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc.communicate()
+    retval = proc.returncode
+    if retval != 0:
+        cleanup(repodir)
+        error(f"There was a problem attempting a git mv of README.md to docs/README.md in {repodir}; exiting...")
+
+make_package_dir(f"{repodir}/cmake")
+config_template_html=f"https://raw.githubusercontent.com/DUNE-DAQ/daq-cmake/dunedaq-v2.6.0/configs/Config.cmake.in"
+proc = subprocess.Popen(f"curl -o {repodir}/cmake/{package}Config.cmake.in -O {config_template_html}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+proc.communicate()
+retval = proc.returncode
+
+if retval != 0:
+    cleanup(repodir)
+    error(f"There was a problem trying to pull down {config_template_html} from the web; exiting...")
 
 def print_cmakelists_section(list_of_calls, section_of_webpage = None):
     for i, line in enumerate(list_of_calls):
@@ -286,5 +315,12 @@ daq_setup_environment()
 
     cmakelists.write("daq_install()\n\n")
 
-if False:  # While developing the script, don't delete the local repo at the end
-    cleanup(repodir)
+os.chdir(repodir)
+proc = subprocess.Popen("git add -A", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+proc.communicate()
+retval = proc.returncode
+
+if retval != 0:
+    error(f"""
+There was a problem trying to "git add" the newly-created files and directories in {repodir}; exiting...
+""")
