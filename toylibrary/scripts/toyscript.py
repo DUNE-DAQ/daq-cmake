@@ -8,26 +8,24 @@ from toylibrary.play import PlayInts
 
 my_number=1
 
-print("Initial int:\n{}".format(my_number))
-
-print("")
+print(f"Basic int: {my_number}")
 
 # Use C++ exposed in top level module
 wrapper = ValueWrapperInt(my_number)
-print("Wrapped int:\n{}".format(wrapper.GetValue()))
+print(f"Wrapped int: {wrapper.GetValue()}")
 
 printer = IntPrinter(wrapper)
-print("Printed int:")
+print(f"Printed int:")
 printer.Show()
 
 print("")
 
 # Use C++ exposed in wind sub-module
 my_number_up = WindUp(my_number)
-print("Wound up int:\n{}".format(my_number_up))
+print(f"Wound up int: {my_number_up}")
 
 my_number_down = WindDown(my_number)
-print("Wound down int:\n{}".format(my_number_down))
+print(f"Wound down int: {my_number_down}")
 
 print("")
 

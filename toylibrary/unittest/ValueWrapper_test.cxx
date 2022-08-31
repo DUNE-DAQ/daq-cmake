@@ -1,5 +1,5 @@
 /**
- * @file ValueWrapper_test.cxx ValueWrapper class Unit Tests
+ * @file ValueWrapper_test.cxx
  *
  * This file is meant to serve as an example for developers for how to use Boost
  * to write unit tests for their package's components. It's good practice to write
@@ -14,7 +14,8 @@
 
 #define BOOST_TEST_MODULE ValueWrapper_test // NOLINT
 
-#include <boost/test/unit_test.hpp>
+#include "boost/test/unit_test.hpp"
+
 #include <string>
 
 using namespace dunedaq::toylibrary;

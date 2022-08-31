@@ -133,7 +133,7 @@ You can see a simple example of this kind of file with `toylibrary/cmake/toylibr
 
 Once you've edited this file as described, from the base of your development area you can then run 
 ```
-dbt-build.py 
+dbt-build
 ```
 
 without receiving an error message informing you that installation isn't an option. 
