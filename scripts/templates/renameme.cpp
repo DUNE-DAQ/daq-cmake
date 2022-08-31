@@ -16,8 +16,6 @@ namespace dunedaq::daqdataformats::python {
 
 void
 register_renameme(pybind11::module& m)
-{
+{}
 
-}
-
-} // namespace python::daqdataformats::dunedaq
+} // namespace dunedaq::daqdataformats::python

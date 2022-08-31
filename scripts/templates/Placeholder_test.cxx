@@ -1,5 +1,5 @@
 /**
- * @file Placeholder_test.cxx 
+ * @file Placeholder_test.cxx
  *
  * This file provides a skeleton off of which developers can write
  * unit tests for their package. The file is meant to be renamed as
@@ -11,7 +11,6 @@
  * received with this code.
  */
 
-
 #define BOOST_TEST_MODULE Placeholder_test // NOLINT
 
 #include "boost/test/unit_test.hpp"
@@ -20,7 +19,8 @@ BOOST_AUTO_TEST_SUITE(Placeholder_test)
 
 BOOST_AUTO_TEST_CASE(ReplaceThisTest)
 {
-  BOOST_TEST_MESSAGE("This unit test is designed to fail. If you're reading this it means developers haven't replaced this test with any actual unit tests test of their code.");
+  BOOST_TEST_MESSAGE("This unit test is designed to fail. If you're reading this it means developers haven't replaced "
+                     "this test with any actual unit tests test of their code.");
   BOOST_REQUIRE_EQUAL(1, 2);
 }
 

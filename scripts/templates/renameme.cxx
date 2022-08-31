@@ -1,7 +1,7 @@
 /**
- * @file renameme.cxx 
+ * @file renameme.cxx
  *
- * Developer(s) of this DAQ application have yet to replace this line with a brief description of the application. 
+ * Developer(s) of this DAQ application have yet to replace this line with a brief description of the application.
  *
  * This is part of the DUNE DAQ Application Framework, copyright 2020.
  * Licensing/copyright details are in the COPYING file that you should have

@@ -1,5 +1,5 @@
 /**
- * @file RenameMe.cpp 
+ * @file RenameMe.cpp
  *
  * Implementations of RenameMe's functions
  *
@@ -9,6 +9,8 @@
  */
 
 #include "RenameMe.hpp"
+
+#include <string>
 
 namespace dunedaq::package {
 
@@ -23,38 +25,27 @@ RenameMe::RenameMe(const std::string& name)
 
 void
 RenameMe::init(const data_t& /* structured args */)
-{
+{}
 
-}
-
-void 
+void
 get_info(opmonlib::InfoCollector&, int /*level*/)
-{
-}
+{}
 
 void
-RenameMe::do_conf(const data_t& /* structured args */ )
-{
-
-}
+RenameMe::do_conf(const data_t& /* structured args */)
+{}
 
 void
-RenameMe::do_start(const data_t& /* structured args */ )
-{
-
-}
+RenameMe::do_start(const data_t& /* structured args */)
+{}
 
 void
-RenameMe::do_stop(const data_t& /* structured args */ )
-{
-
-}
+RenameMe::do_stop(const data_t& /* structured args */)
+{}
 
 void
 RenameMe::do_scrap(const data_t& /* structured args */)
-{
-
-}
+{}
 
 } // namespace dunedaq::package
 
