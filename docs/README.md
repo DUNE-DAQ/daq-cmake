@@ -2,7 +2,57 @@
 
 This package provides CMake support for DUNE-DAQ packages.
 
-## Overview of how to create a new package
+The documentation for this package is divided into three parts:
+1) A description of `create_dunedaq_package.py`, a script which will generate a good deal of CMake/C++ code which is standard across all DUNE DAQ packages
+2) A description of the standard structure and CMake build code in a DUNE DAQ package, including an educational-only package called `toylibrary`
+3) A reference manual for the DUNE-DAQ-specific CMake functions developers can call in order to specify their package's build
+
+## The `create_dunedaq-package.py` script
+
+A DUNE DAQ software package is composed of various types of software components - standalone applications, libraries, DAQModules, etc. Across the packages there are common ways these are implemented, whether as a result of our official coding guidelines or simply through tradition. `create_dunedaq_package.py` takes advantage of these patterns by generating much of the "boilerplate" code which makes up a DUNE DAQ package. 
+
+To use this, you'll want to first have a new repo added to the DUNE DAQ organization. The repo should either be empty, or simply consist of a `README.md` file. You'll also want to have some of idea of what software components will make up your package, and what their names should be. While the only argument actually required by `create_dunedaq_package.py` is the basic name of your new repo, it won't do much unless you provide it with options and arguments. You can see what these are by running `create_dunedaq_package.py -h`, reprinted here for your convenience:
+
+Arguments and options:
+
+`--main-library`: package will contain a main, package-wide library which other packages can link in
+
+`--python-bindings`: whether there will be Python bindings to components in a main library. Requires the `--main-library` option as well.
+
+`--daq-module`: for each "`--daq-module <module name>`" provided at the command line, the framework for a DAQModule will be auto-generated
+
+`--user-app`: same as `--daq-module`, but for user applications
+
+`--test-app`: same as `--daq-module`, but for integration test applications
+
+Note that some of these concepts, e.g. a user-oriented app vs. an app designed for integration tests of the package itself, are covered later in this documentation. 
+
+If you're in the base of a development area, you can run this script. An example of doing so would be the following (note you can horizontal-scroll the command below):
+```
+create_dunedaq_package.py --daq-module AFirstModule --daq-module ASecondModule --user-app an_app_for_users --user-app another_app_for_users --python-bindings --main-library thenewpackage
+```
+(Pretend there's a new, empty repo, `https://github.com/DUNE-DAQ/thenewpackage`, and ignore the horribly-chosen names in the example). If you were to `ls sourcecode`, you would see that the script had set up several new directories for you, as well as a `CMakeLists.txt` file:
+```
+apps
+cmake
+CMakeLists.txt
+docs
+include
+plugins
+pybindsrc
+schema
+src
+unittest
+```
+where most of the directories contain boilerplate code for the software components you requested. Of course, details specific to the components would need to be filled in by yourself and other developers. And if you look at `CMakeLists.txt`, you'll see that many of the function calls you'd need will have been added, though generally missing the arguments you'd need to provide them so they would know what libraries to link against, e.g.:
+```
+daq_add_application(an_app_for_users an_app_for_users.cxx LINK_LIBRARIES ) # Any libraries to link in not yet determined
+```
+Obviously comments such as `# Any libraries to link in not yet determined` should be deleted when it becomes appropriate. 
+
+Note also that a unit test is automatically generated for you _which is designed to fail_. Developers are heavily encouraged to replace it with appropriate unit tests for their package, unless it's one of those rare packages which don't need unit tests, in which case the unit test functionality should be entirely stripped from the package. 
+
+## Overview of a DUNE DAQ package
 
 ### Setting up a development area
 
