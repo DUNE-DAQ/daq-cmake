@@ -6,16 +6,18 @@
  * received with this code.
  */
 
-#include <pybind11/operators.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "pybind11/operators.h"
+#include "pybind11/pybind11.h"
+#include "pybind11/stl.h"
 
 #include <sstream>
 
-namespace dunedaq::daqdataformats::python {
+namespace py = pybind11;
+
+namespace dunedaq::package::python {
 
 void
 register_renameme(pybind11::module& m)
 {}
 
-} // namespace dunedaq::daqdataformats::python
+} // namespace dunedaq::package::python

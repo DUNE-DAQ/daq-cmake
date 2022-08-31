@@ -6,10 +6,12 @@
  * received with this code.
  */
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
+#include "pybind11/stl.h"
 
-namespace dunedaq::daqdataformats::python {
+namespace py = pybind11;
+
+namespace dunedaq::package::python {
 
 extern void
 register_renameme(pybind11::module&);
@@ -17,7 +19,7 @@ register_renameme(pybind11::module&);
 PYBIND11_MODULE(_daq_package_py, m)
 {
 
-  m.doc() = "c++ implementation of the dunedaq package modules";
+  m.doc() = "C++ implementation of the package modules";
 
   // You'd want to change renameme to the name of a function which
   // you'd like to have a python binding to
@@ -25,4 +27,4 @@ PYBIND11_MODULE(_daq_package_py, m)
   register_renameme(m);
 }
 
-} // namespace dunedaq::daqdataformats::python
+} // namespace dunedaq::package::python

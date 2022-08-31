@@ -145,7 +145,7 @@ print("")
 
 if args.contains_main_library:
     make_package_dir(f"{REPODIR}/src")
-    make_package_dir(f"{REPODIR}/include")
+    make_package_dir(f"{REPODIR}/include/{PACKAGE}")
     daq_add_library_calls.append("daq_add_library( LINK_LIBRARIES ) # Any source files and/or dependent libraries to link in not yet determined")
 
 if args.contains_python_bindings:
@@ -153,7 +153,13 @@ if args.contains_python_bindings:
     daq_add_python_bindings_calls.append("\ndaq_add_python_bindings(*.cpp LINK_LIBRARIES ${PROJECT_NAME} ) # Any additional libraries to link in beyond the main library not yet determined\n")
 
     for src_filename in ["module.cpp", "renameme.cpp"]:
-        shutil.copyfile(f"{TEMPLATEDIR}/{src_filename}", f"{REPODIR}/pybindsrc/{src_filename}")
+        with open(f"{TEMPLATEDIR}/{src_filename}", "r") as inf:
+            sourcecode = inf.read()
+
+        sourcecode = sourcecode.replace("package", PACKAGE.lower())
+        
+        with open(f"{REPODIR}/pybindsrc/{src_filename}", "w") as outf:
+            outf.write(sourcecode)
 
 if args.daq_modules:
 
