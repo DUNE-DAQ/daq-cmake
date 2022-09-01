@@ -2,16 +2,17 @@
 
 This package provides CMake support for DUNE-DAQ packages.
 
-The documentation for this package is divided into three parts:
+The documentation for this package is divided into four parts:
 1) A description of `create_dunedaq_package.py`, a script which will generate a good deal of CMake/C++ code which is standard across all DUNE DAQ packages
-2) A description of the standard structure and CMake build code in a DUNE DAQ package, including an educational-only package called `toylibrary`
-3) A reference manual for the DUNE-DAQ-specific CMake functions developers can call in order to specify their package's build
+2) A description of the standard structure and CMake build code in a DUNE DAQ package
+3) A complete reference manual for the DUNE-DAQ-specific CMake functions developers can call in order to specify their package's build
+4) A description of how we use schema in order to consistently define data structures
 
 ## The `create_dunedaq-package.py` script
 
-A DUNE DAQ software package is composed of various types of software components - standalone applications, libraries, DAQModules, etc. Across the packages there are common ways these are implemented, whether as a result of our official coding guidelines or simply through tradition. `create_dunedaq_package.py` takes advantage of these patterns by generating much of the "boilerplate" code which makes up a DUNE DAQ package. 
+A DUNE DAQ software package is composed of various types of software components - standalone applications, libraries, [DAQModules](https://dune-daq-sw.readthedocs.io/en/latest/packages/appfwk/), etc. Across the packages there are common ways these are implemented, whether as a result of our [official coding guidelines](https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/) or simply through tradition. `create_dunedaq_package.py` takes advantage of these patterns and saves you work by generating much of the "boilerplate" code which makes up a DUNE DAQ package. 
 
-To use this, you'll want to first have a new repo added to the DUNE DAQ organization. The repo should either be empty, or simply consist of a `README.md` file. You'll also want to have some of idea of what software components will make up your package, and what their names should be. While the only argument actually required by `create_dunedaq_package.py` is the basic name of your new repo, it won't do much unless you provide it with options and arguments. You can see what these are by running `create_dunedaq_package.py -h`, reprinted here for your convenience:
+Before using `create_dunedaq-package.py`, you'll want to first have a new repo added to the DUNE DAQ organization. This repo can be provided to you by members of the software coordination team if you request it on DUNE's **#daq-sw-librarians** Slack channel. Please also let them know what [development team](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-release/team_repos/) you're requesting this repo on behalf of. You'll also want to have some of idea of what software components will make up your package, and what their names should be. While the only argument actually required by `create_dunedaq_package.py` is the name of your new repo, it won't do much unless you provide it with options and arguments. You can see what these are by running `create_dunedaq_package.py -h`, reprinted here for your convenience.
 
 Arguments and options:
 
@@ -25,13 +26,13 @@ Arguments and options:
 
 `--test-app`: same as `--daq-module`, but for integration test applications
 
-Note that some of these concepts, e.g. a user-oriented app vs. an app designed for integration tests of the package itself, are covered later in this documentation. 
+Note that some of these concepts, e.g. a user-oriented app vs. an app designed for integration tests of the package itself, are covered below in the [Overview of a DUNE DAQ package](#package_overview) section. 
 
-If you're in the base of a development area, you can run this script. An example of doing so would be the following (note you can horizontal-scroll the command below):
+`create_dunedaq_package.py` should be run in the base of a development area with the development environment set up, as described in [the daq-buildtools instructions](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/). An example of doing so would be the following (note you can horizontal-scroll the command below):
 ```
 create_dunedaq_package.py --daq-module AFirstModule --daq-module ASecondModule --user-app an_app_for_users --user-app another_app_for_users --python-bindings --main-library thenewpackage
 ```
-(Pretend there's a new, empty repo, `https://github.com/DUNE-DAQ/thenewpackage`, and ignore the horribly-chosen names in the example). If you were to `ls sourcecode`, you would see that the script had set up several new directories for you, as well as a `CMakeLists.txt` file:
+(Pretend there's a new, empty repo, `https://github.com/DUNE-DAQ/thenewpackage`, and in real life please use better names for your package and its components than those in the example). If you were to `ls sourcecode`, you would see that the script had set up several new directories for you, as well as a `CMakeLists.txt` file:
 ```
 apps
 cmake
@@ -44,14 +45,15 @@ schema
 src
 unittest
 ```
-where most of the directories contain boilerplate code for the software components you requested. Of course, details specific to the components would need to be filled in by yourself and other developers. And if you look at `CMakeLists.txt`, you'll see that many of the function calls you'd need will have been added, though generally missing the arguments you'd need to provide them so they would know what libraries to link against, e.g.:
+where most of the directories contain boilerplate code for the software components you requested. This will all have been automatically git-committed locally in the `sourcecode/thenewpackage` repo, though it's up to you to decide if you like the boilerplate code and think it's worth pushing to your package's central repo. Also while you'll be able to build this boilerplate package, its components won't actually do anything -- this boilerplate code will need to be filled in and extended by the package's developers. And if you look at `CMakeLists.txt`, you'll see that many of the function calls you'd need will have been added, though generally missing the arguments you'd need to provide them so they would know what libraries to link against, e.g.:
 ```
 daq_add_application(an_app_for_users an_app_for_users.cxx LINK_LIBRARIES ) # Any libraries to link in not yet determined
 ```
 Obviously comments such as `# Any libraries to link in not yet determined` should be deleted when it becomes appropriate. 
 
-Note also that a unit test is automatically generated for you _which is designed to fail_. Developers are heavily encouraged to replace it with appropriate unit tests for their package, unless it's one of those rare packages which don't need unit tests, in which case the unit test functionality should be entirely stripped from the package. 
+Note also that a unit test is automatically generated for you _which is designed to fail_. Developers are strongly encouraged to replace it with appropriate unit tests for their package, unless it's one of those rare packages which don't need unit tests, in which case the unit test functionality should be entirely stripped from the package. 
 
+<a name="package_overview"></a>
 ## Overview of a DUNE DAQ package
 
 ### Setting up a development area
@@ -143,10 +145,6 @@ At the bottom of CMakeLists.txt, you'll see the following function:
 daq_install()
 ```
 When you call it it will install the targets (executables, shared object libraries) you wish to make available to others who want to use your package in a directory called `$DBT_INSTALL_DIR/<pkgname>` (by default that would be `./install/toylibrary`). You'll also need to add a special file to your project for this function to work; this is discussed more fully in the "Installing your project as a local package" section later in this document. 
-
-### If your package relies on nonstandard dependencies
-
-...go back and take a look at the "Adding extra UPS products and product pools" section of [the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/#adding_extra_ups_products)
 
 ### Installing your project as a local package
 
