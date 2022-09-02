@@ -12,7 +12,7 @@ The documentation for this package is divided into four parts:
 
 A DUNE DAQ software package is composed of various types of software components - standalone applications, libraries, [DAQModules](https://dune-daq-sw.readthedocs.io/en/latest/packages/appfwk/), etc. Across the packages there are common ways these are implemented, whether as a result of our [official coding guidelines](https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/) or simply through tradition. `create_dunedaq_package.py` takes advantage of these patterns and saves you work by generating much of the "boilerplate" code which makes up a DUNE DAQ package. 
 
-Before using `create_dunedaq-package.py`, you'll want to first have a new repo added to the DUNE DAQ organization. This repo can be provided to you by members of the software coordination team if you request it on DUNE's **#daq-sw-librarians** Slack channel. Please also let them know what [development team](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-release/team_repos/) you're requesting this repo on behalf of. You'll also want to have some of idea of what software components will make up your package, and what their names should be. While the only argument actually required by `create_dunedaq_package.py` is the name of your new repo, it won't do much unless you provide it with options and arguments. You can see what these are by running `create_dunedaq_package.py -h`, reprinted here for your convenience.
+Before using `create_dunedaq-package.py`, you'll want to have some idea of what software components will make up your package, and what their names should be. While the only argument actually required by `create_dunedaq_package.py` is the name of your new package, it won't do much unless you provide it with options and arguments. You can see what these are by running `create_dunedaq_package.py -h`, reprinted here for your convenience.
 
 Arguments and options:
 
@@ -28,11 +28,11 @@ Arguments and options:
 
 Note that some of these concepts, e.g. a user-oriented app vs. an app designed for integration tests of the package itself, are covered below in the [Overview of a DUNE DAQ package](#package_overview) section. 
 
-`create_dunedaq_package.py` should be run in the base of a development area with the development environment set up, as described in [the daq-buildtools instructions](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/). An example of doing so would be the following (note you can horizontal-scroll the command below):
+In the directory `create_dunedaq_package.py` is run out of, `create_dunedaq_package.py` will create a subdirectory named after your package if such a subdirectory doesn't exist. If a subdirectory with that name _does_ exist, it should be empty with the possible exceptions of a `README.md` documentation file and/or a `.git/` version control directory. These exceptions allow you to run the script using as an argument the name of a new repo which you've just cloned into your area. An example of using `create_dunedaq_package.py` would be the following (note you can horizontal-scroll the command below):
 ```
 create_dunedaq_package.py --daq-module AFirstModule --daq-module ASecondModule --user-app an_app_for_users --user-app another_app_for_users --python-bindings --main-library thenewpackage
 ```
-(Pretend there's a new, empty repo, `https://github.com/DUNE-DAQ/thenewpackage`, and in real life please use better names for your package and its components than those in the example). If you were to `ls sourcecode`, you would see that the script had set up several new directories for you, as well as a `CMakeLists.txt` file:
+(Of course in real life please use better names for your package and its components than those in the example). If you were to `ls thenewpackage`, you would see that the script had set up several new directories for you, as well as a `CMakeLists.txt` file:
 ```
 apps
 cmake
@@ -45,7 +45,7 @@ schema
 src
 unittest
 ```
-where most of the directories contain boilerplate code for the software components you requested. This will all have been automatically git-committed locally in the `sourcecode/thenewpackage` repo, though it's up to you to decide if you like the boilerplate code and think it's worth pushing to your package's central repo. Also while you'll be able to build this boilerplate package, its components won't actually do anything -- this boilerplate code will need to be filled in and extended by the package's developers. And if you look at `CMakeLists.txt`, you'll see that many of the function calls you'd need will have been added, though generally missing the arguments you'd need to provide them so they would know what libraries to link against, e.g.:
+where most of the directories contain boilerplate code for the software components you requested. While you'd be able to build this boilerplate package if it were in the `sourcecode/` directory of a standard DUNE DAQ development environment, the new package's components won't actually do anything -- this boilerplate code will need to be filled in and extended by the package's developers. And if you look at `CMakeLists.txt`, you'll see that many of the function calls you'd need will have been added, though generally missing the arguments you'd need to provide them so they would know what libraries to link against, e.g.:
 ```
 daq_add_application(an_app_for_users an_app_for_users.cxx LINK_LIBRARIES ) # Any libraries to link in not yet determined
 ```

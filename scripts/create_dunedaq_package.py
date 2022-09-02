@@ -28,9 +28,11 @@ advance (e.g. whether it should contain DAQModules and what their
 names should be, etc.) the more work this script can do for you.
 
 Simplest usage:
-{os.path.basename (__file__)} <name of new repo in DUNE-DAQ>\n\n")
+{os.path.basename (__file__)} <name of new package>\n\n")
 
-...where the new repo must be empty with the exception of an optional README.md. 
+...where the directory out of which you run this script must be empty
+with the possible exceptions of a README.md and/or a .git/ version 
+control subdirectory. 
 
 Arguments and options:
 
@@ -75,63 +77,48 @@ To use the --python-bindings option you also need the --main-library option
 as you'll want python bindings to your package's main library.
 """)
 
-#PACKAGE_REPO = f"https://github.com/DUNE-DAQ/{package}/"
-PACKAGE_REPO = f"https://github.com/jcfreeman2/{PACKAGE}/"  # jcfreeman2 is for testing purposes since there's no guaranteed-empty-repo in DUNE-DAQ
-
 THIS_SCRIPTS_DIRECTORY=pathlib.Path(__file__).parent.resolve()
 TEMPLATEDIR = f"{THIS_SCRIPTS_DIRECTORY}/templates"
 
-if "DBT_AREA_ROOT" in os.environ:
-    SOURCEDIR = os.environ["DBT_AREA_ROOT"] + "/sourcecode"
-else:
-    error("""
-The environment variable DBT_AREA_ROOT doesn't appear to be defined. 
-You need to have a work area environment set up for this script to work. 
-Exiting...
-""")
+def wipe_package_directory():
+    os.chdir(PACKAGEDIR)
+    if os.path.exists(f"{PACKAGEDIR}/docs/README.md"):
+        shutil.move(f"{PACKAGEDIR}/docs/README.md", f"{PACKAGEDIR}/README.md")
 
+    if os.path.exists("CMakeLists.txt"):
+        os.unlink("CMakeLists.txt")
 
-REPODIR = f"{SOURCEDIR}/{PACKAGE}"
-os.chdir(f"{SOURCEDIR}")
+    dirs_to_delete = ["include", "src", "schema", "unittest", "apps", "cmake", "plugins", "docs", "python", "test", "pybindsrc"]
 
-proc = subprocess.Popen(f"git clone {PACKAGE_REPO}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-proc.communicate()
-RETVAL = proc.returncode
+    for dirname in dirs_to_delete:
+        if os.path.exists(f"{PACKAGEDIR}/{dirname}"):
+            shutil.rmtree(f"{PACKAGEDIR}/{dirname}")
 
-if RETVAL == 128:
-    error(f"""
-git was either unable to find a {PACKAGE_REPO} repository
-or it already existed in {os.getcwd()}
-and couldn't be overwritten
-    """)
-elif RETVAL != 0:
-    error(f"Totally unexpected error (return value {RETVAL}) occurred when running \"git clone {PACKAGE_REPO}\"")
-
-def cleanup(REPODIR):
-    if os.path.exists(REPODIR):
-
-        # This code is very cautious so that it rm -rf's the directory it expects 
-        if re.search(f"/{PACKAGE}", REPODIR):
-            shutil.rmtree(REPODIR)
-        else:
-            assert False, f"SCRIPT ERROR: This script does not trust that the directory \"{REPODIR}\" is something it should delete since it doesn't look like a local repo for {PACKAGE}"
-    else:
-        assert False, f"SCRIPT ERROR: This script is unable to locate the expected repo directory {REPODIR}"
-
-def make_package_dir(dirname):
+def make_package_subdir(dirname):
     os.makedirs(dirname, exist_ok=True)
-    if not os.path.exists(f"{dirname}/.gitkeep"):
-        open(f"{dirname}/.gitkeep", "w")
+    
+    # disable .gitkeep creation until it's decided what role git will play in this script
+    if False:  
+        if not os.path.exists(f"{dirname}/.gitkeep"):
+            open(f"{dirname}/.gitkeep", "w")
 
-os.chdir(REPODIR)
+PACKAGEDIR=f"{os.getcwd()}/{PACKAGE}"
+if not os.path.exists(f"{os.getcwd()}/{PACKAGE}"):
+    os.makedirs(PACKAGEDIR)
+else:
+    files_in_dir = os.listdir(PACKAGEDIR)
 
-if os.listdir(REPODIR) != [".git"] and sorted(os.listdir(REPODIR)) != [".git", "README.md"] and sorted(os.listdir(REPODIR)) != [".git", "docs"]:
-    cleanup(REPODIR)
-    error(f"""
+    for file_in_dir in files_in_dir:
+        if file_in_dir != ".git" and file_in_dir != "README.md" and file_in_dir != "docs":
+            error(f"""
 
-Just ran \"git clone {PACKAGE_REPO}\", and it looks like this repo isn't empty. 
-This script can only be run on repositories which haven't yet been worked on.
-""")
+It looks like this directory isn't empty. This script can only be run in 
+directories which are empty with the possible exceptions of a .git/ subdirectory
+and/or a README.md documentation file. 
+
+    """)
+
+os.chdir(PACKAGEDIR)
 
 find_package_calls = []
 daq_codegen_calls = []
@@ -144,12 +131,12 @@ daq_add_unit_test_calls = []
 print("")
 
 if args.contains_main_library:
-    make_package_dir(f"{REPODIR}/src")
-    make_package_dir(f"{REPODIR}/include/{PACKAGE}")
+    make_package_subdir(f"{PACKAGEDIR}/src")
+    make_package_subdir(f"{PACKAGEDIR}/include/{PACKAGE}")
     daq_add_library_calls.append("daq_add_library( LINK_LIBRARIES ) # Any source files and/or dependent libraries to link in not yet determined")
 
 if args.contains_python_bindings:
-    make_package_dir(f"{REPODIR}/pybindsrc")
+    make_package_subdir(f"{PACKAGEDIR}/pybindsrc")
     daq_add_python_bindings_calls.append("\ndaq_add_python_bindings(*.cpp LINK_LIBRARIES ${PROJECT_NAME} ) # Any additional libraries to link in beyond the main library not yet determined\n")
 
     for src_filename in ["module.cpp", "renameme.cpp"]:
@@ -158,7 +145,7 @@ if args.contains_python_bindings:
 
         sourcecode = sourcecode.replace("package", PACKAGE.lower())
         
-        with open(f"{REPODIR}/pybindsrc/{src_filename}", "w") as outf:
+        with open(f"{PACKAGEDIR}/pybindsrc/{src_filename}", "w") as outf:
             outf.write(sourcecode)
 
 if args.daq_modules:
@@ -166,13 +153,13 @@ if args.daq_modules:
     for pkg in ["appfwk", "opmonlib"]:
         find_package_calls.append(f"find_package({pkg} REQUIRED)")
 
-    make_package_dir(f"{REPODIR}/src")
-    make_package_dir(f"{REPODIR}/plugins")
-    make_package_dir(f"{REPODIR}/schema/{PACKAGE}")
+    make_package_subdir(f"{PACKAGEDIR}/src")
+    make_package_subdir(f"{PACKAGEDIR}/plugins")
+    make_package_subdir(f"{PACKAGEDIR}/schema/{PACKAGE}")
 
     for module in args.daq_modules:
         if not re.search(r"^[A-Z][^_]+", module):
-            cleanup(REPODIR)
+            wipe_package_directory()
             error(f"""
 Requested module name \"{module}\" needs to be in PascalCase. 
 Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ 
@@ -187,10 +174,10 @@ for more on naming conventions. Exiting...
 
             if pathlib.Path(src_filename).suffix in [".hpp", ".cpp"]:
                 DEST_FILENAME = src_filename.replace("RenameMe", module)
-                DEST_FILENAME = f"{REPODIR}/plugins/{DEST_FILENAME}"
+                DEST_FILENAME = f"{PACKAGEDIR}/plugins/{DEST_FILENAME}"
             elif pathlib.Path(src_filename).suffix in [".jsonnet"]:
                 DEST_FILENAME = src_filename.replace("renameme", module.lower())
-                DEST_FILENAME = f"{REPODIR}/schema/{PACKAGE}/{DEST_FILENAME}"
+                DEST_FILENAME = f"{PACKAGEDIR}/schema/{PACKAGE}/{DEST_FILENAME}"
             else:
                 assert False, "SCRIPT ERROR: unhandled filename"
 
@@ -215,17 +202,17 @@ for more on naming conventions. Exiting...
                 outf.write(sourcecode)
 
 if args.user_apps:
-    make_package_dir(f"{REPODIR}/apps")
+    make_package_subdir(f"{PACKAGEDIR}/apps")
 
     for user_app in args.user_apps:
         if re.search(r"[A-Z]", user_app):
-            cleanup(REPODIR)
+            wipe_package_directory()
             error(f"""
 Requested user application name \"{user_app}\" needs to be in snake_case. 
 Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ 
 for more on naming conventions. Exiting...
 """)
-        DEST_FILENAME = f"{REPODIR}/apps/{user_app}.cxx"
+        DEST_FILENAME = f"{PACKAGEDIR}/apps/{user_app}.cxx"
         with open(f"{TEMPLATEDIR}/renameme.cxx") as inf:
             sourcecode = inf.read()
 
@@ -238,17 +225,17 @@ for more on naming conventions. Exiting...
     
 
 if args.test_apps:
-    make_package_dir(f"{REPODIR}/test/apps")
+    make_package_subdir(f"{PACKAGEDIR}/test/apps")
 
     for test_app in args.test_apps:
         if re.search(r"[A-Z]", test_app):
-            cleanup(REPODIR)
+            wipe_package_directory()
             error(f"""
 Requested test application name \"{test_app}\" needs to be in snake_case. 
 Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/ 
 for more on naming conventions. Exiting...
 """)
-        DEST_FILENAME = f"{REPODIR}/test/apps/{test_app}.cxx"
+        DEST_FILENAME = f"{PACKAGEDIR}/test/apps/{test_app}.cxx"
         with open(f"{TEMPLATEDIR}/renameme.cxx") as inf:
             sourcecode = inf.read()
     
@@ -259,33 +246,38 @@ for more on naming conventions. Exiting...
 
         daq_add_application_calls.append(f"daq_add_application({test_app} {test_app}.cxx TEST LINK_LIBRARIES ) # Any libraries to link in not yet determined")
 
-make_package_dir(f"{REPODIR}/unittest")
-shutil.copyfile(f"{TEMPLATEDIR}/Placeholder_test.cxx", f"{REPODIR}/unittest/Placeholder_test.cxx")
-daq_add_unit_test_calls.append("daq_add_unit_test(Placeholder_test LINK_LIBRARIES)  # Any libraries to link in not yet determined")
+make_package_subdir(f"{PACKAGEDIR}/unittest")
+shutil.copyfile(f"{TEMPLATEDIR}/Placeholder_test.cxx", f"{PACKAGEDIR}/unittest/Placeholder_test.cxx")
+daq_add_unit_test_calls.append("daq_add_unit_test(Placeholder_test LINK_LIBRARIES)  # Placeholder_test should be replaced with real unit tests")
 find_package_calls.append("find_package(Boost COMPONENTS unit_test_framework REQUIRED)")
 
-make_package_dir(f"{REPODIR}/docs")
-if not os.path.exists(f"{REPODIR}/README.md") and not os.path.exists(f"{REPODIR}/docs/README.md"):
-    with open(f"{REPODIR}/docs/README.md", "w") as outf:
+make_package_subdir(f"{PACKAGEDIR}/docs")
+if not os.path.exists(f"{PACKAGEDIR}/README.md") and not os.path.exists(f"{PACKAGEDIR}/docs/README.md"):
+    with open(f"{PACKAGEDIR}/docs/README.md", "w") as outf:
         GENERATION_TIME = get_time("as_date")
         outf.write(f"# No Official User Documentation Has Been Written Yet ({GENERATION_TIME})\n")
-elif os.path.exists(f"{REPODIR}/README.md"):  # i.e., README.md isn't (yet) in the docs/ subdirectory
-    os.chdir(REPODIR)
-    proc = subprocess.Popen(f"git mv README.md docs/README.md", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    proc.communicate()
-    RETVAL = proc.returncode
-    if RETVAL != 0:
-        cleanup(REPODIR)
-        error(f"There was a problem attempting a git mv of README.md to docs/README.md in {REPODIR}; exiting...")
+elif os.path.exists(f"{PACKAGEDIR}/README.md"):  # i.e., README.md isn't (yet) in the docs/ subdirectory
+    os.chdir(PACKAGEDIR)
+    
+    #if not os.path.exists(".git"):
+    if True: # until a decision's been made, for the time being assume the package directory isn't a git repo
+        shutil.move("README.md", "docs/README.md")
+    else:
+        proc = subprocess.Popen(f"git mv README.md docs/README.md", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc.communicate()
+        RETVAL = proc.returncode
+        if RETVAL != 0:
+            wipe_package_directory()
+            error(f"There was a problem attempting a git mv of README.md to docs/README.md in {PACKAGEDIR}; exiting...")
 
-make_package_dir(f"{REPODIR}/cmake")
+make_package_subdir(f"{PACKAGEDIR}/cmake")
 config_template_html=f"https://raw.githubusercontent.com/DUNE-DAQ/daq-cmake/dunedaq-v2.6.0/configs/Config.cmake.in"
-proc = subprocess.Popen(f"curl -o {REPODIR}/cmake/{PACKAGE}Config.cmake.in -O {config_template_html}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+proc = subprocess.Popen(f"curl -o {PACKAGEDIR}/cmake/{PACKAGE}Config.cmake.in -O {config_template_html}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 proc.communicate()
 RETVAL = proc.returncode
 
 if RETVAL != 0:
-    cleanup(REPODIR)
+    wipe_package_directory()
     error(f"There was a problem trying to pull down {config_template_html} from the web; exiting...")
 
 def print_cmakelists_section(list_of_calls, section_of_webpage = None):
@@ -331,38 +323,40 @@ daq_setup_environment()
 
     cmakelists.write("daq_install()\n\n")
 
-os.chdir(REPODIR)
+os.chdir(PACKAGEDIR)
 
-# Only need .gitkeep if the directory is otherwise empty
-for filename, ignored, ignored in os.walk(REPODIR):
-    if os.path.isdir(filename) and os.listdir(filename) != [".gitkeep"]:
-        if os.path.exists(f"{filename}/.gitkeep"):
-            os.unlink(f"{filename}/.gitkeep")
+if False:  # disable code until its decided what role git will play in this script
+    # Only need .gitkeep if the directory is otherwise empty
+    for filename, ignored, ignored in os.walk(PACKAGEDIR):
+        if os.path.isdir(filename) and os.listdir(filename) != [".gitkeep"]:
+            if os.path.exists(f"{filename}/.gitkeep"):
+                os.unlink(f"{filename}/.gitkeep")
 
-proc = subprocess.Popen("git add -A", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-proc.communicate()
-RETVAL = proc.returncode
+    proc = subprocess.Popen("git add -A", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc.communicate()
+    RETVAL = proc.returncode
 
-if RETVAL != 0:
-    error(f"""
-There was a problem trying to "git add" the newly-created files and directories in {REPODIR}; exiting...
-""")
+    if RETVAL != 0:
+        wipe_package_directory()
+        error(f"""
+    There was a problem trying to "git add" the newly-created files and directories in {PACKAGEDIR}; exiting...
+    """)
 
-COMMAND=" ".join(sys.argv)
-proc = subprocess.Popen(f"git commit -m \"This {os.path.basename (__file__)}-generated boilerplate for the {PACKAGE} package was created by this command: {COMMAND}\"", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-proc.communicate()
-RETVAL = proc.returncode
+    COMMAND=" ".join(sys.argv)
+    proc = subprocess.Popen(f"git commit -m \"This {os.path.basename (__file__)}-generated boilerplate for the {PACKAGE} package was created by this command: {COMMAND}\"", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc.communicate()
+    RETVAL = proc.returncode
 
-if RETVAL != 0:
-    error(f"""
-There was a problem trying to auto-generate the commit off the newly auto-generated files in {REPODIR}. Exiting...
-""")
+    if RETVAL != 0:
+        wipe_package_directory()
+        error(f"""
+    There was a problem trying to auto-generate the commit off the newly auto-generated files in {PACKAGEDIR}. Exiting...
+    """)
 
 print(f"""
 This script has created the boilerplate for your new package in
-{REPODIR}. 
-Note that the code has been committed *locally*; please review it before you 
-push it to the central repo and start making your own edits. 
+{PACKAGEDIR}. 
+Please review it before you start making your own edits. 
 
 For details on how to write a DUNE DAQ package, please look at the 
 official daq-cmake documentation at 
