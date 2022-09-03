@@ -8,6 +8,8 @@ The documentation for this package is divided into four parts:
 3) A complete reference manual for the DUNE-DAQ-specific CMake functions developers can call in order to specify their package's build
 4) A description of how we use schema in order to consistently define data structures
 
+Note that this documentation assumes you have some familiarity with the [daq-buildtools package](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools) and know how to set up a development area and run commands to build code in it. 
+
 ## The `create_dunedaq-package.py` script
 
 A DUNE DAQ software package is composed of various types of software components - standalone applications, libraries, [DAQModules](https://dune-daq-sw.readthedocs.io/en/latest/packages/appfwk/), etc. Across the packages there are common ways these are implemented, whether as a result of our [official coding guidelines](https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/) or simply through tradition. `create_dunedaq_package.py` takes advantage of these patterns and saves you work by generating much of the "boilerplate" code which makes up a DUNE DAQ package. 
@@ -18,7 +20,7 @@ Arguments and options:
 
 `--main-library`: package will contain a main, package-wide library which other packages can link in
 
-`--python-bindings`: whether there will be Python bindings to components in a main library. Requires the `--main-library` option as well.
+`--python-bindings`: whether there will be Python bindings to the main library. Requires the `--main-library` option as well.
 
 `--daq-module`: for each "`--daq-module <module name>`" provided at the command line, the framework for a DAQModule will be auto-generated
 
@@ -28,7 +30,7 @@ Arguments and options:
 
 Note that some of these concepts, e.g. a user-oriented app vs. an app designed for integration tests of the package itself, are covered below in the [Overview of a DUNE DAQ package](#package_overview) section. 
 
-In the directory `create_dunedaq_package.py` is run out of, `create_dunedaq_package.py` will create a subdirectory named after your package if such a subdirectory doesn't exist. If a subdirectory with that name _does_ exist, it should be empty with the possible exceptions of a `README.md` documentation file and/or a `.git/` version control directory. These exceptions allow you to run the script using as an argument the name of a new repo which you've just cloned into your area. An example of using `create_dunedaq_package.py` would be the following (note you can horizontal-scroll the command below):
+In the directory `create_dunedaq_package.py` is run out of, `create_dunedaq_package.py` will create a subdirectory named after your package if such a subdirectory doesn't exist. If a subdirectory with that name already _does_ exist, it should be empty with the possible exceptions of a `README.md` documentation file and/or a `.git/` version control directory. These exceptions allow you to run the script using as an argument the name of a new repo which you've cloned into your area. An example of using `create_dunedaq_package.py` would be the following (note you can horizontal-scroll the command below):
 ```
 create_dunedaq_package.py --daq-module AFirstModule --daq-module ASecondModule --user-app an_app_for_users --user-app another_app_for_users --python-bindings --main-library thenewpackage
 ```

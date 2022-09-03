@@ -39,8 +39,8 @@ Arguments and options:
 --main-library: package will contain a main, package-wide library which other 
                 packages can link in
 
---python-bindings: whether there will be Python bindings to components in a 
-                   main library. Requires the --main-library option as well.
+--python-bindings: whether there will be Python bindings to the main library. 
+                   Requires the --main-library option as well.
 
 --daq-module: for each "--daq-module <module name>" provided at the command
               line, the framework for a DAQModule will be auto-generated
@@ -66,6 +66,23 @@ parser.add_argument("package", nargs="?", help=argparse.SUPPRESS)
 args = parser.parse_args()
 
 if args.package is not None: 
+
+    if re.search(r"\.", args.package):
+        parent_directory = os.getcwd().split("/")[-1]
+        error(f"""
+You passed \".\" as the name of the package. What I *think* you want to do
+is cd up one directory and pass the name of this subdirectory
+"{parent_directory}"
+as the argument.
+""")
+
+    if not re.search(r"^[a-z][_a-z0-9]+$", args.package):
+        error(f"""
+The asked-for package name of \"{args.package}\" doesn't satisfy the requirement 
+that the package begin with a lowercase letter and consist only of lowercase 
+letters, underscores and numbers
+""")
+
     PACKAGE = args.package
 else:
     print(usage_blurb)
@@ -272,6 +289,7 @@ elif os.path.exists(f"{PACKAGEDIR}/README.md"):  # i.e., README.md isn't (yet) i
 
 make_package_subdir(f"{PACKAGEDIR}/cmake")
 config_template_html=f"https://raw.githubusercontent.com/DUNE-DAQ/daq-cmake/dunedaq-v2.6.0/configs/Config.cmake.in"
+
 proc = subprocess.Popen(f"curl -o {PACKAGEDIR}/cmake/{PACKAGE}Config.cmake.in -O {config_template_html}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 proc.communicate()
 RETVAL = proc.returncode
