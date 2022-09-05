@@ -10,6 +10,8 @@
 
 #include "RenameMe.hpp"
 
+#include "package/renameme/Nljs.hpp"
+
 #include <string>
 
 namespace dunedaq::package {
@@ -18,9 +20,6 @@ RenameMe::RenameMe(const std::string& name)
   : dunedaq::appfwk::DAQModule(name)
 {
   register_command("conf", &RenameMe::do_conf);
-  register_command("start", &RenameMe::do_start);
-  register_command("stop", &RenameMe::do_stop);
-  register_command("scrap", &RenameMe::do_scrap);
 }
 
 void
@@ -32,20 +31,11 @@ get_info(opmonlib::InfoCollector&, int /*level*/)
 {}
 
 void
-RenameMe::do_conf(const data_t& /* structured args */)
-{}
-
-void
-RenameMe::do_start(const data_t& /* structured args */)
-{}
-
-void
-RenameMe::do_stop(const data_t& /* structured args */)
-{}
-
-void
-RenameMe::do_scrap(const data_t& /* structured args */)
-{}
+RenameMe::do_conf(const data_t& conf_as_json)
+{
+  auto conf_as_cpp = conf_as_json.get<renameme::ConfParams>();
+  m_some_configured_value = conf_as_cpp.some_configured_value;
+}
 
 } // namespace dunedaq::package
 

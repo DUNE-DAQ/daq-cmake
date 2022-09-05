@@ -32,6 +32,7 @@ Note that some of these concepts, e.g. a user-oriented app vs. an app designed f
 
 In the directory `create_dunedaq_package.py` is run out of, `create_dunedaq_package.py` will create a subdirectory named after your package if such a subdirectory doesn't exist. If a subdirectory with that name already _does_ exist, it should be empty with the possible exceptions of a `README.md` documentation file and/or a `.git/` version control directory. These exceptions allow you to run the script using as an argument the name of a new repo which you've cloned into your area. An example of using `create_dunedaq_package.py` would be the following (note you can horizontal-scroll the command below):
 ```
+cd ./sourcecode  # If we were in the base of a development area
 create_dunedaq_package.py --daq-module AFirstModule --daq-module ASecondModule --user-app an_app_for_users --user-app another_app_for_users --python-bindings --main-library thenewpackage
 ```
 (Of course in real life please use better names for your package and its components than those in the example). If you were to `ls thenewpackage`, you would see that the script had set up several new directories for you, as well as a `CMakeLists.txt` file:
@@ -47,7 +48,7 @@ schema
 src
 unittest
 ```
-where most of the directories contain boilerplate code for the software components you requested. While you'd be able to build this boilerplate package if it were in the `sourcecode/` directory of a standard DUNE DAQ development environment, the new package's components won't actually do anything -- this boilerplate code will need to be filled in and extended by the package's developers. And if you look at `CMakeLists.txt`, you'll see that many of the function calls you'd need will have been added, though generally missing the arguments you'd need to provide them so they would know what libraries to link against, e.g.:
+where most of the directories contain boilerplate code for the software components you requested. While you'd be able to build this boilerplate package if it were in the `sourcecode/` directory of a standard DUNE DAQ development environment, the new package's components do almost nothing, although in the case of DAQModules code is generated which provide an example of how to set a member variable via Run Control configuration. Nonetheless this boilerplate code will need to be replaced, filled in and extended by the package's developers. Also if you look at `CMakeLists.txt`, you'll see that many of the function calls you'd need will have been added, though generally missing the arguments you'd need to provide them so they would know what libraries to link against, e.g.:
 ```
 daq_add_application(an_app_for_users an_app_for_users.cxx LINK_LIBRARIES ) # Any libraries to link in not yet determined
 ```

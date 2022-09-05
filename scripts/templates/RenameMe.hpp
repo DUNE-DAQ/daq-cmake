@@ -35,10 +35,20 @@ public:
 
 private:
   // Commands RenameMe can receive
+
+  // TO package DEVELOPERS: PLEASE DELETE THIS FOLLOWING COMMENT AFTER READING IT
+  // For any run control command it is possible for a DAQModule to
+  // register an action that will be executed upon reception of the
+  // command. do_conf is a very common example of this; in
+  // RenameMe.cpp you would implement do_conf so that members of
+  // RenameMe get assigned values from a configuration passed as 
+  // an argument and originating from the CCM system.
+  // To see an example of this value assignment, look at the implementation of 
+  // do_conf in RenameMe.cpp
+
   void do_conf(const data_t&);
-  void do_start(const data_t&);
-  void do_stop(const data_t&);
-  void do_scrap(const data_t&);
+
+  int m_some_configured_value;
 };
 
 } // namespace dunedaq::package
