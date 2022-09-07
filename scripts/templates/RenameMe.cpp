@@ -11,6 +11,7 @@
 #include "RenameMe.hpp"
 
 #include "package/renameme/Nljs.hpp"
+#include "skeleton/renamemeinfo/InfoNljs.hpp"
 
 #include <string>
 
@@ -27,13 +28,19 @@ RenameMe::init(const data_t& /* structured args */)
 {}
 
 void
-get_info(opmonlib::InfoCollector&, int /*level*/)
-{}
+RenameMe::get_info(opmonlib::InfoCollector& ci, int /* level */)
+{
+  renamemeinfo::Info info;
+  info.total_amount = m_total_amount;
+  info.amount_since_last_get_info_call = m_amount_since_last_get_info_call.exchange(0);
+
+  ci.add(info);
+}
 
 void
 RenameMe::do_conf(const data_t& conf_as_json)
 {
-  auto conf_as_cpp = conf_as_json.get<renameme::ConfParams>();
+  auto conf_as_cpp = conf_as_json.get<renameme::Conf>();
   m_some_configured_value = conf_as_cpp.some_configured_value;
 }
 

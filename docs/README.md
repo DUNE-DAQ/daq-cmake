@@ -44,6 +44,7 @@ docs
 include
 plugins
 pybindsrc
+python
 schema
 src
 unittest

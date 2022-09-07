@@ -13,6 +13,8 @@
 
 #include "appfwk/DAQModule.hpp"
 
+#include <atomic>
+#include <limits>
 #include <string>
 
 namespace dunedaq::package {
@@ -48,7 +50,18 @@ private:
 
   void do_conf(const data_t&);
 
-  int m_some_configured_value;
+  int m_some_configured_value { std::numeric_limits<int>::max() }; // Intentionally-ridiculous value pre-configuration
+
+  // TO package DEVELOPERS: PLEASE DELETE THIS FOLLOWING COMMENT AFTER READING IT 
+  // m_total_amount and m_amount_since_last_get_info_call are examples
+  // of variables whose values get reported to OpMon
+  // (https://github.com/mozilla/opmon) each time get_info() is
+  // called. "amount" represents a (discrete) value which changes as RenameMe
+  // runs and whose value we'd like to keep track of during running;
+  // obviously you'd want to replace this "in real life"
+
+  std::atomic<int64_t> m_total_amount {0};
+  std::atomic<int>     m_amount_since_last_get_info_call {0};
 };
 
 } // namespace dunedaq::package
