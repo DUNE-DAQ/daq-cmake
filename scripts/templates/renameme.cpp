@@ -17,7 +17,7 @@ namespace py = pybind11;
 namespace dunedaq::package::python {
 
 void
-register_renameme(pybind11::module& m)
+register_renameme(py::module& m)
 {}
 
 } // namespace dunedaq::package::python

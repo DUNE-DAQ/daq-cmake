@@ -49,6 +49,9 @@ Arguments and options:
 
 --test-app: same as --daq-module, but for integration test applications
 
+--config-generation: whether to generate a script which itself will generate 
+                     JSON code to create an application based on the package
+
 For details on how to write a DUNE DAQ package, please look at the official 
 daq-cmake documentation at 
 https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-cmake/
@@ -61,6 +64,7 @@ parser.add_argument("--python-bindings", action="store_true", dest="contains_pyt
 parser.add_argument("--daq-module", action="append", dest="daq_modules", help=argparse.SUPPRESS)
 parser.add_argument("--user-app", action="append", dest="user_apps", help=argparse.SUPPRESS)
 parser.add_argument("--test-app", action="append", dest="test_apps", help=argparse.SUPPRESS)
+parser.add_argument("--config-generation", action="store_true", dest="contains_config_generation", help=argparse.SUPPRESS)
 parser.add_argument("package", nargs="?", help=argparse.SUPPRESS)
 
 args = parser.parse_args()
@@ -92,6 +96,12 @@ if args.contains_python_bindings and not args.contains_main_library:
     error("""
 To use the --python-bindings option you also need the --main-library option 
 as you'll want python bindings to your package's main library.
+""")
+
+if args.contains_config_generation and not args.daq_modules:
+    error("""
+To use the --contains-config-generation option you also need to have at
+least one type of DAQModule requested.    
 """)
 
 THIS_SCRIPTS_DIRECTORY=pathlib.Path(__file__).parent.resolve()
@@ -274,6 +284,35 @@ for more on naming conventions. Exiting...
 
         daq_add_application_calls.append(f"daq_add_application({test_app} {test_app}.cxx TEST LINK_LIBRARIES ) # Any libraries to link in not yet determined")
 
+if args.contains_config_generation:
+    assert(args.daq_modules)
+
+    make_package_subdir(f"{PACKAGEDIR}/scripts")
+    make_package_subdir(f"{PACKAGEDIR}/python/{PACKAGE}")
+
+    for src_filename in ["package_gen", "package_example_config.json", "confgen.jsonnet", "packageapp_gen.py"]:
+        with open(f"{TEMPLATEDIR}/{src_filename}", "r") as inf:
+            sourcecode = inf.read()
+
+        sourcecode = sourcecode.replace("package", PACKAGE.lower())
+        sourcecode = sourcecode.replace("renameme", args.daq_modules[0].lower())
+        sourcecode = sourcecode.replace("RenameMe", args.daq_modules[0])
+        
+        out_filename = src_filename.replace("package", PACKAGE.lower())
+
+        if src_filename == "packageapp_gen.py":
+            with open(f"{PACKAGEDIR}/python/{PACKAGE}/{out_filename}", "w") as outf:
+                outf.write(sourcecode)
+        elif src_filename == "confgen.jsonnet":
+            with open(f"{PACKAGEDIR}/schema/{PACKAGE}/{out_filename}", "w") as outf:
+                outf.write(sourcecode)
+        else:
+            with open(f"{PACKAGEDIR}/scripts/{out_filename}", "w") as outf:
+                outf.write(sourcecode)
+
+        if src_filename == "package_gen":
+            os.chmod(f"{PACKAGEDIR}/scripts/{out_filename}", 0o755)
+    
 make_package_subdir(f"{PACKAGEDIR}/unittest")
 shutil.copyfile(f"{TEMPLATEDIR}/Placeholder_test.cxx", f"{PACKAGEDIR}/unittest/Placeholder_test.cxx")
 daq_add_unit_test_calls.append("daq_add_unit_test(Placeholder_test LINK_LIBRARIES)  # Placeholder_test should be replaced with real unit tests")

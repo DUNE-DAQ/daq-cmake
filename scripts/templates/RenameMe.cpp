@@ -11,7 +11,7 @@
 #include "RenameMe.hpp"
 
 #include "package/renameme/Nljs.hpp"
-#include "skeleton/renamemeinfo/InfoNljs.hpp"
+#include "package/renamemeinfo/InfoNljs.hpp"
 
 #include <string>
 

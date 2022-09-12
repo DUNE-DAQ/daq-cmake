@@ -10,12 +10,12 @@ local info = {
     float4 :  s.number(  "float4",  "f4",          doc="A float of 4 bytes"),
     double8 : s.number(  "double8", "f8",          doc="A double of 8 bytes"),
     boolean:  s.boolean( "Boolean",                doc="A boolean"),
-    string:   s.string(  "String",   moo.re.ident, doc="A string"),   
+    string:   s.string(  "String",                 doc="A string"),   
 
     info: s.record("Info", [
        s.field("total_amount",                    self.int8, doc="Total count of some discrete value we care about"),
        s.field("amount_since_last_get_info_call", self.int4, doc="Change in this discrete value since the last report"),
-    ], doc="This configuration is for developer education only"),
+    ], doc="This record is for developer education only"),
 
 };
 

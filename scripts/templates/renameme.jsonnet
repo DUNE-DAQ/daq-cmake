@@ -11,7 +11,7 @@ local types = {
     float4 :  s.number(  "float4",  "f4",          doc="A float of 4 bytes"),
     double8 : s.number(  "double8", "f8",          doc="A double of 8 bytes"),
     boolean:  s.boolean( "Boolean",                doc="A boolean"),
-    string:   s.string(  "String",   moo.re.ident, doc="A string"),   
+    string:   s.string(  "String",   		   doc="A string"),   
 
     // TO package DEVELOPERS: PLEASE DELETE THIS FOLLOWING COMMENT AFTER READING IT
     // The following code is an example of a configuration record
