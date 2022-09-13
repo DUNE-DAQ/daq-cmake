@@ -100,7 +100,7 @@ as you'll want python bindings to your package's main library.
 
 if args.contains_config_generation and not args.daq_modules:
     error("""
-To use the --contains-config-generation option you also need to have at
+To use the --config-generation option you also need to have at
 least one type of DAQModule requested.    
 """)
 

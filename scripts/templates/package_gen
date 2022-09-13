@@ -4,7 +4,6 @@ import click
 import json
 import os
 from rich.console import Console
-import sys
 
 from daqconf.core.system import System
 from daqconf.core.conf_utils import make_app_command_data
@@ -20,115 +19,62 @@ moo.io.default_load_path = get_moo_model_path()
 # Load configuration types
 import moo.otypes
 
-moo.otypes.load_types('package/confgen.jsonnet')
-import dunedaq.package.confgen as confgen
-
-# JCF, Sep-11-2022
-# See equivalent function ("default_config") in daqconf's config_file.py for more on
-# what you can do with this kind of function
-
-def default_config():
-    console.log("Creating default package configuration")
-    output_dict = {}
-    output_dict["package"] = confgen.package()
-    return output_dict
-
-def parse_json(dict_to_update, filename):
-    console.log(f"Parsing config json file {filename}")
-    with open(filename, 'r') as f:
-        json_obj = json.load(f)
-    for k,v in json_obj.items():
-        console.log(f"Updating config section {k} with {v}")
-        if k in dict_to_update.keys():
-            dict_to_update[k].update(v)
-
-    return dict_to_update
-
-def print_config(package_config):
-    console.log(f"package_config.base_command_port == {package_config.base_command_port}")
-    console.log(f"package_config.disable_trace == {package_config.disable_trace}")
-    console.log(f"package_config.pocket_url == {package_config.pocket_url}")
-    console.log(f"package_config.use_k8s == {package_config.use_k8s}")
-    console.log(f"package_config.opmon_impl == {package_config.opmon_impl}")
-    console.log(f"package_config.ers_impl == {package_config.ers_impl}")
-    console.log(f"package_config.image == {package_config.image}")
-    console.log(f"package_config.some_configured_value == {package_config.some_configured_value}")
-
 def configure(ctx, param, filename):
-    ctx.default_map["config_file"] = filename
-    if os.path.exists(filename):
-        if ".json" in filename:
-            ctx.default_map = parse_json(ctx.default_map, filename)
-    elif filename != "":
-        raise ValueError(f"Configuration file {filename} does not exist!")
+    moo.otypes.load_types("package/confgen.jsonnet")
+    import dunedaq.package.confgen as confgen
+    package_conf = confgen.package_gen()
+    from daqconf.core.config_file import parse_config_file
+    return parse_config_file(filename, package_conf)
 
-CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"], default_map=default_config())
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
     '-c', '--config',
     type         = click.Path(dir_okay=False),
-    default      = "",
+    default      = None,
     callback     = configure,
-    is_eager     = True,
-    expose_value = False,
     help         = 'Read option defaults from the specified JSON file',
     show_default = True,
 )
 @click.option('--base-command-port', type=int, default=-1, help="Base port of application command endpoints")
 @click.option('--some-configured-value', type=int, default=99999999, help="Some value which gets configured in the DAQModules")
 @click.argument("json_dir", type=click.Path())
-@click.pass_context
-def cli(ctx, base_command_port, some_configured_value, json_dir):
+def cli(config, base_command_port, some_configured_value, json_dir):
 
     if os.path.exists(json_dir):
         raise RuntimeError(f"Directory {json_dir} already exists")
 
-    # Get our config objects                                                                                                             
-    package = ctx.default_map["package"]
+    config_data = config[0]
+    config_file = config[1]
 
-    console.log("\nThe configuration before any command line overrides:")
-    print_config(package)
+    console.log(f"\nTotal configuration for this app before any overrides: {config_data.pod()}")
+
+    # Get our config objects                                                                                                
+    moo.otypes.load_types('package/confgen.jsonnet')
+    import dunedaq.package.confgen as confgen
+
+    console.log(f"\nIndividual configuration records before any command line overrides: ")    
+
+    # Copy-of-a-hack, see daqconf's daqconf_multiru_gen file (commit e26a21d54fc5)
+    boot = confgen.boot(**config_data.boot)
+    console.log(f"boot configuration object: {boot.pod()}")
+
+    package = confgen.package(**config_data.package)
+    console.log(f"package configuration object: {package.pod()}")
 
     if base_command_port != -1:
-       package.base_command_port = base_command_port
+        boot.base_command_port = base_command_port
     if some_configured_value != 99999999:
         package.some_configured_value = some_configured_value
 
-    console.log("\nThe configuration after accounting for any command line overrides:")
-    print_config(package)
-
-    console.log("\nLoading the package config generator")
-    from package import packageapp_gen
+    console.log(f"\nIndividual configuration records after any command line overrides: ")
+    console.log(f"boot configuration object: {boot.pod()}")
+    console.log(f"package configuration object: {package.pod()}")	
 
     the_system = System()
 
-    if package.opmon_impl == 'cern':
-        info_svc_uri = "kafka://monkafka.cern.ch:30092/opmon"
-    elif package.opmon_impl == 'pocket':
-        info_svc_uri = "kafka://" + package.pocket_url + ":31002/opmon"
-    else:
-        info_svc_uri = "file://info_{APP_NAME}_{APP_PORT}.json"
-
-    ers_settings = dict()
-
-    if package.ers_impl == "cern":
-        use_kafka = True
-        ers_settings["INFO"] =    "erstrace,throttle,lstdout,erskafka(monkafka.cern.ch:30092)"
-        ers_settings["WARNING"] = "erstrace,throttle,lstdout,erskafka(monkafka.cern.ch:30092)"
-        ers_settings["ERROR"] =   "erstrace,throttle,lstdout,erskafka(monkafka.cern.ch:30092)"
-        ers_settings["FATAL"] =   "erstrace,lstdout,erskafka(monkafka.cern.ch:30092)"
-    elif package.ers_impl == "pocket":
-        use_kafka = True
-        ers_settings["INFO"] =    "erstrace,throttle,lstdout,erskafka(" + pocket_url + ":30092)"
-        ers_settings["WARNING"] = "erstrace,throttle,lstdout,erskafka(" + pocket_url + ":30092)"
-        ers_settings["ERROR"] =   "erstrace,throttle,lstdout,erskafka(" + pocket_url + ":30092)"
-        ers_settings["FATAL"] =   "erstrace,lstdout,erskafka(" + pocket_url + ":30092)"
-    else:
-        use_kafka = False
-        ers_settings["INFO"] =    "erstrace,throttle,lstdout"
-        ers_settings["WARNING"] = "erstrace,throttle,lstdout"
-        ers_settings["ERROR"] =   "erstrace,throttle,lstdout"
-        ers_settings["FATAL"] =   "erstrace,lstdout"
+    console.log("\nLoading the package config generator")
+    from package import packageapp_gen
     
     the_system.apps["package_app"] = packageapp_gen.get_package_app(
         nickname = "the_solo_app", some_configured_value = package.some_configured_value
@@ -141,52 +87,19 @@ def cli(ctx, base_command_port, some_configured_value, json_dir):
     # Arrange per-app command data into the format used by util.write_json_files()    
 
     app_command_datas = {
-        name : make_app_command_data(the_system, app, name)
+        name : make_app_command_data(the_system, app, name, use_k8s=boot.use_k8s)
         for name, app in the_system.apps.items()
     }
 
     # Make boot.json config                                                                               
-    from daqconf.core.conf_utils import make_system_command_datas, generate_boot_common, write_json_files
-    system_command_datas = make_system_command_datas(the_system)
-
-    boot = generate_boot_common(
-        ers_settings = ers_settings,
-        info_svc_uri = info_svc_uri,
-        disable_trace = True,
-        use_kafka = use_kafka,
-        external_connections = [],
-        daq_app_exec_name = "daq_application_ssh" if not package.use_k8s else "daq_application_k8s",
-        verbose = False,
-    )
-    
-    if package.use_k8s:
-        from daqconf.core.conf_utils import update_with_k8s_boot_data
-        console.log("Generating k8s boot.json")
-        update_with_k8s_boot_data(
-            boot_data = boot,
-            apps = the_system.apps,
-            base_command_port = package.base_command_port,
-            boot_order = list(the_system.apps.keys()),
-            image = package.image,
-            verbose = False,
-        )
-    else:
-        from daqconf.core.conf_utils import update_with_ssh_boot_data
-        console.log("Generating ssh boot.json")
-        update_with_ssh_boot_data(
-            boot_data = boot,
-            apps = the_system.apps,
-            base_command_port = package.base_command_port,
-            verbose = False,
-        )
-
-    system_command_datas["boot"] = boot
+    from daqconf.core.conf_utils import make_system_command_datas, generate_boot, write_json_files
+    system_command_datas = make_system_command_datas(boot, the_system)
 
     write_json_files(app_command_datas, system_command_datas, json_dir, verbose=True)
 
     console.log(f"Package app config generated in {json_dir}")
 
-    write_metadata_file(json_dir, "package_gen", ctx.default_map["config_file"])
+    write_metadata_file(json_dir, "package_gen", config_file)
 
 if __name__ == "__main__":
     try:
