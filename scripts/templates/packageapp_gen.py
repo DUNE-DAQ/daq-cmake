@@ -16,19 +16,19 @@ from daqconf.core.app import App, ModuleGraph
 from daqconf.core.daqmodule import DAQModule
 #from daqconf.core.conf_utils import Endpoint, Direction
 
-def get_package_app(nickname, some_configured_value, host="localhost"):
+def get_package_app(nickname, num_renamemes, some_configured_value, host="localhost"):
     """
     Here the configuration for an entire daq_application instance using DAQModules from package is generated.
     """
 
     modules = []
 
-    # JCF: can I reuse this nickname?
-    modules += [DAQModule(name = nickname, 
-                          plugin = "RenameMe", 
-                          conf = renameme.Conf(some_configured_value = some_configured_value
-                            )
-                )]
+    for i in range(num_renamemes):
+        modules += [DAQModule(name = f"nickname{i}", 
+                              plugin = "RenameMe", 
+                              conf = renameme.Conf(some_configured_value = some_configured_value
+                                )
+                    )]
 
     mgraph = ModuleGraph(modules)
     package_app = App(modulegraph = mgraph, host = host, name = nickname)

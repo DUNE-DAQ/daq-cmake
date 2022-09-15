@@ -20,7 +20,8 @@ local cs = {
     monitoring_dest: s.enum(     "MonitoringDest", ["local", "cern", "pocket"]),
 
     package: s.record("package", [
-	s.field( "some_configured_value", self.int4, default=31415, doc="A value which configures the JohnsModule DAQModule instance"),
+        s.field( "some_configured_value", self.int4, default=31415, doc="A value which configures the RenameMe DAQModule instance"),
+        s.field( "num_renamemes", self.int4, default=1, doc="A value which configures the number of instances of RenameMe"),
     ]),
 
     package_gen: s.record("package_gen", [

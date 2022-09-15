@@ -10,6 +10,7 @@
   },
 
   "package": {
+    "num_renamemes": 2,
     "some_configured_value": 27182
   }
 }
