@@ -1,7 +1,11 @@
-// This is the configuration schema for package_gen
+// This is the configuration schema for package
 
 local moo = import "moo.jsonnet";
-local s = moo.oschema.schema("dunedaq.package.confgen");
+local sdc = import "daqconf/confgen.jsonnet";
+local daqconf = moo.oschema.hier(sdc).dunedaq.daqconf.confgen;
+
+local ns = "dunedaq.package.confgen";
+local s = moo.oschema.schema(ns);
 
 local cs = {
 
@@ -15,25 +19,15 @@ local cs = {
     string:   s.string(  "String",   		   doc="A string"),   
     monitoring_dest: s.enum(     "MonitoringDest", ["local", "cern", "pocket"]),
 
-    boot: s.record("boot", [
-        s.field( "base_command_port", self.int4, default=3333, doc="Base port of application command endpoints"),
-        s.field( "disable_trace", self.boolean, false, doc="Do not enable TRACE (default TRACE_FILE is /tmp/trace_buffer_${HOSTNAME}_${USER})"),
-        s.field( "opmon_impl", self.monitoring_dest, default='local', doc="Info collector service implementation to use"),
-        s.field( "ers_impl", self.monitoring_dest, default='local', doc="ERS destination (Kafka used for cern and pocket)"),
-        s.field( "pocket_url", self.string, default='127.0.0.1', doc="URL for connecting to Pocket services"),
-        s.field( "image", self.string, default="", doc="Which docker image to use"),
-        s.field( "use_k8s", self.boolean, default=false, doc="Whether to use k8s"),
-    ]),
-
     package: s.record("package", [
-	s.field( "some_configured_value", self.int4, default=31415, doc="A value which configures the RenameMe DAQModule instance"),
+	s.field( "some_configured_value", self.int4, default=31415, doc="A value which configures the JohnsModule DAQModule instance"),
     ]),
 
     package_gen: s.record("package_gen", [
-        s.field("boot", self.boot, default=self.boot, doc="Boot parameters"),
+        s.field("boot", daqconf.boot, default=daqconf.boot, doc="Boot parameters"),
         s.field("package", self.package, default=self.package, doc="package parameters"),
     ]),
 };
 
 // Output a topologically sorted array.
-moo.oschema.sort_select(cs)
+sdc + moo.oschema.sort_select(cs, ns)

@@ -5,9 +5,10 @@ import json
 import os
 from rich.console import Console
 
-from daqconf.core.system import System
 from daqconf.core.conf_utils import make_app_command_data
+from daqconf.core.config_file import generate_cli_from_schema
 from daqconf.core.metadata import write_metadata_file
+from daqconf.core.system import System
 
 console = Console()
 
@@ -16,30 +17,11 @@ from dunedaq.env import get_moo_model_path
 import moo.io
 moo.io.default_load_path = get_moo_model_path()
 
-# Load configuration types
-import moo.otypes
-
-def configure(ctx, param, filename):
-    moo.otypes.load_types("package/confgen.jsonnet")
-    import dunedaq.package.confgen as confgen
-    package_conf = confgen.package_gen()
-    from daqconf.core.config_file import parse_config_file
-    return parse_config_file(filename, package_conf)
-
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 @click.command(context_settings=CONTEXT_SETTINGS)
-@click.option(
-    '-c', '--config',
-    type         = click.Path(dir_okay=False),
-    default      = None,
-    callback     = configure,
-    help         = 'Read option defaults from the specified JSON file',
-    show_default = True,
-)
-@click.option('--base-command-port', type=int, default=-1, help="Base port of application command endpoints")
-@click.option('--some-configured-value', type=int, default=99999999, help="Some value which gets configured in the DAQModules")
-@click.argument("json_dir", type=click.Path())
-def cli(config, base_command_port, some_configured_value, json_dir):
+@generate_cli_from_schema('package/confgen.jsonnet', 'package_gen')
+@click.argument('json_dir', type=click.Path())
+def cli(config, json_dir):
 
     if os.path.exists(json_dir):
         raise RuntimeError(f"Directory {json_dir} already exists")
@@ -47,34 +29,33 @@ def cli(config, base_command_port, some_configured_value, json_dir):
     config_data = config[0]
     config_file = config[1]
 
-    console.log(f"\nTotal configuration for this app before any overrides: {config_data.pod()}")
+    #console.log(f"\nTotal configuration for this app before any overrides: {config_data.pod()}")
 
-    # Get our config objects                                                                                                
+    # Get our config objects
+    # Loading this one another time... (first time in config_file.generate_cli_from_schema)    
+
     moo.otypes.load_types('package/confgen.jsonnet')
     import dunedaq.package.confgen as confgen
+    moo.otypes.load_types('daqconf/confgen.jsonnet')
+    import dunedaq.daqconf.confgen as daqconfgen
 
     console.log(f"\nIndividual configuration records before any command line overrides: ")    
 
     # Copy-of-a-hack, see daqconf's daqconf_multiru_gen file (commit e26a21d54fc5)
-    boot = confgen.boot(**config_data.boot)
+    boot = daqconfgen.boot(**config_data.boot)
     console.log(f"boot configuration object: {boot.pod()}")
 
     package = confgen.package(**config_data.package)
     console.log(f"package configuration object: {package.pod()}")
 
-    if base_command_port != -1:
-        boot.base_command_port = base_command_port
-    if some_configured_value != 99999999:
-        package.some_configured_value = some_configured_value
-
     console.log(f"\nIndividual configuration records after any command line overrides: ")
     console.log(f"boot configuration object: {boot.pod()}")
     console.log(f"package configuration object: {package.pod()}")	
 
-    the_system = System()
-
-    console.log("\nLoading the package config generator")
+    console.log("Loading packageapp config generator")
     from package import packageapp_gen
+
+    the_system = System()
     
     the_system.apps["package_app"] = packageapp_gen.get_package_app(
         nickname = "the_solo_app", some_configured_value = package.some_configured_value
@@ -87,17 +68,17 @@ def cli(config, base_command_port, some_configured_value, json_dir):
     # Arrange per-app command data into the format used by util.write_json_files()    
 
     app_command_datas = {
-        name : make_app_command_data(the_system, app, name, use_k8s=boot.use_k8s)
+        name : make_app_command_data(the_system, app, name)
         for name, app in the_system.apps.items()
     }
 
     # Make boot.json config                                                                               
-    from daqconf.core.conf_utils import make_system_command_datas, generate_boot, write_json_files
-    system_command_datas = make_system_command_datas(boot, the_system)
+    from daqconf.core.conf_utils import make_system_command_datas, write_json_files
+    system_command_datas = make_system_command_datas(boot, the_system, verbose = False)
 
     write_json_files(app_command_datas, system_command_datas, json_dir, verbose=True)
 
-    console.log(f"Package app config generated in {json_dir}")
+    console.log(f"package app config generated in {json_dir}")
 
     write_metadata_file(json_dir, "package_gen", config_file)
 
