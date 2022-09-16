@@ -85,7 +85,7 @@ To learn a bit more about how to structure your package so that it can be incorp
 ```
 git clone https://github.com/DUNE-DAQ/daq-cmake
 cd daq-cmake
-git checkout 50ac27dfd8c
+git checkout v2.2.0   # v2.2.0 corresponds to the dunedaq-v3.2.0 release
 cd ..
 mv daq-cmake/toylibrary sourcecode
 rm -rf daq-cmake
