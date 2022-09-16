@@ -1,15 +1,10 @@
+
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
 
-# Insert find_dependency() calls for your package's dependencies in
-# the place of this comment. Make sure they match up with the
-# find_package calls in your package's CMakeLists.txt file
-
 find_dependency(ers)
-find_dependency(Boost COMPONENTS unit_test_framework program_options)
-find_dependency(TRACE)
-find_dependency(pybind11)
+find_dependency(logging)
 
 # Figure out whether or not this dependency is an installed package or
 # in repo form

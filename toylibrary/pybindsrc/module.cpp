@@ -1,7 +1,9 @@
 /**
- * @file toy_wrapper.cpp Example Pybind11 source file for wrapping a dunedaq library
+ * @file module.cpp
  *
- * This is part of the DUNE DAQ Application Framework, copyright 2020.
+ * Example Pybind11 source file for wrapping a dunedaq library
+ *
+ * This is part of the DUNE DAQ Software Suite, copyright 2020.
  * Licensing/copyright details are in the COPYING file that you should have
  * received with this code.
  */
@@ -11,8 +13,8 @@
 
 #include "logging/Logging.hpp"
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "pybind11/pybind11.h"
+#include "pybind11/stl.h"
 
 #include <sstream>
 #include <string>
@@ -20,8 +22,7 @@
 
 namespace py = pybind11;
 
-namespace dunedaq {
-namespace toylibrary {
+namespace dunedaq::toylibrary::python {
 
 // Toy functions for pybind11 demo
 int
@@ -41,27 +42,23 @@ PlayInts(const std::vector<int>& numbers, bool new_line = false)
 {
   std::string separator = new_line ? "\n" : ",";
   std::stringstream numbers_stream;
-  for (uint i = 0; i < numbers.size(); ++i) {
-    if (i)
+  for (decltype(numbers.size()) i = 0; i < numbers.size(); ++i) {
+    if (i > 0) {
       numbers_stream << separator;
+    }
     numbers_stream << numbers.at(i);
   }
-  TLOG() << numbers_stream.str() << std::endl; // NOLINT
+  TLOG() << numbers_stream.str() << std::endl;
 }
 
-namespace python {
-
-// The name of the top level python module supplied here (via the first argument of PYBIND11_MODULE()) must match the
-// file name of the compiled .so file. With daq_add_python_bindings(), the shared object is named
-// "_daq_${PROJECT_NAME}_py.so".
-PYBIND11_MODULE(_daq_toylibrary_py, top_module)
+PYBIND11_MODULE(_daq_toylibrary_py, m)
 {
 
-  top_module.doc() = "Python module wrapper for C++ library, toylibrary"; // optional module docstring
+  m.doc() = "Python module wrapper for C++ library, toylibrary";
 
   // expose toylibrary classes in the top level python module
 
-  py::class_<toylibrary::ValueWrapper<int>>(top_module, "ValueWrapperInt")
+  py::class_<toylibrary::ValueWrapper<int>>(m, "ValueWrapperInt")
 
     // Expose ValueWrapper<int> constructor
     .def(py::init<const int&>())
@@ -69,7 +66,7 @@ PYBIND11_MODULE(_daq_toylibrary_py, top_module)
     // expose the ValueWrapper<int> method GetValue
     .def("GetValue", &toylibrary::ValueWrapper<int>::GetValue);
 
-  py::class_<toylibrary::IntPrinter>(top_module, "IntPrinter")
+  py::class_<toylibrary::IntPrinter>(m, "IntPrinter")
 
     // Expose IntPrinter constructor
     .def(py::init<const ValueWrapper<int>&>())
@@ -78,21 +75,19 @@ PYBIND11_MODULE(_daq_toylibrary_py, top_module)
     .def("Show", &toylibrary::IntPrinter::Show);
 
   // Sub-module of the top module
-  py::module_ wind_module = top_module.def_submodule("wind");
+  py::module_ wind_module = m.def_submodule("wind");
 
   // Expose "winding" functions via wind sub-module
-  wind_module.def("WindUp", &toylibrary::WindUp);
-  wind_module.def("WindDown", &toylibrary::WindDown);
+  wind_module.def("WindUp", &WindUp);
+  wind_module.def("WindDown", &WindDown);
 
   // Another sub-module of top module above
-  py::module_ play_module = top_module.def_submodule("play");
+  py::module_ play_module = m.def_submodule("play");
 
   // Expose "playing" functions via the play sub-module
   // Here we are adding argument names, as well as defining a default value for one of the function arguments. The
   // function can be called from python with or without that argument.
-  play_module.def("PlayInts", &toylibrary::PlayInts, py::arg("numbers"), py::arg("new_line") = false);
+  play_module.def("PlayInts", &PlayInts, py::arg("numbers"), py::arg("new_line") = false);
 }
 
-} // namespace python
-} // namespace toylibrary
-} // namespace dunedaq
+} // namespace dunedaq::toylibrary::python
