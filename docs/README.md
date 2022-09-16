@@ -3,7 +3,7 @@
 This package provides CMake support for DUNE-DAQ packages.
 
 The documentation for this package is divided into four parts:
-1) A description of `create_dunedaq_package`, a script which will generate a good deal of CMake/C++ code which is standard across all DUNE DAQ packages
+1) Instructions for `create_dunedaq_package`, a script which will generate a good deal of CMake/C++ code which is standard across all DUNE DAQ packages
 2) A description of the standard structure and CMake build code in a DUNE DAQ package
 3) A complete reference manual for the DUNE-DAQ-specific CMake functions developers can call in order to specify their package's build
 4) A description of how we use schema in order to consistently define data structures
@@ -35,7 +35,7 @@ Note that some of these concepts, e.g. a user-oriented app vs. an app designed f
 In the directory `create_dunedaq_package` is run out of, `create_dunedaq_package` will create a subdirectory named after your package if such a subdirectory doesn't exist. If a subdirectory with that name already _does_ exist, it should be empty with the possible exceptions of a `README.md` documentation file and/or a `.git/` version control directory. These exceptions allow you to run the script using as an argument the name of a new repo which you've cloned into your area. An example of using `create_dunedaq_package` would be the following (note you can horizontal-scroll the command below):
 ```
 cd ./sourcecode  # If we were in the base of a development area
-create_dunedaq_package --daq-module AFirstModule --daq-module ASecondModule --config-generation --user-app an_app_for_users --user-app another_app_for_users --python-bindings --main-library thenewpackage
+create_dunedaq_package --daq-module AFirstModule --config-generation --user-app an_app_for_users --user-app another_app_for_users --python-bindings --main-library thenewpackage
 ```
 (Of course in real life please use better names for your package and its components than those in the example). If you were to `ls thenewpackage`, you would see that the script had set up several new directories for you, as well as a `CMakeLists.txt` file:
 ```
@@ -60,6 +60,16 @@ Obviously comments such as `# Any libraries to link in not yet determined` shoul
 Note also that a unit test is automatically generated for you _which is designed to fail_. Developers are strongly encouraged to replace it with appropriate unit tests for their package, unless it's one of those rare packages which don't need unit tests, in which case the unit test functionality should be entirely stripped from the package. 
 
 If the `--config-generation` option is chosen, the script which gets produced is called `<your package>_gen`. You can pass it the `-h` option to see its arguments, but the main thing to know is that to pass it a set of arguments you'd want to do so via the `-c <JSON file>` argument. An example of such a JSON file can be found in `<your package>/scripts/<your package>_example_config.json` file which is produced after you've run `create_dunedaq_package` with the `--config-generation` option. 
+
+Assuming you're in the base of a development area [whose environment has been set up](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools) and have run the example `create_dunedaq_package` command above, you can now build your newly generated code and then try out the configuration generation script:
+```
+dbt-build
+dbt-workarea-env
+thenewpackage_gen -c ./sourcecode/thenewpackage/scripts/thenewpackage_example_config.json anewconfig 
+```
+...where you can edit the values `num_afirstmodules` and `some_configured_value` in (a copy of) `thenewpackage_example_config.json` to generate a different configuration. Note that while this _legally_ runs in [`nanorc`](https://dune-daq-sw.readthedocs.io/en/latest/packages/nanorc/), it doesn't actually do anything -- in particular, the DAQ module(s) you've specified only set a member variable when configured, and don't communicate with anything. 
+
+Now that you know how to generate the boilerplate for a DUNE DAQ package, please read on for a more in-depth understanding of what a typical DUNE DAQ package looks like. 
 
 <a name="package_overview"></a>
 ## Overview of a DUNE DAQ package
