@@ -59,7 +59,7 @@ def cli(config, json_dir):
     
     the_system.apps["package_app"] = packageapp_gen.get_package_app(
         nickname = "the_solo_app", 
-	num_renamemes = skeleton.num_renamemes,
+	num_renamemes = package.num_renamemes,
 	some_configured_value = package.some_configured_value
     )
 
