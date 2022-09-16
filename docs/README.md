@@ -3,18 +3,18 @@
 This package provides CMake support for DUNE-DAQ packages.
 
 The documentation for this package is divided into four parts:
-1) A description of `create_dunedaq_package.py`, a script which will generate a good deal of CMake/C++ code which is standard across all DUNE DAQ packages
+1) A description of `create_dunedaq_package`, a script which will generate a good deal of CMake/C++ code which is standard across all DUNE DAQ packages
 2) A description of the standard structure and CMake build code in a DUNE DAQ package
 3) A complete reference manual for the DUNE-DAQ-specific CMake functions developers can call in order to specify their package's build
 4) A description of how we use schema in order to consistently define data structures
 
 Note that this documentation assumes you have some familiarity with the [daq-buildtools package](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools) and know how to set up a development area and run commands to build code in it. 
 
-## The `create_dunedaq-package.py` script
+## The `create_dunedaq_package` script
 
-A DUNE DAQ software package is composed of various types of software components - standalone applications, libraries, [DAQModules](https://dune-daq-sw.readthedocs.io/en/latest/packages/appfwk/), etc. Across the packages there are common ways these are implemented, whether as a result of our [official coding guidelines](https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/) or simply through tradition. `create_dunedaq_package.py` takes advantage of these patterns and saves you work by generating much of the "boilerplate" code which makes up a DUNE DAQ package. 
+A DUNE DAQ software package is composed of various types of software components - standalone applications, libraries, [DAQModules](https://dune-daq-sw.readthedocs.io/en/latest/packages/appfwk/), etc. Across the packages there are common ways these are implemented, whether as a result of our [official coding guidelines](https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/) or simply through tradition. `create_dunedaq_package` takes advantage of these patterns and saves you work by generating much of the boilerplate code which makes up a DUNE DAQ package. 
 
-Before using `create_dunedaq-package.py`, you'll want to have some idea of what software components will make up your package, and what their names should be. While the only argument actually required by `create_dunedaq_package.py` is the name of your new package, it won't do much unless you provide it with options and arguments. You can see what these are by running `create_dunedaq_package.py -h`, reprinted here for your convenience.
+Before using `create_dunedaq_package`, you'll want to have some idea of what software components will make up your package, and what their names should be. While the only argument actually required by `create_dunedaq_package` is the name of your new package, it won't do much unless you provide it with options and arguments. You can see what these are by running `create_dunedaq_package -h`, reprinted here for your convenience.
 
 Arguments and options:
 
@@ -28,12 +28,14 @@ Arguments and options:
 
 `--test-app`: same as `--daq-module`, but for integration test applications
 
+`--config-generation`: whether to generate a script which itself will generate JSON code to create an application based on the package. Requires at least one `--daq-module` as well. 
+
 Note that some of these concepts, e.g. a user-oriented app vs. an app designed for integration tests of the package itself, are covered below in the [Overview of a DUNE DAQ package](#package_overview) section. 
 
-In the directory `create_dunedaq_package.py` is run out of, `create_dunedaq_package.py` will create a subdirectory named after your package if such a subdirectory doesn't exist. If a subdirectory with that name already _does_ exist, it should be empty with the possible exceptions of a `README.md` documentation file and/or a `.git/` version control directory. These exceptions allow you to run the script using as an argument the name of a new repo which you've cloned into your area. An example of using `create_dunedaq_package.py` would be the following (note you can horizontal-scroll the command below):
+In the directory `create_dunedaq_package` is run out of, `create_dunedaq_package` will create a subdirectory named after your package if such a subdirectory doesn't exist. If a subdirectory with that name already _does_ exist, it should be empty with the possible exceptions of a `README.md` documentation file and/or a `.git/` version control directory. These exceptions allow you to run the script using as an argument the name of a new repo which you've cloned into your area. An example of using `create_dunedaq_package` would be the following (note you can horizontal-scroll the command below):
 ```
 cd ./sourcecode  # If we were in the base of a development area
-create_dunedaq_package.py --daq-module AFirstModule --daq-module ASecondModule --user-app an_app_for_users --user-app another_app_for_users --python-bindings --main-library thenewpackage
+create_dunedaq_package --daq-module AFirstModule --daq-module ASecondModule --config-generation --user-app an_app_for_users --user-app another_app_for_users --python-bindings --main-library thenewpackage
 ```
 (Of course in real life please use better names for your package and its components than those in the example). If you were to `ls thenewpackage`, you would see that the script had set up several new directories for you, as well as a `CMakeLists.txt` file:
 ```
@@ -57,12 +59,14 @@ Obviously comments such as `# Any libraries to link in not yet determined` shoul
 
 Note also that a unit test is automatically generated for you _which is designed to fail_. Developers are strongly encouraged to replace it with appropriate unit tests for their package, unless it's one of those rare packages which don't need unit tests, in which case the unit test functionality should be entirely stripped from the package. 
 
+If the `--config-generation` option is chosen, the script which gets produced is called `<your package>_gen`. You can pass it the `-h` option to see its arguments, but the main thing to know is that to pass it a set of arguments you'd want to do so via the `-c <JSON file>` argument. An example of such a JSON file can be found in `<your package>/scripts/<your package>_example_config.json` file which is produced after you've run `create_dunedaq_package` with the `--config-generation` option. 
+
 <a name="package_overview"></a>
 ## Overview of a DUNE DAQ package
 
 ### Setting up a development area
 
-To create a new package, you'll want to install a DUNE-DAQ development environment and then create a new CMake project for the package. How to install and build the DUNE-DAQ development environment is described [in the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/); some familiarity with the daq-buildtools documentation is assumed in these instructions. 
+To create a new package, you'll want to install a DUNE-DAQ development environment and then create a new CMake project for the package as described in [in the daq-buildtools documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/). 
 
 
 ### A package's subdirectory structure
@@ -351,10 +355,10 @@ arguments.
 
 `daq-cmake` supports for schema distribution and code generation with [moo](https://github.com/brettviren/moo/)
 
-1. Schemas (jsonnet), models (jsonnet) and templates (jinjia) in the `schema/<package name>` folder are automatically copied to the installation directory and into ups products eventually.
+1. Schemas (jsonnet), models (jsonnet) and templates (Jinja) in the `schema/<package name>` folder are automatically copied to the installation directory and into Spack products eventually.
 
 
-1. The `daq_codegen` cmake function provides a simpliefied interface to `moo render` to generate C++ files from jinjia templates. It provides a mechanism to easily import schemas, templates or models from other packages and implements an out-of-date dependency check. Details are [above](#daq_codegen_documentation).
+1. The `daq_codegen` cmake function provides a simpliefied interface to `moo render` to generate C++ files from Jinja templates. It provides a mechanism to easily import schemas, templates or models from other packages and implements a time-related dependency check. Details are [above](#daq_codegen_documentation).
 
 <a name="daq_cmake_schema"></a>
 ### Schema files
@@ -376,7 +380,6 @@ appfwk/
 │   │   ├── appinfo.jsonnet
 │   │   ├── app.jsonnet
 │   │   ├── cmd.jsonnet
-|   |   └── queueinfo.jsonnet
 │   ├── README.md
 ├── src
 ├── test
@@ -389,6 +392,6 @@ appfwk/
 local s = moo.oschema.schema("dunedaq.appfwk.cmd");
 ```
 
-The same applies to `app.jsonnet`, `appinfo.jsonnet` and `queueinfo.jsonnet` for `dunedaq.appfwk.app`,`dunedaq.appfwk.appinfo` and `dunedaq.appfwk.queueinfo` respectively.
+The same applies to `app.jsonnet` and `appinfo.jsonnet` for `dunedaq.appfwk.app` and `dunedaq.appfwk.appinfo`.
 
 The matching between the schema file name/path and the jsonnet namespace is essential for code generation with `daq-cmake`. A mismatch between the two will result in empty generated files in most of the cases.
