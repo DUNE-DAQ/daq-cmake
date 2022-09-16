@@ -1,13 +1,12 @@
 /**
- *
- * @file toylibrary_test_app.cxx
+ * @file toylibrary_test_program.cxx
  *
  * A basic example integration test program. It demonstrates how
  * developers can use Boost's program_options library to handle
  * arguments passed to their application, as well as how they can use
  * the ERS library to define exceptions.
  *
- * Run "toylibrary_test_app --help" to see options
+ * Run "toylibrary_test_program --help" to see options
  *
  * This is part of the DUNE DAQ Application Framework, copyright 2020.
  * Licensing/copyright details are in the COPYING file that you should have
@@ -19,6 +18,7 @@
 #include "logging/Logging.hpp"
 
 #include <boost/program_options.hpp>
+
 #include <string>
 
 namespace bpo = boost::program_options;
@@ -40,7 +40,6 @@ int times_to_print_number = 3;
 int
 main(int argc, char* argv[])
 {
-
   std::ostringstream descstr;
   descstr << argv[0] << " known arguments ";
 
