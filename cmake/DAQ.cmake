@@ -690,6 +690,177 @@ function(daq_add_unit_test testname)
 endfunction()
 
 
+# ######################################################################
+# tdaq_generate_dal(sources... 
+#                      NAMESPACE ns
+#                      [TARGET target]
+#                      [INCLUDE_DIRECTORIES ...] 
+#                      [CLASSES ...] 
+#                      [PACKAGE name] 
+#                      [INCLUDE dir] 
+#                      [NOINSTALL]
+#                      [CPP dir] 
+#                      [CPP_OUTPUT var1] 
+#                      [DUMP_OUTPUT var2])
+# ######################################################################
+function(tdaq_generate_dal)
+
+   cmake_parse_arguments(config_opts "NOINSTALL" "TARGET;PACKAGE;NAMESPACE;CPP;INCLUDE;CPP_OUTPUT;DUMP_OUTPUT" "INCLUDE_DIRECTORIES;CLASSES" ${ARGN})
+   set(srcs ${config_opts_UNPARSED_ARGUMENTS})
+
+   if(NOT config_opts_TARGET)
+     set(config_opts_TARGET DAL_${TDAQ_PACKAGE_NAME})
+   endif()
+
+   list(APPEND TDAQ_GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${config_opts_TARGET})
+   set(TDAQ_GENCONFIG_INCLUDES ${TDAQ_GENCONFIG_INCLUDES} PARENT_SCOPE)
+
+   if(config_opts_CLASSES)
+     set(class_option -c ${config_opts_CLASSES})
+   endif()
+
+   set(package ${TDAQ_PACKAGE_NAME})
+   if(config_opts_PACKAGE)
+      set(package ${config_opts_PACKAGE})
+   endif()
+
+   set(cpp_dir ${config_opts_TARGET}.tmp.cpp)
+   if(config_opts_CPP)
+      set(cpp_dir ${config_opts_CPP})
+   endif()
+
+   if(NOT config_opts_NAMESPACE)
+      message(ERROR "NAMESPACE option is required")
+   endif()
+
+   string(REPLACE "::" "__" dump_suffix ${config_opts_NAMESPACE})
+   if(config_opts_DUMP_OUTPUT)
+     set(dump_srcs ${cpp_dir}/dump/dump_${dump_suffix}.cpp)
+   endif()
+
+   set(hpp_dir)
+   if(config_opts_INCLUDE)
+      set(hpp_dir ${config_opts_INCLUDE})
+   else()
+      string(REPLACE "::" "/" hpp_dir ${config_opts_NAMESPACE})
+   endif()
+
+   set(config_dependencies)
+
+   if(TDAQ_USED_PROJECT_NAME)
+     set(project_db_area ${${TDAQ_USED_PROJECT_NAME}_DIR})
+     get_filename_component(project_db_area ${project_db_area} DIRECTORY)
+     get_filename_component(project_db_area ${project_db_area} DIRECTORY)
+     get_filename_component(project_db_area ${project_db_area} DIRECTORY)
+     set(project_db_area "${project_db_area}/data")
+   endif()
+
+   if(TDAQ_GENCONFIG_INCLUDES OR config_opts_INCLUDE_DIRECTORIES)
+     set(config_includes -I ${TDAQ_GENCONFIG_INCLUDES})
+     if(config_opts_INCLUDE_DIRECTORIES)
+       foreach(inc ${config_opts_INCLUDE_DIRECTORIES})
+         if(DEFINED TDAQ_HAVE_${inc})
+           # if in same build area...
+           list(APPEND config_includes ${CMAKE_BINARY_DIR}/${inc})
+           list(APPEND config_dependencies DAL_${inc})
+         else()
+           list(APPEND config_includes ${TDAQ_INST_PATH}/share/data/${inc} ${project_db_area}/${inc})
+         endif()
+       endforeach()
+     endif()
+   endif()
+   
+   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/installed/share/data/${TDAQ_DB_PROJECT}/schema)
+   
+   set(schemas)
+   foreach(src ${srcs})
+     set(schemas ${schemas} ${CMAKE_CURRENT_SOURCE_DIR}/${src})
+     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${src} DESTINATION ${CMAKE_BINARY_DIR}/installed/share/data/${TDAQ_DB_PROJECT}/schema)
+   endforeach()
+   
+   foreach(schema ${schemas}) 
+
+     execute_process(
+       COMMAND grep "[ \t]*<class name=\"" ${schema}
+       COMMAND sed "s;[ \t]*<class name=\";;"
+       COMMAND sed s:\".*::
+       COMMAND tr "\\n" " "
+       OUTPUT_VARIABLE class_out 
+       )
+
+     separate_arguments(class_out)
+
+     if(config_opts_CLASSES)
+       set(out)
+       foreach(cand ${class_out})
+         list(FIND config_opts_CLASSES ${cand} found)
+         if(NOT ${found} EQUAL -1)
+           set(out ${out} ${cand})
+         endif()
+       endforeach()
+       set(class_out ${out})
+     endif()
+
+     foreach(s ${class_out})
+       set(cpp_source ${cpp_source} ${cpp_dir}/${s}.cpp ${hpp_dir}/${s}.h)
+     endforeach()
+
+ endforeach()
+   
+   separate_arguments(cpp_source)
+
+   set(GENCONFIG_DEPENDS)
+   if(CMAKE_CROSSCOMPILING)
+     set(GENCONFIG_BINARY ${TDAQ_CMAKE_DIR}/cmake/scripts/genconfig.sh ${TDAQ_NATIVE_INST_PATH} ${TDAQ_NATIVE_TAG} ${CMAKE_BINARY_DIR}/installed/share/data:${TDAQ_NATIVE_INST_PATH}/share/data)
+   elseif(DEFINED TDAQ_HAVE_genconfig)
+     set(GENCONFIG_DEPENDS genconfig)
+     set(GENCONFIG_BINARY env TDAQ_DB_PATH=${CMAKE_BINARY_DIR}/installed/share/data ${CMAKE_BINARY_DIR}/genconfig/genconfig)
+   else()
+     set(GENCONFIG_BINARY env TDAQ_DB_PATH=${CMAKE_BINARY_DIR}/installed/share/data:${TDAQ_INST_PATH}/share/data:${project_db_area} PATH=${TDAQ_INST_PATH}/${BINARY_TAG}/bin:$ENV{PATH} LD_LIBRARY_PATH=${TDAQ_INST_PATH}/external/${BINARY_TAG}/lib:${TDAQ_INST_PATH}/${BINARY_TAG}/lib:${TDAQC_INST_PATH}/${BINARY_TAG}/lib:${TDAQC_INST_PATH}/external/${BINARY_TAG}/lib:$ENV{LD_LIBRARY_PATH} genconfig -I ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_INSTALL_PREFIX}/share/data ${TDAQ_INST_PATH}/share/data ${project_db_area})
+   endif()
+
+   set(tmp_target MKTMP_${config_opts_TARGET})
+   if(TARGET ${tmp_target})
+     message(SEND_ERROR "You are using more than one tdaq_generate_dal() command inside this package. Please use the TARGET <name> argument to distinguish them")
+   endif()
+
+   add_custom_target(${tmp_target}
+     COMMAND mkdir -p ${cpp_dir} ${cpp_dir}/dump ${hpp_dir} genconfig_${config_opts_TARGET})
+   
+   add_custom_command(
+     OUTPUT genconfig_${config_opts_TARGET}/genconfig.info ${cpp_source} ${dump_srcs}
+     COMMAND ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${config_opts_NAMESPACE} -d ${cpp_dir}  -j ${java_dir} -p ${package} ${class_option} ${config_includes} -s ${schemas}
+     COMMAND cp -f ${cpp_dir}/*.h ${hpp_dir}/
+     COMMAND cp -f ${cpp_dir}/dump*.cpp ${cpp_dir}/dump
+     COMMAND cp genconfig.info genconfig_${config_opts_TARGET}/
+     DEPENDS ${schemas} ${config_dependencies} ${GENCONFIG_DEPENDS} ${tmp_target})
+
+   add_custom_target(${config_opts_TARGET} ALL DEPENDS ${cpp_source} ${java_source})
+
+   if(config_opts_CPP_OUTPUT)
+     set(${config_opts_CPP_OUTPUT} ${cpp_source} PARENT_SCOPE)
+   endif()
+
+   if(config_opts_JAVA_OUTPUT)
+     set(${config_opts_JAVA_OUTPUT} ${java_source} PARENT_SCOPE)
+   endif()
+
+   if(config_opts_DUMP_OUTPUT)
+     set(${config_opts_DUMP_OUTPUT} ${dump_srcs} PARENT_SCOPE)
+   endif()
+
+   if(NOT config_opts_NOINSTALL)
+     if(config_opts_CPP_OUTPUT)
+       install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${hpp_dir} OPTIONAL COMPONENT ${TDAQ_COMPONENT_NOARCH} DESTINATION include FILES_MATCHING PATTERN *.h)
+     endif()
+   endif()
+
+   # Always install genconfig.info files, independent of NOINSTALL option
+   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${config_opts_TARGET}/genconfig.info OPTIONAL COMPONENT ${TDAQ_COMPONENT_NOARCH} DESTINATION share/data/${TDAQ_PACKAGE_NAME})
+
+endfunction()
+
+
 ####################################################################################################
 
 # daq_install:
