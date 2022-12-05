@@ -691,7 +691,7 @@ endfunction()
 
 
 # ######################################################################
-# tdaq_generate_dal(sources... 
+# daq_generate_dal(sources... 
 #                      NAMESPACE ns
 #                      [TARGET target]
 #                      [INCLUDE_DIRECTORIES ...] 
@@ -703,23 +703,29 @@ endfunction()
 #                      [CPP_OUTPUT var1] 
 #                      [DUMP_OUTPUT var2])
 # ######################################################################
-function(tdaq_generate_dal)
+function(daq_generate_dal)
 
    cmake_parse_arguments(config_opts "NOINSTALL" "TARGET;PACKAGE;NAMESPACE;CPP;INCLUDE;CPP_OUTPUT;DUMP_OUTPUT" "INCLUDE_DIRECTORIES;CLASSES" ${ARGN})
    set(srcs ${config_opts_UNPARSED_ARGUMENTS})
 
-   if(NOT config_opts_TARGET)
-     set(config_opts_TARGET DAL_${TDAQ_PACKAGE_NAME})
+   set(TDAQ_DB_PROJECT daq)  # See doc/variables.txt in the original ATLAS TDAQ cmake_tdaq package for more
+
+   if (EXISTS ${CMAKE_SOURCE_DIR}/genconfig)
+      set (TDAQ_HAVE_genconfig TRUE)
    endif()
 
-   list(APPEND TDAQ_GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${config_opts_TARGET})
-   set(TDAQ_GENCONFIG_INCLUDES ${TDAQ_GENCONFIG_INCLUDES} PARENT_SCOPE)
+   if(NOT config_opts_TARGET)
+     set(config_opts_TARGET DAL_${PROJECT_NAME})
+   endif()
+
+   list(APPEND DAQ_PROJECT_GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${config_opts_TARGET})
+   set(DAQ_PROJECT_GENCONFIG_INCLUDES ${DAQ_PROJECT_GENCONFIG_INCLUDES} PARENT_SCOPE)
 
    if(config_opts_CLASSES)
      set(class_option -c ${config_opts_CLASSES})
    endif()
 
-   set(package ${TDAQ_PACKAGE_NAME})
+   set(package ${PROJECT_NAME})
    if(config_opts_PACKAGE)
       set(package ${config_opts_PACKAGE})
    endif()
@@ -747,27 +753,27 @@ function(tdaq_generate_dal)
 
    set(config_dependencies)
 
-   if(TDAQ_USED_PROJECT_NAME)
-     set(project_db_area ${${TDAQ_USED_PROJECT_NAME}_DIR})
-     get_filename_component(project_db_area ${project_db_area} DIRECTORY)
-     get_filename_component(project_db_area ${project_db_area} DIRECTORY)
-     get_filename_component(project_db_area ${project_db_area} DIRECTORY)
-     set(project_db_area "${project_db_area}/data")
-   endif()
+   # if(TDAQ_USED_PROJECT_NAME)
+   #   set(project_db_area ${${TDAQ_USED_PROJECT_NAME}_DIR})
+   #   get_filename_component(project_db_area ${project_db_area} DIRECTORY)
+   #   get_filename_component(project_db_area ${project_db_area} DIRECTORY)
+   #   get_filename_component(project_db_area ${project_db_area} DIRECTORY)
+   #   set(project_db_area "${project_db_area}/data")
+   # endif()
 
-   if(TDAQ_GENCONFIG_INCLUDES OR config_opts_INCLUDE_DIRECTORIES)
-     set(config_includes -I ${TDAQ_GENCONFIG_INCLUDES})
-     if(config_opts_INCLUDE_DIRECTORIES)
-       foreach(inc ${config_opts_INCLUDE_DIRECTORIES})
-         if(DEFINED TDAQ_HAVE_${inc})
-           # if in same build area...
-           list(APPEND config_includes ${CMAKE_BINARY_DIR}/${inc})
-           list(APPEND config_dependencies DAL_${inc})
-         else()
-           list(APPEND config_includes ${TDAQ_INST_PATH}/share/data/${inc} ${project_db_area}/${inc})
-         endif()
-       endforeach()
-     endif()
+   if(DAQ_PROJECT_GENCONFIG_INCLUDES OR config_opts_INCLUDE_DIRECTORIES)
+     set(config_includes -I ${DAQ_PROJECT_GENCONFIG_INCLUDES})
+     # if(config_opts_INCLUDE_DIRECTORIES)
+     #   foreach(inc ${config_opts_INCLUDE_DIRECTORIES})
+     #     if(DEFINED TDAQ_HAVE_${inc})
+     #       # if in same build area...
+     #       list(APPEND config_includes ${CMAKE_BINARY_DIR}/${inc})
+     #       list(APPEND config_dependencies DAL_${inc})
+     #     else()
+     #       list(APPEND config_includes ${TDAQ_INST_PATH}/share/data/${inc} ${project_db_area}/${inc})
+     #     endif()
+     #   endforeach()
+     # endif()
    endif()
    
    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/installed/share/data/${TDAQ_DB_PROJECT}/schema)
@@ -778,6 +784,8 @@ function(tdaq_generate_dal)
      file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${src} DESTINATION ${CMAKE_BINARY_DIR}/installed/share/data/${TDAQ_DB_PROJECT}/schema)
    endforeach()
    
+   message(STATUS "OKS schemas are ${schemas}")
+
    foreach(schema ${schemas}) 
 
      execute_process(
@@ -810,18 +818,16 @@ function(tdaq_generate_dal)
    separate_arguments(cpp_source)
 
    set(GENCONFIG_DEPENDS)
-   if(CMAKE_CROSSCOMPILING)
-     set(GENCONFIG_BINARY ${TDAQ_CMAKE_DIR}/cmake/scripts/genconfig.sh ${TDAQ_NATIVE_INST_PATH} ${TDAQ_NATIVE_TAG} ${CMAKE_BINARY_DIR}/installed/share/data:${TDAQ_NATIVE_INST_PATH}/share/data)
-   elseif(DEFINED TDAQ_HAVE_genconfig)
+   if(DEFINED TDAQ_HAVE_genconfig)
      set(GENCONFIG_DEPENDS genconfig)
-     set(GENCONFIG_BINARY env TDAQ_DB_PATH=${CMAKE_BINARY_DIR}/installed/share/data ${CMAKE_BINARY_DIR}/genconfig/genconfig)
+     set(GENCONFIG_BINARY env TDAQ_DB_PATH=${CMAKE_BINARY_DIR}/installed/share/data ${CMAKE_BINARY_DIR}/genconfig/apps/genconfig )
    else()
      set(GENCONFIG_BINARY env TDAQ_DB_PATH=${CMAKE_BINARY_DIR}/installed/share/data:${TDAQ_INST_PATH}/share/data:${project_db_area} PATH=${TDAQ_INST_PATH}/${BINARY_TAG}/bin:$ENV{PATH} LD_LIBRARY_PATH=${TDAQ_INST_PATH}/external/${BINARY_TAG}/lib:${TDAQ_INST_PATH}/${BINARY_TAG}/lib:${TDAQC_INST_PATH}/${BINARY_TAG}/lib:${TDAQC_INST_PATH}/external/${BINARY_TAG}/lib:$ENV{LD_LIBRARY_PATH} genconfig -I ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_INSTALL_PREFIX}/share/data ${TDAQ_INST_PATH}/share/data ${project_db_area})
    endif()
 
    set(tmp_target MKTMP_${config_opts_TARGET})
    if(TARGET ${tmp_target})
-     message(SEND_ERROR "You are using more than one tdaq_generate_dal() command inside this package. Please use the TARGET <name> argument to distinguish them")
+     message(SEND_ERROR "You are using more than one daq_generate_dal() command inside this package. Please use the TARGET <name> argument to distinguish them")
    endif()
 
    add_custom_target(${tmp_target}
@@ -829,20 +835,16 @@ function(tdaq_generate_dal)
    
    add_custom_command(
      OUTPUT genconfig_${config_opts_TARGET}/genconfig.info ${cpp_source} ${dump_srcs}
-     COMMAND ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${config_opts_NAMESPACE} -d ${cpp_dir}  -j ${java_dir} -p ${package} ${class_option} ${config_includes} -s ${schemas}
+     COMMAND ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${config_opts_NAMESPACE} -d ${cpp_dir} -p ${package} ${class_option} ${config_includes} -s ${schemas}
      COMMAND cp -f ${cpp_dir}/*.h ${hpp_dir}/
      COMMAND cp -f ${cpp_dir}/dump*.cpp ${cpp_dir}/dump
      COMMAND cp genconfig.info genconfig_${config_opts_TARGET}/
      DEPENDS ${schemas} ${config_dependencies} ${GENCONFIG_DEPENDS} ${tmp_target})
 
-   add_custom_target(${config_opts_TARGET} ALL DEPENDS ${cpp_source} ${java_source})
+   add_custom_target(${config_opts_TARGET} ALL DEPENDS ${cpp_source} )
 
    if(config_opts_CPP_OUTPUT)
      set(${config_opts_CPP_OUTPUT} ${cpp_source} PARENT_SCOPE)
-   endif()
-
-   if(config_opts_JAVA_OUTPUT)
-     set(${config_opts_JAVA_OUTPUT} ${java_source} PARENT_SCOPE)
    endif()
 
    if(config_opts_DUMP_OUTPUT)
@@ -851,12 +853,12 @@ function(tdaq_generate_dal)
 
    if(NOT config_opts_NOINSTALL)
      if(config_opts_CPP_OUTPUT)
-       install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${hpp_dir} OPTIONAL COMPONENT ${TDAQ_COMPONENT_NOARCH} DESTINATION include FILES_MATCHING PATTERN *.h)
+       install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${hpp_dir} OPTIONAL COMPONENT ${TDAQ_COMPONENT_NOARCH} DESTINATION include FILES_MATCHING PATTERN *.hpp)
      endif()
    endif()
 
    # Always install genconfig.info files, independent of NOINSTALL option
-   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${config_opts_TARGET}/genconfig.info OPTIONAL COMPONENT ${TDAQ_COMPONENT_NOARCH} DESTINATION share/data/${TDAQ_PACKAGE_NAME})
+   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${config_opts_TARGET}/genconfig.info OPTIONAL COMPONENT ${TDAQ_COMPONENT_NOARCH} DESTINATION share/data/${PROJECT_NAME})
 
 endfunction()
 
