@@ -386,7 +386,7 @@ function(daq_add_library)
   endforeach()
 
   if (libsrcs)
-    message(WARNING "About to build library out of ${libsrcs}")
+
     add_library(${libname} SHARED ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
 
@@ -842,8 +842,6 @@ function(daq_generate_dal)
    add_custom_target(${tmp_target}
      COMMAND mkdir -p ${cpp_dir} ${cpp_dir}/dump ${hpp_dir} genconfig_${config_opts_TARGET})
    
-   message(WARNING "${GENCONFIG_BINARY} -i ${hpp_dir} -n ${config_opts_NAMESPACE} -d ${cpp_dir} -p ${package} ${class_option} ${config_includes} -s ${schemas}")
-
    add_custom_command(
      OUTPUT genconfig_${config_opts_TARGET}/genconfig.info ${cpp_source} ${dump_srcs}
      COMMAND ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${config_opts_NAMESPACE} -d ${cpp_dir} -p ${package} ${class_option} ${config_includes} -s ${schemas}
