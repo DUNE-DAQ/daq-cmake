@@ -337,14 +337,15 @@ endfunction()
 ####################################################################################################
 # daq_add_library:
 # Usage:
-# daq_add_library( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
+# daq_add_library( <file | glob expression 1> ... [DAL] [LINK_LIBRARIES <lib1> ...])
 #
 # daq_add_library is designed to produce the main library provided by
 # a project for its dependencies to link in. It will compile a group
 # of files defined by a set of one or more individual filenames and/or
 # glob expressions, and link against the libraries listed after
 # LINK_LIBRARIES. The set of files is assumed to be in the src/
-# subdirectory of the project.
+# subdirectory of the project unless a filename begins with "/" in which 
+# case the absolute path is used. Wildcards are not supported for absolute paths.
 #
 # As an example, 
 # daq_add_library(MyProj.cpp *Utils.cpp LINK_LIBRARIES logging::logging) 
@@ -357,7 +358,7 @@ endfunction()
 
 function(daq_add_library)
 
-  cmake_parse_arguments(LIBOPTS "" "" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(LIBOPTS "DAL" "" "LINK_LIBRARIES" ${ARGN})
 
   set(libname ${PROJECT_NAME})
 
@@ -376,6 +377,8 @@ function(daq_add_library)
       else()
         message(WARNING "When defining list of files from which to build library \"${libname}\", no files in ${CMAKE_CURRENT_SOURCE_DIR}/${LIB_PATH} match the glob \"${f}\"")
       endif()
+    elseif(${f} MATCHES "/[^*]+")
+      set(libsrcs ${libsrcs} ${f})
     else()
        # may be generated file, so just add
       set(libsrcs ${libsrcs} ${LIB_PATH}/${f})
@@ -383,6 +386,7 @@ function(daq_add_library)
   endforeach()
 
   if (libsrcs)
+    message(WARNING "About to build library out of ${libsrcs}")
     add_library(${libname} SHARED ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
 
@@ -403,6 +407,11 @@ function(daq_add_library)
     target_include_directories(${libname} PRIVATE 
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     )
+
+    if (LIBOPTS_DAL)
+      add_dependencies(${libname} DAL_${PROJECT_NAME})
+    endif()
+
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
   else()
@@ -698,14 +707,13 @@ endfunction()
 #                      [CLASSES ...] 
 #                      [PACKAGE name] 
 #                      [INCLUDE dir] 
-#                      [NOINSTALL]
 #                      [CPP dir] 
 #                      [CPP_OUTPUT var1] 
 #                      [DUMP_OUTPUT var2])
 # ######################################################################
 function(daq_generate_dal)
 
-   cmake_parse_arguments(config_opts "NOINSTALL" "TARGET;PACKAGE;NAMESPACE;CPP;INCLUDE;CPP_OUTPUT;DUMP_OUTPUT" "INCLUDE_DIRECTORIES;CLASSES" ${ARGN})
+   cmake_parse_arguments(config_opts "" "TARGET;PACKAGE;NAMESPACE;CPP;INCLUDE;CPP_OUTPUT;DUMP_OUTPUT" "INCLUDE_DIRECTORIES;CLASSES" ${ARGN})
    set(srcs ${config_opts_UNPARSED_ARGUMENTS})
 
    set(TDAQ_DB_PROJECT daq)  # See doc/variables.txt in the original ATLAS TDAQ cmake_tdaq package for more
@@ -810,7 +818,7 @@ function(daq_generate_dal)
      endif()
 
      foreach(s ${class_out})
-       set(cpp_source ${cpp_source} ${cpp_dir}/${s}.cpp ${hpp_dir}/${s}.h)
+       set(cpp_source ${cpp_source} ${cpp_dir}/${s}.cpp ${hpp_dir}/${s}.hpp)
      endforeach()
 
  endforeach()
@@ -822,6 +830,7 @@ function(daq_generate_dal)
      set(GENCONFIG_DEPENDS genconfig)
      set(GENCONFIG_BINARY env TDAQ_DB_PATH=${CMAKE_BINARY_DIR}/installed/share/data ${CMAKE_BINARY_DIR}/genconfig/apps/genconfig )
    else()
+     message(FATAL "JCF, Dec-6-2022: Using genconfig as an installed package not yet supported. Please build it locally.")
      set(GENCONFIG_BINARY env TDAQ_DB_PATH=${CMAKE_BINARY_DIR}/installed/share/data:${TDAQ_INST_PATH}/share/data:${project_db_area} PATH=${TDAQ_INST_PATH}/${BINARY_TAG}/bin:$ENV{PATH} LD_LIBRARY_PATH=${TDAQ_INST_PATH}/external/${BINARY_TAG}/lib:${TDAQ_INST_PATH}/${BINARY_TAG}/lib:${TDAQC_INST_PATH}/${BINARY_TAG}/lib:${TDAQC_INST_PATH}/external/${BINARY_TAG}/lib:$ENV{LD_LIBRARY_PATH} genconfig -I ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_INSTALL_PREFIX}/share/data ${TDAQ_INST_PATH}/share/data ${project_db_area})
    endif()
 
@@ -833,10 +842,12 @@ function(daq_generate_dal)
    add_custom_target(${tmp_target}
      COMMAND mkdir -p ${cpp_dir} ${cpp_dir}/dump ${hpp_dir} genconfig_${config_opts_TARGET})
    
+   message(WARNING "${GENCONFIG_BINARY} -i ${hpp_dir} -n ${config_opts_NAMESPACE} -d ${cpp_dir} -p ${package} ${class_option} ${config_includes} -s ${schemas}")
+
    add_custom_command(
      OUTPUT genconfig_${config_opts_TARGET}/genconfig.info ${cpp_source} ${dump_srcs}
      COMMAND ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${config_opts_NAMESPACE} -d ${cpp_dir} -p ${package} ${class_option} ${config_includes} -s ${schemas}
-     COMMAND cp -f ${cpp_dir}/*.h ${hpp_dir}/
+     COMMAND cp -f ${cpp_dir}/*.hpp ${hpp_dir}/
      COMMAND cp -f ${cpp_dir}/dump*.cpp ${cpp_dir}/dump
      COMMAND cp genconfig.info genconfig_${config_opts_TARGET}/
      DEPENDS ${schemas} ${config_dependencies} ${GENCONFIG_DEPENDS} ${tmp_target})
@@ -851,14 +862,14 @@ function(daq_generate_dal)
      set(${config_opts_DUMP_OUTPUT} ${dump_srcs} PARENT_SCOPE)
    endif()
 
-   if(NOT config_opts_NOINSTALL)
-     if(config_opts_CPP_OUTPUT)
-       install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${hpp_dir} OPTIONAL COMPONENT ${TDAQ_COMPONENT_NOARCH} DESTINATION include FILES_MATCHING PATTERN *.hpp)
-     endif()
+   if(config_opts_CPP_OUTPUT)
+     install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${hpp_dir} OPTIONAL COMPONENT ${TDAQ_COMPONENT_NOARCH} DESTINATION include FILES_MATCHING PATTERN *.hpp)
    endif()
 
    # Always install genconfig.info files, independent of NOINSTALL option
    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${config_opts_TARGET}/genconfig.info OPTIONAL COMPONENT ${TDAQ_COMPONENT_NOARCH} DESTINATION share/data/${PROJECT_NAME})
+
+   set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
 
 endfunction()
 
