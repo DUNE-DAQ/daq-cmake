@@ -592,9 +592,11 @@ endfunction()
 # This function is designed to build a standalone application in your
 # project. Its first argument is simply the desired name of the
 # executable, followed by a list of filenames and/or file glob
-# expressions meant to build the executable. It expects the filenames
+# expressions meant to build the executable. When given relative paths 
+# for the filenames, it expects them to be 
 # to be either in the apps/ subdirectory of the project, or, if the
-# "TEST" option is chosen, the test/apps/ subdirectory. Like
+# "TEST" option is chosen, the test/apps/ subdirectory. It will
+# also accept full pathnames, but without wildcarding. Like
 # daq_add_library, daq_add_application can be provided a list of
 # libraries to link against, following the LINK_LIBRARIES token.
 
@@ -624,6 +626,8 @@ function(daq_add_application appname)
       else()
         message(WARNING "When defining list of files from which to build application \"${appname}\", no files in ${CMAKE_CURRENT_SOURCE_DIR}/${APP_PATH} match the glob \"${f}\"")
       endif()
+    elseif(${f} MATCHES "/[^*]+")
+      set(appsrcs ${appsrcs} ${f})
     else()
        # may be generated file, so just add
       set(appsrcs ${appsrcs} ${APP_PATH}/${f})
