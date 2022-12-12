@@ -25,7 +25,8 @@ RenameMe::RenameMe(const std::string& name)
 
 void
 RenameMe::init(const data_t& /* structured args */)
-{}
+{
+}
 
 void
 RenameMe::get_info(opmonlib::InfoCollector& ci, int /* level */)
