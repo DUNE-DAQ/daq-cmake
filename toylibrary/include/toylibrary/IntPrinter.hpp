@@ -28,7 +28,8 @@ class IntPrinter
 public:
   explicit IntPrinter(const ValueWrapper<int>& vw)
     : int_to_print_(vw.GetValue())
-  {}
+  {
+  }
 
   void Show() const;
 
