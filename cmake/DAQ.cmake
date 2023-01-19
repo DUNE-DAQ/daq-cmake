@@ -722,9 +722,9 @@ function(daq_generate_dal)
 
    set(TDAQ_DB_PROJECT daq)  # See doc/variables.txt in the original ATLAS TDAQ cmake_tdaq package for more
 
-   if (EXISTS ${CMAKE_SOURCE_DIR}/genconfig)
-      set (TDAQ_HAVE_genconfig TRUE)
-   endif()
+   #if (EXISTS ${CMAKE_SOURCE_DIR}/genconfig)
+   set (TDAQ_HAVE_genconfig TRUE)
+   #endif()
 
    if(NOT config_opts_TARGET)
      set(config_opts_TARGET DAL_${PROJECT_NAME})
