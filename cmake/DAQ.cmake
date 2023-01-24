@@ -720,12 +720,6 @@ function(daq_generate_dal)
    cmake_parse_arguments(config_opts "" "TARGET;PACKAGE;NAMESPACE;CPP;INCLUDE;CPP_OUTPUT;DUMP_OUTPUT" "INCLUDE_DIRECTORIES;CLASSES" ${ARGN})
    set(srcs ${config_opts_UNPARSED_ARGUMENTS})
 
-   set(TDAQ_DB_PROJECT daq)  # See doc/variables.txt in the original ATLAS TDAQ cmake_tdaq package for more
-
-   if (EXISTS ${CMAKE_SOURCE_DIR}/genconfig)
-     set (TDAQ_HAVE_genconfig TRUE)
-   endif()
-
    if(NOT config_opts_TARGET)
      set(config_opts_TARGET DAL_${PROJECT_NAME})
    endif()
@@ -765,39 +759,15 @@ function(daq_generate_dal)
 
    set(config_dependencies)
 
-   # if(TDAQ_USED_PROJECT_NAME)
-   #   set(project_db_area ${${TDAQ_USED_PROJECT_NAME}_DIR})
-   #   get_filename_component(project_db_area ${project_db_area} DIRECTORY)
-   #   get_filename_component(project_db_area ${project_db_area} DIRECTORY)
-   #   get_filename_component(project_db_area ${project_db_area} DIRECTORY)
-   #   set(project_db_area "${project_db_area}/data")
-   # endif()
-
    if(DAQ_PROJECT_GENCONFIG_INCLUDES OR config_opts_INCLUDE_DIRECTORIES)
      set(config_includes -I ${DAQ_PROJECT_GENCONFIG_INCLUDES})
-     # if(config_opts_INCLUDE_DIRECTORIES)
-     #   foreach(inc ${config_opts_INCLUDE_DIRECTORIES})
-     #     if(DEFINED TDAQ_HAVE_${inc})
-     #       # if in same build area...
-     #       list(APPEND config_includes ${CMAKE_BINARY_DIR}/${inc})
-     #       list(APPEND config_dependencies DAL_${inc})
-     #     else()
-     #       list(APPEND config_includes ${TDAQ_INST_PATH}/share/data/${inc} ${project_db_area}/${inc})
-     #     endif()
-     #   endforeach()
-     # endif()
    endif()
-   
-   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/installed/share/data/${TDAQ_DB_PROJECT}/schema)
    
    set(schemas)
    foreach(src ${srcs})
-     set(schemas ${schemas} ${CMAKE_CURRENT_SOURCE_DIR}/${src})
-     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${src} DESTINATION ${CMAKE_BINARY_DIR}/installed/share/data/${TDAQ_DB_PROJECT}/schema)
+     set(schemas ${schemas} ${CMAKE_CURRENT_SOURCE_DIR}/schema/${PROJECT_NAME}/${src})
    endforeach()
    
-   message(STATUS "OKS schemas are ${schemas}")
-
    foreach(schema ${schemas}) 
 
      execute_process(
@@ -829,14 +799,8 @@ function(daq_generate_dal)
    
    separate_arguments(cpp_source)
 
-   set(GENCONFIG_DEPENDS)
-   if(DEFINED TDAQ_HAVE_genconfig)
-     set(GENCONFIG_DEPENDS genconfig)
-     set(GENCONFIG_BINARY env TDAQ_DB_PATH=${CMAKE_BINARY_DIR}/installed/share/data ${CMAKE_BINARY_DIR}/genconfig/apps/genconfig )
-   else()
-     message(FATAL "JCF, Dec-6-2022: Using genconfig as an installed package not yet supported. Please build it locally.")
-     set(GENCONFIG_BINARY env TDAQ_DB_PATH=${CMAKE_BINARY_DIR}/installed/share/data:${TDAQ_INST_PATH}/share/data:${project_db_area} PATH=${TDAQ_INST_PATH}/${BINARY_TAG}/bin:$ENV{PATH} LD_LIBRARY_PATH=${TDAQ_INST_PATH}/external/${BINARY_TAG}/lib:${TDAQ_INST_PATH}/${BINARY_TAG}/lib:${TDAQC_INST_PATH}/${BINARY_TAG}/lib:${TDAQC_INST_PATH}/external/${BINARY_TAG}/lib:$ENV{LD_LIBRARY_PATH} genconfig -I ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_INSTALL_PREFIX}/share/data ${TDAQ_INST_PATH}/share/data ${project_db_area})
-   endif()
+   set(GENCONFIG_DEPENDS genconfig)
+   set(GENCONFIG_BINARY ${CMAKE_BINARY_DIR}/genconfig/apps/genconfig )
 
    set(tmp_target MKTMP_${config_opts_TARGET})
    if(TARGET ${tmp_target})
@@ -912,8 +876,8 @@ function(daq_install)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/scripts/ DESTINATION ${CMAKE_INSTALL_BIN_TESTDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
 
-  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMADIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2")
-  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMA_TESTDIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2")
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMADIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2" PATTERN "*.xml")
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMA_TESTDIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2" PATTERN "*.xml")
 
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config/  DESTINATION ${CMAKE_INSTALL_CONFIGDIR} OPTIONAL)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/config/  DESTINATION ${CMAKE_INSTALL_CONFIG_TESTDIR} OPTIONAL)
