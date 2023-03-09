@@ -104,7 +104,7 @@ To use the --config-generation option you also need to have at
 least one type of DAQModule requested.    
 """)
 
-TEMPLATEDIR = (pathlib.Path(os.environ['DAQ_CMAKE_SHARE']) + "config" + "templates").resolve()
+TEMPLATEDIR = (pathlib.Path(os.environ['DAQ_CMAKE_SHARE']) / "config" / "templates").resolve()
 
 def wipe_package_directory():
     os.chdir(PACKAGEDIR)
