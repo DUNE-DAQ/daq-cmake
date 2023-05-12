@@ -261,7 +261,7 @@ function(daq_codegen)
       if (fpaths)
         set(schemas ${schemas} ${fpaths})
       else()
-        message(WARNING "When defining list of schema files to perform code generation on, no files in ${CMAKE_CURRENT_SOURCE_DIR}/${schema_dir} match the glob \"${f}\"")
+        message(WARNING "When defining list of schema files to perform code generation on, no files in ${schema_dir}/${PROJECT_NAME} match the glob \"${f}\"")
       endif()
     else()
        # may be generated file, so just add
@@ -333,6 +333,53 @@ function(daq_codegen)
   set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
 endfunction()
 
+function (daq_protobuf)
+
+  cmake_parse_arguments(PROTOBUFOPTS "" "" "" ${ARGN})
+
+  set(schema_dir "${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}")
+
+  set(protofiles)
+
+  foreach(f ${PROTOBUFOPTS_UNPARSED_ARGUMENTS})
+    if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
+
+      set(fpaths)
+      file(GLOB fpaths CONFIGURE_DEPENDS ${schema_dir}/${f})
+
+      if (fpaths)
+        set(protofiles ${protofiles} ${fpaths})
+      else()
+        message(WARNING "When defining list of *.proto files to perform code generation on, no files in ${schema_dir} match the glob \"${f}\"")
+      endif()
+    else()
+      set(protofiles ${protofiles} ${schema_dir}/${f})
+    endif()
+  endforeach()
+
+  set(outfiles)
+
+  foreach(protofile ${protofiles})
+    get_filename_component(basename ${protofile} NAME_WE)
+
+    list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.h )
+  endforeach()
+
+  add_custom_command(
+    OUTPUT ${outfiles}
+    COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
+    COMMAND protoc --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} --proto_path=${PROJECT_SOURCE_DIR}/schema/ers ${protofiles}
+    DEPENDS ${protofiles}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+
+    add_custom_target(PROTOBUF_GENERATION DEPENDS ${outfiles}  )
+    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} PROTOBUF_GENERATION)
+
+    set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+    set(PROTOBUF_FILES ${outfiles} PARENT_SCOPE)
+
+endfunction()
 
 ####################################################################################################
 # daq_add_library:
@@ -381,6 +428,10 @@ function(daq_add_library)
       set(libsrcs ${libsrcs} ${LIB_PATH}/${f})
     endif()
   endforeach()
+
+  set(libsrcs ${libsrcs} ${PROTOBUF_FILES})
+
+  message(WARNING "libsrcs == ${libsrcs}")
 
   if (libsrcs)
     add_library(${libname} SHARED ${libsrcs})
@@ -719,6 +770,7 @@ function(daq_install)
 
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
+  install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.pb.h")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )
