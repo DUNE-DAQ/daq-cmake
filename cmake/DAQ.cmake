@@ -362,13 +362,24 @@ function (daq_protobuf)
   foreach(protofile ${protofiles})
     get_filename_component(basename ${protofile} NAME_WE)
 
+    # It's admittedly a bit inelegant to have not only a header but
+    # also a source file appear in an include directory. However
+    # there's currently no way to get protoc to output the header and
+    # source files into separate directories, and attempts to do so
+    # manually via a "COMMAND mv ..." in add_custom_command fail
+    # because the "&&"ing of the commands means you get an error since
+    # the output files from protoc don't yet exist
+
     list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.h )
   endforeach()
 
   add_custom_command(
     OUTPUT ${outfiles}
     COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
-    COMMAND protoc --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} --proto_path=${PROJECT_SOURCE_DIR}/schema/ers ${protofiles}
+    COMMAND protoc
+            --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} 
+	    --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} 
+	    --proto_path=${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME} ${protofiles} 
     DEPENDS ${protofiles}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
@@ -430,8 +441,6 @@ function(daq_add_library)
   endforeach()
 
   set(libsrcs ${libsrcs} ${PROTOBUF_FILES})
-
-  message(WARNING "libsrcs == ${libsrcs}")
 
   if (libsrcs)
     add_library(${libname} SHARED ${libsrcs})
@@ -753,6 +762,11 @@ endfunction()
 
 function(daq_install) 
 
+  if (DEFINED PROTOBUF_FILES AND NOT TARGET ${PROJECT_NAME})
+     message(FATAL_ERROR "Error in call to daq_protobuf: you need to also create a package-wide library via daq_add_library, since these functions will automatically compile the code daq_protobuf generates into such a library")
+  endif()
+
+
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
 
   ## AT HACK ALERT
@@ -771,6 +785,7 @@ function(daq_install)
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.pb.h")
+  install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_PYTHONDIR} FILES_MATCHING PATTERN "*.py")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )
