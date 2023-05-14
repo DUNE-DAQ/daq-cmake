@@ -276,6 +276,24 @@ Public headers for users of the library should go in the project's
 `include/<project name>` directory. Private headers used in the
 library's implementation should be put in the `src/` directory.
 
+### daq_protobuf:
+Usage:
+```
+daq_protobuf( <protobuf filename1> ... )
+```
+
+The `<protobuf filename1> ...` arguments are the list of `*.proto` files for protobuf's "protoc" program to process from `<package>/schema/<package>`. Globs also allowed. 
+
+Each `*.proto` file will have a C++ header/source file generated as
+well as a Python file. The header will be installed in the public
+include directory. The source file will be built as part of the main
+package library.
+
+Two requirements for calling this function:
+1) You need to call `find_package(Protobuf REQUIRED)` to make the protobuf library available
+2) You also need to call `daq_add_library`, i.e., have a main package-wide library
+
+
 ### daq_add_python_bindings:
 Usage:  
 ```

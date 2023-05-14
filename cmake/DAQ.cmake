@@ -333,6 +333,23 @@ function(daq_codegen)
   set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
 endfunction()
 
+####################################################################################################
+# daq_protobuf:
+# Usage:
+# daq_protobuf( <protobuf filename1> ... )
+#
+# Arguments:
+#    <protobuf filename1> ...: The list of *.proto files for protobuf's "protoc" program to process from <package>/schema/<package>. Globs also allowed. 
+#
+# Each *.proto file will have a C++ header/source file generated as
+# well as a Python file. The header will be installed in the public
+# include directory. The source file will be built as part of the main
+# package library.
+#
+# Two requirements for calling this function:
+# 1) You need to call find_package(Protobuf REQUIRED) to make the protobuf library available
+# 2) You also need to call daq_add_library, i.e., have a main packagewide library
+
 function (daq_protobuf)
 
   cmake_parse_arguments(PROTOBUFOPTS "" "" "" ${ARGN})
