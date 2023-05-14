@@ -384,8 +384,8 @@ function (daq_protobuf)
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 
-    add_custom_target(PROTOBUF_GENERATION DEPENDS ${outfiles}  )
-    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} PROTOBUF_GENERATION)
+    add_custom_target(${PROJECT_NAME}_PROTOBUF_GENERATION DEPENDS ${outfiles}  )
+    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${PROJECT_NAME}_PROTOBUF_GENERATION)
 
     set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
     set(PROTOBUF_FILES ${outfiles} PARENT_SCOPE)
@@ -458,6 +458,16 @@ function(daq_add_library)
         $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
       )
+    endif()
+
+    if (TARGET ${PROJECT_NAME}_PROTOBUF_GENERATION)
+
+      if (NOT DEFINED Protobuf_INCLUDE_DIRS OR NOT DEFINED Protobuf_LIBRARY)
+        message(FATAL_ERROR "It appears that find_package on the protobuf package hasn't been called; this is needed given that this daq-cmake code arranges for code generation with this package")
+      endif()
+
+      target_include_directories(${libname} PUBLIC ${Protobuf_INCLUDE_DIRS})
+      target_link_libraries(${libname} PUBLIC ${Protobuf_LIBRARY})
     endif()
 
     target_include_directories(${libname} PRIVATE 
