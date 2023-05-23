@@ -28,7 +28,7 @@ advance (e.g. whether it should contain DAQModules and what their
 names should be, etc.) the more work this script can do for you.
 
 Simplest usage:
-{os.path.basename (__file__)} <name of new package>\n\n")
+{os.path.basename (__file__)} <name of new package>\n\n
 
 ...where the directory out of which you run this script must be empty
 with the possible exceptions of a README.md and/or a .git/ version 
@@ -104,8 +104,7 @@ To use the --config-generation option you also need to have at
 least one type of DAQModule requested.    
 """)
 
-THIS_SCRIPTS_DIRECTORY=pathlib.Path(__file__).parent.resolve()
-TEMPLATEDIR = f"{THIS_SCRIPTS_DIRECTORY}/templates"
+TEMPLATEDIR = (pathlib.Path(os.environ['DAQ_CMAKE_SHARE']) / "config" / "templates").resolve()
 
 def wipe_package_directory():
     os.chdir(PACKAGEDIR)
@@ -167,7 +166,7 @@ if args.contains_python_bindings:
     make_package_subdir(f"{PACKAGEDIR}/python/{PACKAGE}")
     daq_add_python_bindings_calls.append("\ndaq_add_python_bindings(*.cpp LINK_LIBRARIES ${PROJECT_NAME} ) # Any additional libraries to link in beyond the main library not yet determined\n")
 
-    for src_filename in ["module.cpp", "renameme.cpp"]:
+    for src_filename in ["module.cpp", "pythonbindingsrenameme.cpp"]:
         with open(f"{TEMPLATEDIR}/{src_filename}", "r") as inf:
             sourcecode = inf.read()
 
@@ -208,13 +207,17 @@ for more on naming conventions. Exiting...
         daq_codegen_calls.append(f"daq_codegen({module.lower()}.jsonnet TEMPLATES Structs.hpp.j2 Nljs.hpp.j2)") 
         daq_codegen_calls.append(f"daq_codegen({module.lower()}info.jsonnet DEP_PKGS opmonlib TEMPLATES opmonlib/InfoStructs.hpp.j2 opmonlib/InfoNljs.hpp.j2)")
 
-        for src_filename in ["RenameMe.hpp", "RenameMe.cpp", "renameme.jsonnet", "renamemeinfo.jsonnet"]:
+        for src_filename in ["DAQModuleRenameMe.hpp", "DAQModuleRenameMe.cpp", "daqmodulerenameme.jsonnet", "daqmoduleinforenameme.jsonnet"]:
 
             if pathlib.Path(src_filename).suffix in [".hpp", ".cpp"]:
-                DEST_FILENAME = src_filename.replace("RenameMe", module)
+                DEST_FILENAME = src_filename.replace("DAQModuleRenameMe", module)
                 DEST_FILENAME = f"{PACKAGEDIR}/plugins/{DEST_FILENAME}"
             elif pathlib.Path(src_filename).suffix in [".jsonnet"]:
-                DEST_FILENAME = src_filename.replace("renameme", module.lower())
+                if "info" in src_filename:
+                    DEST_FILENAME = src_filename.replace("daqmoduleinforenameme", module.lower() + "info")
+                else:
+                    DEST_FILENAME = src_filename.replace("daqmodulerenameme", module.lower())
+
                 DEST_FILENAME = f"{PACKAGEDIR}/schema/{PACKAGE}/{DEST_FILENAME}"
             else:
                 assert False, "SCRIPT ERROR: unhandled filename"
@@ -251,7 +254,7 @@ Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/
 for more on naming conventions. Exiting...
 """)
         DEST_FILENAME = f"{PACKAGEDIR}/apps/{user_app}.cxx"
-        with open(f"{TEMPLATEDIR}/renameme.cxx") as inf:
+        with open(f"{TEMPLATEDIR}/apprenameme.cxx") as inf:
             sourcecode = inf.read()
 
         sourcecode = sourcecode.replace("renameme", user_app)
@@ -274,7 +277,7 @@ Please see https://dune-daq-sw.readthedocs.io/en/latest/packages/styleguide/
 for more on naming conventions. Exiting...
 """)
         DEST_FILENAME = f"{PACKAGEDIR}/test/apps/{test_app}.cxx"
-        with open(f"{TEMPLATEDIR}/renameme.cxx") as inf:
+        with open(f"{TEMPLATEDIR}/apprenameme.cxx") as inf:
             sourcecode = inf.read()
     
         sourcecode = sourcecode.replace("renameme", test_app)
@@ -338,15 +341,7 @@ elif os.path.exists(f"{PACKAGEDIR}/README.md"):  # i.e., README.md isn't (yet) i
             error(f"There was a problem attempting a git mv of README.md to docs/README.md in {PACKAGEDIR}; exiting...")
 
 make_package_subdir(f"{PACKAGEDIR}/cmake")
-config_template_html=f"https://raw.githubusercontent.com/DUNE-DAQ/daq-cmake/dunedaq-v2.6.0/configs/Config.cmake.in"
-
-proc = subprocess.Popen(f"curl -o {PACKAGEDIR}/cmake/{PACKAGE}Config.cmake.in -O {config_template_html}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-proc.communicate()
-RETVAL = proc.returncode
-
-if RETVAL != 0:
-    wipe_package_directory()
-    error(f"There was a problem trying to pull down {config_template_html} from the web; exiting...")
+shutil.copy(f"{TEMPLATEDIR}/Config.cmake.in", f"{PACKAGEDIR}/cmake/{PACKAGE}Config.cmake.in")
 
 def print_cmakelists_section(list_of_calls, section_of_webpage = None):
     for i, line in enumerate(list_of_calls):
