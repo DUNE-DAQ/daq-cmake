@@ -344,7 +344,11 @@ endfunction()
 # of files defined by a set of one or more individual filenames and/or
 # glob expressions, and link against the libraries listed after
 # LINK_LIBRARIES. The set of files is assumed to be in the src/
-# subdirectory of the project.
+# subdirectory of the project unless a filename begins with "/" in
+# which case the absolute path is used. Wildcards are not supported
+# for absolute paths as the use case for absolute paths is passing
+# generated files which are typically represented by a variable
+# (e.g. ${list_of_qt_generated_files}).
 #
 # As an example, 
 # daq_add_library(MyProj.cpp *Utils.cpp LINK_LIBRARIES logging::logging) 
@@ -376,6 +380,8 @@ function(daq_add_library)
       else()
         message(WARNING "When defining list of files from which to build library \"${libname}\", no files in ${CMAKE_CURRENT_SOURCE_DIR}/${LIB_PATH} match the glob \"${f}\"")
       endif()
+    elseif(${f} MATCHES "^/[^*]+")
+      set(libsrcs ${libsrcs} ${f})
     else()
        # may be generated file, so just add
       set(libsrcs ${libsrcs} ${LIB_PATH}/${f})
@@ -383,6 +389,7 @@ function(daq_add_library)
   endforeach()
 
   if (libsrcs)
+
     add_library(${libname} SHARED ${libsrcs})
     target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
 
@@ -403,6 +410,7 @@ function(daq_add_library)
     target_include_directories(${libname} PRIVATE 
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     )
+
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
   else()
@@ -583,11 +591,14 @@ endfunction()
 # This function is designed to build a standalone application in your
 # project. Its first argument is simply the desired name of the
 # executable, followed by a list of filenames and/or file glob
-# expressions meant to build the executable. It expects the filenames
-# to be either in the apps/ subdirectory of the project, or, if the
-# "TEST" option is chosen, the test/apps/ subdirectory. Like
-# daq_add_library, daq_add_application can be provided a list of
-# libraries to link against, following the LINK_LIBRARIES token.
+# expressions meant to build the executable. When given relative paths
+# for the filenames, it expects them to be to be either in the apps/
+# subdirectory of the project, or, if the "TEST" option is chosen, the
+# test/apps/ subdirectory. It will also accept full pathnames, but
+# without wildcarding (see daq_add_library documentation for the
+# reason). Like daq_add_library, daq_add_application can be provided a
+# list of libraries to link against, following the LINK_LIBRARIES
+# token.
 
 # Your application will look in include/ for your project's public
 # headers and src/ for its private headers. Additionally, if it's a
@@ -615,6 +626,8 @@ function(daq_add_application appname)
       else()
         message(WARNING "When defining list of files from which to build application \"${appname}\", no files in ${CMAKE_CURRENT_SOURCE_DIR}/${APP_PATH} match the glob \"${f}\"")
       endif()
+    elseif(${f} MATCHES "^/[^*]+")
+      set(appsrcs ${appsrcs} ${f})
     else()
        # may be generated file, so just add
       set(appsrcs ${appsrcs} ${APP_PATH}/${f})
@@ -726,8 +739,8 @@ function(daq_install)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/scripts/ DESTINATION ${CMAKE_INSTALL_BIN_TESTDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
 
-  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMADIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2" PATTERN "*.xml" )
-  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMA_TESTDIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2" PATTERN "*.xml" )
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMADIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2" PATTERN "*.xml")
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/schema/  DESTINATION ${CMAKE_INSTALL_SCHEMA_TESTDIR} OPTIONAL FILES_MATCHING PATTERN "*.jsonnet" PATTERN "*.j2" PATTERN "*.xml")
 
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config/  DESTINATION ${CMAKE_INSTALL_CONFIGDIR} OPTIONAL)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/config/  DESTINATION ${CMAKE_INSTALL_CONFIG_TESTDIR} OPTIONAL)
