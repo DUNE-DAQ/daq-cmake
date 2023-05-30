@@ -284,10 +284,17 @@ daq_protobuf( <protobuf filename1> ... )
 
 The `<protobuf filename1> ...` arguments are the list of `*.proto` files for protobuf's "protoc" program to process from `<package>/schema/<package>`. Globs also allowed. 
 
-Each `*.proto` file will have a C++ header/source file generated as
-well as a Python file. The header will be installed in the public
-include directory. The source file will be built as part of the main
-package library.
+Each `*.proto` file will have a C++ header/source file generated as well as a Python file. 
+The names of the generated files are the same as per the [ProtoBuf API](https://protobuf.dev/): `*.pb.h` and `*.pb.cc` for the C++ header and source, respectivelly. 
+The header will be installed in the public include directory. 
+Code can link against the header in the form:
+```C++
+#include<<package>/<file_name>.pb.h>
+```
+The generated python file will be called `*_pb2.py` and will be installed in `lib64/python/<package>`. 
+
+The source file will be built as part of the main package library.
+Its compilation will be done automatically, i.e. there is no need to add `*.pb.cc` in the `daq_add_library` directive of your package: `daq_protobuf` will suffice. 
 
 Two requirements for calling this function:
 1) You need to call `find_package(Protobuf REQUIRED)` to make the protobuf library available
