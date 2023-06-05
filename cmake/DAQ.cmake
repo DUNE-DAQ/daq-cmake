@@ -334,9 +334,9 @@ function(daq_codegen)
 endfunction()
 
 ####################################################################################################
-# daq_protobuf:
+# daq_protobuf_codegen:
 # Usage:
-# daq_protobuf( <protobuf filename1> ... )
+# daq_protobuf_codegen( <protobuf filename1> ... )
 #
 # Arguments:
 #    <protobuf filename1> ...: The list of *.proto files for protobuf's "protoc" program to process from <package>/schema/<package>. Globs also allowed. 
@@ -350,7 +350,7 @@ endfunction()
 # 1) You need to call find_package(Protobuf REQUIRED) to make the protobuf library available
 # 2) You also need to call daq_add_library, i.e., have a main packagewide library
 
-function (daq_protobuf)
+function (daq_protobuf_codegen)
 
   cmake_parse_arguments(PROTOBUFOPTS "" "" "" ${ARGN})
 
@@ -790,7 +790,7 @@ endfunction()
 function(daq_install) 
 
   if (DEFINED PROTOBUF_FILES AND NOT TARGET ${PROJECT_NAME})
-     message(FATAL_ERROR "Error in call to daq_protobuf: you need to also create a package-wide library via daq_add_library, since these functions will automatically compile the code daq_protobuf generates into such a library")
+     message(FATAL_ERROR "Error in call to daq_protobuf_codegen: you need to also create a package-wide library via daq_add_library, since these functions will automatically compile the code daq_protobuf_codegen generates into such a library")
   endif()
 
 
