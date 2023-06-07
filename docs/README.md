@@ -351,6 +351,9 @@ etc.). Like daq_add_library, daq_add_unit_test can be provided a
 list of libraries to link against, following the `LINK_LIBRARIES`
 token.
 
+### daq_oks_codegen
+_See [the genconfig documentation](https://github.com/DUNE-DAQ/genconfig/tree/develop#readme)_
+
 ### daq_install
 Usage:  
 ```
