@@ -279,10 +279,14 @@ library's implementation should be put in the `src/` directory.
 ### daq_protobuf_codegen:
 Usage:
 ```
-daq_protobuf_codegen( <protobuf filename1> ... )
+daq_protobuf_codegen( <protobuf filename1> ... [DEP_PKGS <package 1> ...] )
 ```
 
-The `<protobuf filename1> ...` arguments are the list of `*.proto` files for protobuf's "protoc" program to process from `<package>/schema/<package>`. Globs also allowed. 
+Arguments:
+
+* `<protobuf filename1> ...`: these arguments are the list of `*.proto` files for protobuf's "protoc" program to process from `<package>/schema/<package>`. Globs also allowed. 
+
+* `DEP_PKGS`: if a `*.proto` file given depends on `*.proto files` provided by other DAQ packages, the `DEP_PKGS` argument must contain the list of packages.
 
 Each `*.proto` file will have a C++ header/source file generated as well as a Python file. 
 The names of the generated files are the same as per the [ProtoBuf API](https://protobuf.dev/): `*.pb.h` and `*.pb.cc` for the C++ header and source, respectivelly. 

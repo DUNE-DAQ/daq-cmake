@@ -206,7 +206,7 @@ function(daq_codegen)
       if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
         list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}/schema")
       else()      					
-        # message(NOTICE "${PROJECT_NAME} dep_pkg ${dep_pkg}")
+
         if (NOT DEFINED "${dep_pkg}_DAQSHARE")
           if (NOT DEFINED "${dep_pkg}_CONFIG")
             message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
@@ -336,10 +336,14 @@ endfunction()
 ####################################################################################################
 # daq_protobuf_codegen:
 # Usage:
-# daq_protobuf_codegen( <protobuf filename1> ... )
+# daq_protobuf_codegen( <protobuf filename1> ... [DEP_PKGS <package 1> ...] )
 #
 # Arguments:
 #    <protobuf filename1> ...: The list of *.proto files for protobuf's "protoc" program to process from <package>/schema/<package>. Globs also allowed. 
+#
+#
+#    DEP_PKGS: if a *.proto file given depends on *.proto files provided by other DAQ packages,
+#      the "DEP_PKGS" argument must contain the list of packages.
 #
 # Each *.proto file will have a C++ header/source file generated as
 # well as a Python file. The header will be installed in the public
@@ -352,7 +356,7 @@ endfunction()
 
 function (daq_protobuf_codegen)
 
-  cmake_parse_arguments(PROTOBUFOPTS "" "" "" ${ARGN})
+  cmake_parse_arguments(PROTOBUFOPTS "" "" "DEP_PKGS" ${ARGN})
 
   set(schema_dir "${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}")
 
@@ -374,6 +378,32 @@ function (daq_protobuf_codegen)
     endif()
   endforeach()
 
+
+  # Build the list of schema paths for this package and any packages which may have been specified to DEP_PKGS
+
+  set(dep_paths "${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/schema")
+  if (DEFINED PROTOBUFOPTS_DEP_PKGS)
+    foreach(dep_pkg ${PROTOBUFOPTS_DEP_PKGS})
+
+      if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
+        list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}/schema")
+      else()      					
+        # message(NOTICE "${PROJECT_NAME} dep_pkg ${dep_pkg}")
+        if (NOT DEFINED "${dep_pkg}_DAQSHARE")
+          if (NOT DEFINED "${dep_pkg}_CONFIG")
+            message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
+          else()
+            message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
+          endif()
+        endif()
+        
+        list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}/schema")
+      endif()
+
+    endforeach()
+  endif()
+
+
   set(outfiles)
 
   foreach(protofile ${protofiles})
@@ -390,13 +420,19 @@ function (daq_protobuf_codegen)
     list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.h )
   endforeach()
 
+  set(protoc_includes)
+  foreach (dep_path ${dep_paths})
+    list(APPEND protoc_includes "-I${dep_path}")
+  endforeach()
+
   add_custom_command(
     OUTPUT ${outfiles}
     COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
     COMMAND protoc
-            --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} 
-	    --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} 
-	    --proto_path=${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME} ${protofiles} 
+            ${protoc_includes}     	    
+            --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include 
+	    --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+	    ${protofiles} 
     DEPENDS ${protofiles}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
@@ -480,7 +516,7 @@ function(daq_add_library)
     if (TARGET ${PROJECT_NAME}_PROTOBUF_GENERATION)
 
       if (NOT DEFINED Protobuf_INCLUDE_DIRS OR NOT DEFINED Protobuf_LIBRARY)
-        message(FATAL_ERROR "It appears that find_package on the protobuf package hasn't been called; this is needed given that this daq-cmake code arranges for code generation with this package")
+        message(FATAL_ERROR "It appears that find_package on the \"Protobuf\" package hasn't been called; this is needed given that this daq-cmake code arranges for code generation with this package")
       endif()
 
       target_include_directories(${libname} PUBLIC ${Protobuf_INCLUDE_DIRS})
