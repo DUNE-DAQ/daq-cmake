@@ -336,7 +336,7 @@ endfunction()
 
 # ######################################################################
 # daq_oks_codegen(<oks schema filename1> ... 
-#                      NAMESPACE ns
+#                      [NAMESPACE ns] 
 #		       [DEP_PKGS pkg1 pkg2 ...]
 #
 # `daq_oks_codegen` uses the genconfig package's application of the same
@@ -351,6 +351,12 @@ endfunction()
 # DEP_PKGS: if a schema file you've provided as an argument itself includes a schema file (or schema files) from one or more other packages, you need to supply the names of the packages as arguments to DEP_PKGS. 
 #
 #
+# The generated code is automatically built into the package's main
+# library (i.e., you don't need to explicitly pass the names of the
+# generated files to `daq_add_library`). Note that you get an error if
+# you call `daq_oks_codegen` and don't also call `daq_add_library`. 
+#
+#
 #######################################################################
 
 function(daq_oks_codegen)
@@ -359,17 +365,17 @@ function(daq_oks_codegen)
 
    set(srcs ${config_opts_UNPARSED_ARGUMENTS})
 
-   set(LIB_PATH "codegen")
-
    set(TARGETNAME DAL_${PROJECT_NAME})
 
    if(TARGET ${TARGETNAME})
      message(FATAL_ERROR "You are using more than one daq_oks_codegen() command inside this package; this is not allowed. Exiting...")
    endif()
 
-   set(LIST GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME}/ )
+   if (NOT DEFINED GENCONFIG_BINARY) 
+     message(FATAL_ERROR "In order to call this function (daq_oks_codegen) you need to load the genconfig package in your CMakeLists.txt file via the find_package call")
+   endif()
 
-   set(package ${PROJECT_NAME})
+   set(LIST GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME}/ )
 
    set(cpp_dir ${CMAKE_CODEGEN_BINARY_DIR}/src)
    set(hpp_dir ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME})
@@ -446,14 +452,10 @@ function(daq_oks_codegen)
 
    string(JOIN ":" PATHS_TO_SEARCH ${dep_paths})
 
-   if (NOT DEFINED GENCONFIG_BINARY) 
-     message(FATAL_ERROR "In order to call this function (daq_oks_codegen) you need to load the genconfig package in your CMakeLists.txt file via the find_package call")
-   endif()
-
    add_custom_command(
-     OUTPUT genconfig_${TARGETNAME}/genconfig.info ${cpp_source}
+     OUTPUT ${cpp_source} genconfig_${TARGETNAME}/genconfig.info 
      COMMAND mkdir -p ${cpp_dir} ${hpp_dir} genconfig_${TARGETNAME}
-     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${NAMESPACE} -d ${cpp_dir} -p ${package}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
+     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
      COMMAND cp -f ${cpp_dir}/*.hpp ${hpp_dir}/
      COMMAND cp genconfig.info genconfig_${TARGETNAME}/
      DEPENDS ${schemas} ${config_dependencies} ${GENCONFIG_DEPENDS} 
@@ -462,25 +464,13 @@ function(daq_oks_codegen)
    add_custom_target(${TARGETNAME} ALL DEPENDS ${cpp_source} genconfig_${TARGETNAME}/genconfig.info)
    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${TARGETNAME})
 
-   set(libname ${PROJECT_NAME}_oks)
-   add_library(${libname} SHARED ${cpp_source})
-   target_link_libraries(${libname} PUBLIC oksdbinterfaces::oksdbinterfaces)
-   _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
-
-
-   target_include_directories(${libname} PUBLIC
-     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
-     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-   )
-
    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${hpp_dir} DESTINATION include FILES_MATCHING PATTERN *.hpp)
    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME} DESTINATION ${PROJECT_NAME}/share/)
 
-   _daq_define_exportname()
-  install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
-
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
   set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+  set(ANY_OKS_FILES ${cpp_source} PARENT_SCOPE)
+  set(ANY_OKS_LIBS oksdbinterfaces::oksdbinterfaces PARENT_SCOPE)
 
 endfunction()
 
@@ -518,7 +508,7 @@ function(daq_add_library)
 
   set(LIB_PATH "src")
 
-  set(libsrcs)
+  set(libsrcs ${ANY_OKS_FILES})
   foreach(f ${LIBOPTS_UNPARSED_ARGUMENTS})
 
     if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
@@ -542,7 +532,7 @@ function(daq_add_library)
   if (libsrcs)
 
     add_library(${libname} SHARED ${libsrcs})
-    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
+    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES} ${ANY_OKS_LIBS}) 
 
     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
       target_include_directories(${libname} PUBLIC 
@@ -865,6 +855,10 @@ endfunction()
 # arguments.
 
 function(daq_install) 
+
+  if (DEFINED ANY_OKS_FILES AND NOT TARGET ${PROJECT_NAME})
+    message(FATAL_ERROR "Error in call to daq_oks_codegen; you need to also create a package-wide library via daq_add_library, since these functions will automatically compile the code daq_oks_codegen generates into such a library")
+  endif()		      
 
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
 

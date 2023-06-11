@@ -352,9 +352,6 @@ list of libraries to link against, following the `LINK_LIBRARIES`
 token.
 
 ### daq_oks_codegen
-
-
-### daq_oks_codegen
 Usage:
 ```
 daq_oks_codegen(<oks schema filename1> ... [NAMESPACE ns] [DEP_PKGS pkg1 pkg2 ...])
@@ -371,6 +368,11 @@ Arguments:
  `NAMESPACE`: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
 
  `DEP_PKGS`: if a schema file you've provided as an argument itself includes a schema file (or schema files) from one or more other packages, you need to supply the names of the packages as arguments to DEP_PKGS. 
+
+The generated code is automatically built into the package's main
+library (i.e., you don't need to explicitly pass the names of the
+generated files to `daq_add_library`). Note that you get an error if
+you call `daq_oks_codegen` and don't also call `daq_add_library`. 
 
 
 ### daq_install
