@@ -6,15 +6,14 @@
  * received with this code.
  */
 
+#include "registrators.hpp"
+
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
 namespace py = pybind11;
 
 namespace dunedaq::package::python {
-
-extern void
-register_renameme(py::module&);
 
 PYBIND11_MODULE(_daq_package_py, m)
 {
