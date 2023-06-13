@@ -206,7 +206,7 @@ function(daq_codegen)
       if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
         list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}/schema")
       else()      					
-        # message(NOTICE "${PROJECT_NAME} dep_pkg ${dep_pkg}")
+
         if (NOT DEFINED "${dep_pkg}_DAQSHARE")
           if (NOT DEFINED "${dep_pkg}_CONFIG")
             message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
@@ -261,7 +261,7 @@ function(daq_codegen)
       if (fpaths)
         set(schemas ${schemas} ${fpaths})
       else()
-        message(WARNING "When defining list of schema files to perform code generation on, no files in ${CMAKE_CURRENT_SOURCE_DIR}/${schema_dir} match the glob \"${f}\"")
+        message(WARNING "When defining list of schema files to perform code generation on, no files in ${schema_dir}/${PROJECT_NAME} match the glob \"${f}\"")
       endif()
     else()
        # may be generated file, so just add
@@ -333,6 +333,117 @@ function(daq_codegen)
   set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
 endfunction()
 
+####################################################################################################
+# daq_protobuf_codegen:
+# Usage:
+# daq_protobuf_codegen( <protobuf filename1> ... [DEP_PKGS <package 1> ...] )
+#
+# Arguments:
+#    <protobuf filename1> ...: The list of *.proto files for protobuf's "protoc" program to process from <package>/schema/<package>. Globs also allowed. 
+#
+#
+#    DEP_PKGS: if a *.proto file given depends on *.proto files provided by other DAQ packages,
+#      the "DEP_PKGS" argument must contain the list of packages.
+#
+# Each *.proto file will have a C++ header/source file generated as
+# well as a Python file. The header will be installed in the public
+# include directory. The source file will be built as part of the main
+# package library.
+#
+# Two requirements for calling this function:
+# 1) You need to call find_package(Protobuf REQUIRED) to make the protobuf library available
+# 2) You also need to call daq_add_library, i.e., have a main packagewide library
+
+function (daq_protobuf_codegen)
+
+  cmake_parse_arguments(PROTOBUFOPTS "" "" "DEP_PKGS" ${ARGN})
+
+  set(schema_dir "${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}")
+
+  set(protofiles)
+
+  foreach(f ${PROTOBUFOPTS_UNPARSED_ARGUMENTS})
+    if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
+
+      set(fpaths)
+      file(GLOB fpaths CONFIGURE_DEPENDS ${schema_dir}/${f})
+
+      if (fpaths)
+        set(protofiles ${protofiles} ${fpaths})
+      else()
+        message(WARNING "When defining list of *.proto files to perform code generation on, no files in ${schema_dir} match the glob \"${f}\"")
+      endif()
+    else()
+      set(protofiles ${protofiles} ${schema_dir}/${f})
+    endif()
+  endforeach()
+
+
+  # Build the list of schema paths for this package and any packages which may have been specified to DEP_PKGS
+
+  set(dep_paths "${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/schema")
+  if (DEFINED PROTOBUFOPTS_DEP_PKGS)
+    foreach(dep_pkg ${PROTOBUFOPTS_DEP_PKGS})
+
+      if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
+        list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}/schema")
+      else()      					
+        # message(NOTICE "${PROJECT_NAME} dep_pkg ${dep_pkg}")
+        if (NOT DEFINED "${dep_pkg}_DAQSHARE")
+          if (NOT DEFINED "${dep_pkg}_CONFIG")
+            message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
+          else()
+            message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
+          endif()
+        endif()
+        
+        list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}/schema")
+      endif()
+
+    endforeach()
+  endif()
+
+
+  set(outfiles)
+
+  foreach(protofile ${protofiles})
+    get_filename_component(basename ${protofile} NAME_WE)
+
+    # It's admittedly a bit inelegant to have not only a header but
+    # also a source file appear in an include directory. However
+    # there's currently no way to get protoc to output the header and
+    # source files into separate directories, and attempts to do so
+    # manually via a "COMMAND mv ..." in add_custom_command fail
+    # because the "&&"ing of the commands means you get an error since
+    # the output files from protoc don't yet exist
+
+    list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.h )
+  endforeach()
+
+  set(protoc_includes)
+  foreach (dep_path ${dep_paths})
+    list(APPEND protoc_includes "-I${dep_path}")
+  endforeach()
+
+  add_custom_command(
+    OUTPUT ${outfiles}
+    COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
+    COMMAND protoc
+            ${protoc_includes}     	    
+            --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include 
+	    --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+	    ${protofiles} 
+    DEPENDS ${protofiles}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+
+    add_custom_target(${PROJECT_NAME}_PROTOBUF_GENERATION DEPENDS ${outfiles}  )
+    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${PROJECT_NAME}_PROTOBUF_GENERATION)
+
+    set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+    set(PROTOBUF_FILES ${outfiles} PARENT_SCOPE)
+
+endfunction()
 
 ####################################################################################################
 # daq_add_library:
@@ -388,6 +499,8 @@ function(daq_add_library)
     endif()
   endforeach()
 
+  set(libsrcs ${libsrcs} ${PROTOBUF_FILES})
+
   if (libsrcs)
 
     add_library(${libname} SHARED ${libsrcs})
@@ -405,6 +518,16 @@ function(daq_add_library)
         $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
       )
+    endif()
+
+    if (TARGET ${PROJECT_NAME}_PROTOBUF_GENERATION)
+
+      if (NOT DEFINED Protobuf_INCLUDE_DIRS OR NOT DEFINED Protobuf_LIBRARY)
+        message(FATAL_ERROR "It appears that find_package on the \"Protobuf\" package hasn't been called; this is needed given that this daq-cmake code arranges for code generation with this package")
+      endif()
+
+      target_include_directories(${libname} PUBLIC ${Protobuf_INCLUDE_DIRS})
+      target_link_libraries(${libname} PUBLIC ${Protobuf_LIBRARY})
     endif()
 
     target_include_directories(${libname} PRIVATE 
@@ -715,6 +838,11 @@ endfunction()
 
 function(daq_install) 
 
+  if (DEFINED PROTOBUF_FILES AND NOT TARGET ${PROJECT_NAME})
+     message(FATAL_ERROR "Error in call to daq_protobuf_codegen: you need to also create a package-wide library via daq_add_library, since these functions will automatically compile the code daq_protobuf_codegen generates into such a library")
+  endif()
+
+
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
 
   ## AT HACK ALERT
@@ -732,6 +860,8 @@ function(daq_install)
 
   install(DIRECTORY include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
   install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h??")
+  install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.pb.h")
+  install(DIRECTORY ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_PYTHONDIR} FILES_MATCHING PATTERN "*.py")
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )

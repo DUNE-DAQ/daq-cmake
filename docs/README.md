@@ -276,6 +276,35 @@ Public headers for users of the library should go in the project's
 `include/<project name>` directory. Private headers used in the
 library's implementation should be put in the `src/` directory.
 
+### daq_protobuf_codegen:
+Usage:
+```
+daq_protobuf_codegen( <protobuf filename1> ... [DEP_PKGS <package 1> ...] )
+```
+
+Arguments:
+
+* `<protobuf filename1> ...`: these arguments are the list of `*.proto` files for protobuf's "protoc" program to process from `<package>/schema/<package>`. Globs also allowed. 
+
+* `DEP_PKGS`: if a `*.proto` file given depends on `*.proto files` provided by other DAQ packages, the `DEP_PKGS` argument must contain the list of packages.
+
+Each `*.proto` file will have a C++ header/source file generated as well as a Python file. 
+The names of the generated files are the same as per the [ProtoBuf API](https://protobuf.dev/): `*.pb.h` and `*.pb.cc` for the C++ header and source, respectivelly. 
+The header will be installed in the public include directory. 
+Code can link against the header in the form:
+```C++
+#include "<package>/<file_name>.pb.h"
+```
+The generated python file will be called `*_pb2.py` and will be installed in `lib64/python/<package>`. 
+
+The source file will be built as part of the main package library.
+Its compilation will be done automatically, i.e. there is no need to add `*.pb.cc` in the `daq_add_library` directive of your package: `daq_protobuf_codegen` will suffice. 
+
+Two requirements for calling this function:
+1) You need to call `find_package(Protobuf REQUIRED)` to make the protobuf library available
+2) You also need to call `daq_add_library`, i.e., have a main package-wide library
+
+
 ### daq_add_python_bindings:
 Usage:  
 ```
