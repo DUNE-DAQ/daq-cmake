@@ -358,7 +358,7 @@ function (daq_protobuf_codegen)
 
   cmake_parse_arguments(PROTOBUFOPTS "" "" "DEP_PKGS" ${ARGN})
 
-  set(schema_dir "${PROJECT_SOURCE_DIR}/schema/${PROJECT_NAME}")
+  set(schema_dir "${PROJECT_SOURCE_DIR}/schema")
 
   set(protofiles)
 
@@ -366,7 +366,7 @@ function (daq_protobuf_codegen)
     if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
 
       set(fpaths)
-      file(GLOB fpaths CONFIGURE_DEPENDS ${schema_dir}/${f})
+      file(GLOB fpaths CONFIGURE_DEPENDS ${schema_dir}/${PROJECT_NAME}/${f})
 
       if (fpaths)
         set(protofiles ${protofiles} ${fpaths})
@@ -374,18 +374,14 @@ function (daq_protobuf_codegen)
         message(WARNING "When defining list of *.proto files to perform code generation on, no files in ${schema_dir} match the glob \"${f}\"")
       endif()
     else()
-      set(protofiles ${protofiles} ${schema_dir}/${f})
+      set(protofiles ${protofiles} ${schema_dir}/${PROJECT_NAME}/${f})
     endif()
   endforeach()
 
 
   # Build the list of schema paths for this package and any packages which may have been specified to DEP_PKGS
 
-  if (EXISTS "${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/schema")
-    set(dep_paths "${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/schema")
-  else()
-    set(dep_paths ${schema_dir})
-  endif()
+  set(dep_paths ${schema_dir})
   if (DEFINED PROTOBUFOPTS_DEP_PKGS)
     foreach(dep_pkg ${PROTOBUFOPTS_DEP_PKGS})
 
