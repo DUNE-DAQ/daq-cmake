@@ -382,6 +382,11 @@ function (daq_protobuf_codegen)
   # Build the list of schema paths for this package and any packages which may have been specified to DEP_PKGS
 
   set(dep_paths ${schema_dir})
+  if (EXISTS ${CMAKE_SOURCE_DIR}/${PROJECT_NAME})
+    set(dep_paths "${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/schema")
+  else()
+    set(dep_paths ${schema_dir})
+  endif()
   if (DEFINED PROTOBUFOPTS_DEP_PKGS)
     foreach(dep_pkg ${PROTOBUFOPTS_DEP_PKGS})
 
