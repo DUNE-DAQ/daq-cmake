@@ -8,7 +8,7 @@ include(moo)
 # Usage:
 # _daq_gather_info()
 
-# Will take info both about the build and the source, and save it in a *.json file 
+# Will take info both about the build and the source, and save it in a *.json file
 # referred to by the variable CI_DAQ_PROJECT_SUMMARY_FILENAME
 
 function(_daq_gather_info)
@@ -65,8 +65,8 @@ endfunction()
 #
 # This macro should be called immediately after this DAQ module is
 # included in your DUNE DAQ project's CMakeLists.txt file; it ensures
-# that DUNE DAQ projects all have a common build environment. It takes 
-# no arguments. 
+# that DUNE DAQ projects all have a common build environment. It takes
+# no arguments.
 
 macro(daq_setup_environment)
 
@@ -147,23 +147,23 @@ endmacro()
 ####################################################################################################
 # daq_codegen:
 # Usage:
-# daq_codegen( <schema filename1> ... [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>] 
+# daq_codegen( <schema filename1> ... [TEST] [DEP_PKGS <package 1> ...] [MODEL <model filename>]
 #              [TEMPLATES <template filename1> ...] )
 #
-#`daq_codegen` uses `moo` to generate C++ headers from schema files from schema/<package> applying 
+#`daq_codegen` uses `moo` to generate C++ headers from schema files from schema/<package> applying
 # them to one or more templates.
-# 
+#
 # Arguments:
-#    <schema filename1> ...: The list of schema files to process from <package>/schema/<package>. 
+#    <schema filename1> ...: The list of schema files to process from <package>/schema/<package>.
 #    Each schema file will applied to each template (specified by the TEMPLATES argument).
-#    Each schema/template pair will generate a code file named 
+#    Each schema/template pair will generate a code file named
 #       build/<package>/codegen/include/<package>/<schema minus *.jsonnet extension>/<template minus *.j2 extension>
 #    e.g. my_schema.jsonnet (from my_pkg) + your_pkg/YourStruct.hpp.j2 will result in
 #        build/my_pkg/codegen/include/my_pkg/my_schema/YourStruct.hpp
 #
 #    TEST: If the code is meant for an entity in the package's test/ subdirectory, "TEST"
 #      should be passed as an argument, and the schema file's path will be assumed to be
-#      "test/schema/" rather than merely "schema/". 
+#      "test/schema/" rather than merely "schema/".
 #
 #    DEP_PKGS: If schema, template or model files depend on files provided by other DAQ packages,
 #      the "DEP_PKGS" argument must contain the list of packages.
@@ -171,10 +171,10 @@ endmacro()
 #    MODEL: The MODEL argument is # optional; if no model file name is explicitly provided,
 #      omodel.jsonnet from the moo package itself is used.
 #
-#    TEMPLATES: The list of templates to use. This is a mandatory argument. The template file format is 
+#    TEMPLATES: The list of templates to use. This is a mandatory argument. The template file format is
 #        <template package>/<template name including *.j2 extension>
 #      If <template package> is omitted, the template is expected to be made available by moo.
-#    
+#
 
 
 function(daq_codegen)
@@ -183,7 +183,7 @@ function(daq_codegen)
 
   # insert test in schema_dir if a TEST schema
   set(schema_dir "${PROJECT_SOURCE_DIR}")
-  if (${CGOPTS_TEST}) 
+  if (${CGOPTS_TEST})
     set(schema_dir "${schema_dir}/test")
   endif()
   set(schema_dir  "${schema_dir}/schema")
@@ -205,7 +205,7 @@ function(daq_codegen)
 
       if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
         list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}/schema")
-      else()      					
+      else()
 
         if (NOT DEFINED "${dep_pkg}_DAQSHARE")
           if (NOT DEFINED "${dep_pkg}_CONFIG")
@@ -214,7 +214,7 @@ function(daq_codegen)
             message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
           endif()
         endif()
-        
+
         list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}/schema")
       endif()
 
@@ -282,9 +282,9 @@ function(daq_codegen)
     foreach(outfile templfile IN ZIP_LISTS outfiles templates)
       # message(NOTICE ${schema} ${outfile} ${templfile})
 
-      # define the output dir 
+      # define the output dir
       set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
-      if (${CGOPTS_TEST}) 
+      if (${CGOPTS_TEST})
         set(outdir "${outdir}/test/src")
       else()
         set(outdir "${outdir}/include")
@@ -300,14 +300,14 @@ function(daq_codegen)
       # Convenience variable
       set(outpath ${outdir}/${outfile})
 
-      
+
       # Make up a target name
       string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}" "" moo_target ${outpath})
       string(REGEX REPLACE "[\./-]" "_" moo_target "moo_${PROJECT_NAME}${moo_target}")
 
       # Creare a unique file for dependency tracking
       string(REGEX REPLACE "[^a-zA-Z0-9]" "_" codedeps_filename "moo_render__${schema_file}__${model}__${templ_pkg}_${templfile}")
-      
+
 
       # Run moo
       moo_render(
@@ -316,7 +316,7 @@ function(daq_codegen)
         TPATH "${dep_paths}"
         GRAFT /lang:ocpp.jsonnet
         TLAS  path=dunedaq.${PROJECT_NAME}.${schema}
-              ctxpath=dunedaq       
+              ctxpath=dunedaq
               os=${schema_file}
         MODEL ${CGOPTS_MODEL}
         TEMPL ${templfile}
@@ -339,7 +339,7 @@ endfunction()
 # daq_protobuf_codegen( <protobuf filename1> ... [DEP_PKGS <package 1> ...] )
 #
 # Arguments:
-#    <protobuf filename1> ...: The list of *.proto files for protobuf's "protoc" program to process from <package>/schema/<package>. Globs also allowed. 
+#    <protobuf filename1> ...: The list of *.proto files for protobuf's "protoc" program to process from <package>/schema/<package>. Globs also allowed.
 #
 #
 #    DEP_PKGS: if a *.proto file given depends on *.proto files provided by other DAQ packages,
@@ -387,7 +387,7 @@ function (daq_protobuf_codegen)
 
       if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
         list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}/schema")
-      else()      					
+      else()
         # message(NOTICE "${PROJECT_NAME} dep_pkg ${dep_pkg}")
         if (NOT DEFINED "${dep_pkg}_DAQSHARE")
           if (NOT DEFINED "${dep_pkg}_CONFIG")
@@ -396,7 +396,7 @@ function (daq_protobuf_codegen)
             message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
           endif()
         endif()
-        
+
         list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}/schema")
       endif()
 
@@ -428,11 +428,18 @@ function (daq_protobuf_codegen)
   add_custom_command(
     OUTPUT ${outfiles}
     COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
+
     COMMAND protoc
-            ${protoc_includes}     	    
-            --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include 
-	    --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-	    ${protofiles} 
+            ${protoc_includes}
+            --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+	          ${protofiles}
+
+    COMMAND python -m grpc_tools.protoc
+            ${protoc_includes}
+            --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+            --grpc_python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+            ${protofiles}
+
     DEPENDS ${protofiles}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
@@ -461,8 +468,8 @@ endfunction()
 # generated files which are typically represented by a variable
 # (e.g. ${list_of_qt_generated_files}).
 #
-# As an example, 
-# daq_add_library(MyProj.cpp *Utils.cpp LINK_LIBRARIES logging::logging) 
+# As an example,
+# daq_add_library(MyProj.cpp *Utils.cpp LINK_LIBRARIES logging::logging)
 # will create a library off of src/MyProj.cpp and any file in src/
 # ending in "Utils.cpp", and links against the logging library (https://dune-daq-sw.readthedocs.io/en/latest/packages/logging/)
 
@@ -504,12 +511,12 @@ function(daq_add_library)
   if (libsrcs)
 
     add_library(${libname} SHARED ${libsrcs})
-    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
+    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES})
 
     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-      target_include_directories(${libname} PUBLIC 
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+      target_include_directories(${libname} PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
       )
     endif()
 
@@ -530,7 +537,7 @@ function(daq_add_library)
       target_link_libraries(${libname} PUBLIC ${Protobuf_LIBRARY})
     endif()
 
-    target_include_directories(${libname} PRIVATE 
+    target_include_directories(${libname} PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     )
 
@@ -541,7 +548,7 @@ function(daq_add_library)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
 
     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-      target_include_directories(${libname} INTERFACE 
+      target_include_directories(${libname} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
       )
@@ -577,7 +584,7 @@ endfunction()
 # subdirectory of the project (if the "TEST" option isn't used) or in
 # the test/plugins/ subdirectory of the project (if it is). Like
 # daq_add_library, daq_add_plugin can be provided a list of libraries
-# to link against, following the LINK_LIBRARIES argument. 
+# to link against, following the LINK_LIBRARIES argument.
 
 # Your plugin will look in include/ for your project's public headers
 # and src/ for its private headers. Additionally, if it's a "TEST"
@@ -593,10 +600,10 @@ function(daq_add_plugin pluginname plugintype)
   if(${PLUGOPTS_TEST})
     set(PLUGIN_PATH "test/${PLUGIN_PATH}")
   endif()
-  
+
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
 
-  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES}) 
+  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES})
   target_include_directories(${pluginlibname} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
@@ -606,7 +613,7 @@ function(daq_add_plugin pluginname plugintype)
   _daq_set_target_output_dirs( ${pluginlibname} ${PLUGIN_PATH} )
   _daq_define_exportname()
 
-  if ( ${PLUGOPTS_TEST} ) 
+  if ( ${PLUGOPTS_TEST} )
     target_include_directories(${pluginlibname} PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
       $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
@@ -627,19 +634,19 @@ endfunction()
 #
 # daq_add_python_bindings is designed to produce a library providing
 # a python interface to C++ code. It will compile a group
-# of files, which are expected to expose the desired C++ interface via pybind11. 
+# of files, which are expected to expose the desired C++ interface via pybind11.
 # The set of files is defined by a set of one or more individual filenames and/or
 # glob expressions, and link against the libraries listed after
 # LINK_LIBRARIES. The set of files is assumed to be in the pybindsrc/
 # subdirectory of the project.
 #
-# As an example, 
-# daq_add_python_bindings(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME}) 
-# will create a library from pybindsrc/my_wrapper.cpp and link against 
+# As an example,
+# daq_add_python_bindings(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME})
+# will create a library from pybindsrc/my_wrapper.cpp and link against
 # the main project library which would have been created via daq_add_library
 
-# Please note that library shared object will be named _daq_${PROJECT_NAME}_py.so, and will be placed 
-# in the python/${PROJECT_NAME} directory. You will need to have the corresponding init file, 
+# Please note that library shared object will be named _daq_${PROJECT_NAME}_py.so, and will be placed
+# in the python/${PROJECT_NAME} directory. You will need to have the corresponding init file,
 # python/${PROJECT_NAME}/__init__.py to import the appropiate componenets of the module.
 # See toylibrary for a working example.
 
@@ -672,12 +679,12 @@ function(daq_add_python_bindings)
 
   if (libsrcs)
     pybind11_add_module(${libname} ${libsrcs})
-    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
+    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES})
 
     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-      target_include_directories(${libname} PUBLIC 
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+      target_include_directories(${libname} PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
       )
     endif()
 
@@ -688,13 +695,13 @@ function(daq_add_python_bindings)
       )
     endif()
 
-    target_include_directories(${libname} PRIVATE 
+    target_include_directories(${libname} PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     )
     set_target_properties(${libname} PROPERTIES SUFFIX ".so")
-    
+
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
-    
+
     _daq_set_target_output_dirs( ${libname} python/${PROJECT_NAME} )
   else()
     message(FATAL_ERROR "ERROR: No source files found for python library: ${libname}.")
@@ -757,12 +764,12 @@ function(daq_add_application appname)
     endif()
   endforeach()
 
-  
+
   add_executable(${appname} ${appsrcs})
-  target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES}) 
+  target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES})
   # Add src to the include path for private headers
-  target_include_directories( ${appname} PRIVATE 
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> 
+  target_include_directories( ${appname} PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
   )
   add_dependencies( ${appname} ${PRE_BUILD_STAGE_DONE_TRGT})
@@ -771,7 +778,7 @@ function(daq_add_application appname)
   _daq_define_exportname()
 
   if( ${APPOPTS_TEST} )
-    target_include_directories( ${appname} 
+    target_include_directories( ${appname}
       PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
   )
     install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_BIN_TESTDIR})
@@ -808,7 +815,7 @@ function(daq_add_unit_test testname)
   target_compile_definitions(${testname} PRIVATE "BOOST_TEST_DYN_LINK=1")
 
 
-  target_include_directories( ${testname} PRIVATE 
+  target_include_directories( ${testname} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins>
@@ -836,7 +843,7 @@ endfunction()
 # CMakeLists.txt file in order to install the project's targets. It takes no
 # arguments.
 
-function(daq_install) 
+function(daq_install)
 
   if (DEFINED PROTOBUF_FILES AND NOT TARGET ${PROJECT_NAME})
      message(FATAL_ERROR "Error in call to daq_protobuf_codegen: you need to also create a package-wide library via daq_add_library, since these functions will automatically compile the code daq_protobuf_codegen generates into such a library")
@@ -852,7 +859,7 @@ function(daq_install)
     file(COPY ${cmk} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
   endforeach()
   ## AT HACK ALERT
-  
+
   if (${DAQ_PROJECT_INSTALLS_TARGETS})
     _daq_define_exportname()
     install(EXPORT ${DAQ_PROJECT_EXPORTNAME} FILE ${DAQ_PROJECT_EXPORTNAME}.cmake NAMESPACE ${PROJECT_NAME}:: DESTINATION ${CMAKE_INSTALL_CMAKEDIR} )
@@ -865,7 +872,7 @@ function(daq_install)
   install(DIRECTORY cmake/ DESTINATION ${CMAKE_INSTALL_CMAKEDIR} FILES_MATCHING PATTERN "*.cmake")
 
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/  DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "__pycache__" EXCLUDE PATTERN "*.py" )
-  
+
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_INSTALL_BINDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/scripts/ DESTINATION ${CMAKE_INSTALL_BIN_TESTDIR} USE_SOURCE_PERMISSIONS OPTIONAL)
 
