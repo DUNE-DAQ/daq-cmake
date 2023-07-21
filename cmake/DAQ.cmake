@@ -356,7 +356,7 @@ endfunction()
 
 function (daq_protobuf_codegen)
 
-  cmake_parse_arguments(PROTOBUFOPTS "" "" "DEP_PKGS" ${ARGN})
+  cmake_parse_arguments(PROTOBUFOPTS "GEN_GRPC" "" "DEP_PKGS" ${ARGN})
 
   set(schema_dir "${PROJECT_SOURCE_DIR}/schema")
 
@@ -378,6 +378,7 @@ function (daq_protobuf_codegen)
     endif()
   endforeach()
 
+  message(INFO "message gen" protofiles)
 
   # Build the list of schema paths for this package and any packages which may have been specified to DEP_PKGS
 
@@ -418,6 +419,10 @@ function (daq_protobuf_codegen)
     # the output files from protoc don't yet exist
 
     list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.h )
+    if (${PROTOBUFOPTS_GEN_GRPC})
+      list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.grpc.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.grpc.pb.h )
+    endif()
+
   endforeach()
 
   set(protoc_includes)
@@ -425,30 +430,53 @@ function (daq_protobuf_codegen)
     list(APPEND protoc_includes "-I${dep_path}")
   endforeach()
 
-  add_custom_command(
-    OUTPUT ${outfiles}
-    COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
+  if (${PROTOBUFOPTS_GEN_GRPC})
 
-    COMMAND protoc
-            ${protoc_includes}
-            --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-	          ${protofiles}
+    add_custom_command(
+      OUTPUT ${outfiles}
+      COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
 
-    COMMAND python -m grpc_tools.protoc
-            ${protoc_includes}
-            --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-            --grpc_python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-            ${protofiles}
+      COMMAND protoc
+              ${protoc_includes}
+              --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --plugin=protoc-gen-grpc=/nfs/home/plasorak/NFD23-07-20/swdir/grpc-install/bin/grpc_cpp_plugin ## !!!!
+              ${protofiles}
 
-    DEPENDS ${protofiles}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      COMMAND protoc
+              ${protoc_includes}
+              --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --plugin=protoc-gen-grpc=/nfs/home/plasorak/NFD23-07-20/swdir/grpc-install/bin/grpc_python_plugin ## !!!!
+              ${protofiles}
+
+      DEPENDS ${protofiles}
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 
-    add_custom_target(${PROJECT_NAME}_PROTOBUF_GENERATION DEPENDS ${outfiles}  )
-    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${PROJECT_NAME}_PROTOBUF_GENERATION)
+  else()
 
-    set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
-    set(PROTOBUF_FILES ${outfiles} PARENT_SCOPE)
+    add_custom_command(
+      OUTPUT ${outfiles}
+      COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
+
+      COMMAND protoc
+              ${protoc_includes}
+              --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              ${protofiles}
+
+      DEPENDS ${protofiles}
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+
+  endif()
+
+  add_custom_target(${PROJECT_NAME}_PROTOBUF_GENERATION DEPENDS ${outfiles}  )
+  add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${PROJECT_NAME}_PROTOBUF_GENERATION)
+
+  set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+  set(PROTOBUF_FILES ${outfiles} PARENT_SCOPE)
 
 endfunction()
 
