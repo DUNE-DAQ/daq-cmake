@@ -440,14 +440,14 @@ function (daq_protobuf_codegen)
               ${protoc_includes}
               --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include
               --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --plugin=protoc-gen-grpc=/nfs/home/plasorak/NFD23-07-20/swdir/grpc-install/bin/grpc_cpp_plugin ## !!!!
+              --plugin=protoc-gen-grpc=grpc_cpp_plugin
               ${protofiles}
 
       COMMAND protoc
               ${protoc_includes}
               --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
               --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --plugin=protoc-gen-grpc=/nfs/home/plasorak/NFD23-07-20/swdir/grpc-install/bin/grpc_python_plugin ## !!!!
+              --plugin=protoc-gen-grpc=grpc_python_plugin
               ${protofiles}
 
       DEPENDS ${protofiles}
