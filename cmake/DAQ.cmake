@@ -101,6 +101,7 @@ macro(daq_setup_environment)
 
   set(DAQ_PROJECT_INSTALLS_TARGETS false)
   set(DAQ_PROJECT_GENERATES_CODE false)
+  set(DAQ_PROJECT_GENERATES_GRPC false)
 
   set(COMPILER_OPTS -g -pedantic -Wall -Wextra -Wnon-virtual-dtor -fdiagnostics-color=always)
   if (${DBT_DEBUG})
@@ -440,20 +441,20 @@ function (daq_protobuf_codegen)
               ${protoc_includes}
               --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include
               --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --plugin=protoc-gen-grpc=grpc_cpp_plugin
+              --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
               ${protofiles}
 
       COMMAND protoc
               ${protoc_includes}
               --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
               --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --plugin=protoc-gen-grpc=grpc_python_plugin
+              --plugin=protoc-gen-grpc=`which grpc_python_plugin`
               ${protofiles}
 
       DEPENDS ${protofiles}
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
-
+    set(DAQ_PROJECT_GENERATES_GRPC true PARENT_SCOPE)
   else()
 
     add_custom_command(
@@ -563,6 +564,11 @@ function(daq_add_library)
 
       target_include_directories(${libname} PUBLIC ${Protobuf_INCLUDE_DIRS})
       target_link_libraries(${libname} PUBLIC ${Protobuf_LIBRARY})
+
+      if (${DAQ_PROJECT_GENERATES_GRPC})
+        target_link_libraries(${libname} PUBLIC gRPC::grpc++)
+      endif()
+
     endif()
 
     target_include_directories(${libname} PRIVATE
