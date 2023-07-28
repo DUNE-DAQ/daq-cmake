@@ -444,12 +444,17 @@ function (daq_protobuf_codegen)
               --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
               ${protofiles}
 
-      COMMAND protoc
+      COMMAND python -m grpc_tools.protoc
               ${protoc_includes}
               --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --plugin=protoc-gen-grpc=`which grpc_python_plugin`
+              --grpc_python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
               ${protofiles}
+      # COMMAND protoc
+      #         ${protoc_includes}
+      #         --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+      #         --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+      #         --plugin=protoc-gen-grpc=`which grpc_python_plugin`
+      #         ${protofiles}
 
       DEPENDS ${protofiles}
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
