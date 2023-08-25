@@ -420,10 +420,10 @@ function (daq_protobuf_codegen)
     # the output files from protoc don't yet exist
 
     list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.h )
-    ## UNCOMMENT THIS
-    # if (${PROTOBUFOPTS_GEN_GRPC})
-    #   list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.grpc.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.grpc.pb.h )
-    # endif()
+
+    if (${PROTOBUFOPTS_GEN_GRPC})
+      list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.grpc.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.grpc.pb.h )
+    endif()
 
   endforeach()
 
@@ -441,25 +441,22 @@ function (daq_protobuf_codegen)
       COMMAND protoc
               ${protoc_includes}
               --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              ## UNCOMMENT THIS
-              # --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              # --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
+              --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
               ${protofiles}
 
-      ## COMMENT THIS
-      COMMAND python -m grpc_tools.protoc
-              ${protoc_includes}
-              --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --grpc_python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              ${protofiles}
-
-      ## UNCOMMENT THIS
-      # COMMAND protoc
+      # COMMAND python -m grpc_tools.protoc
       #         ${protoc_includes}
       #         --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-      #         --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-      #         --plugin=protoc-gen-grpc=`which grpc_python_plugin`
+      #         --grpc_python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
       #         ${protofiles}
+
+      COMMAND protoc
+              ${protoc_includes}
+              --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --plugin=protoc-gen-grpc=`which grpc_python_plugin`
+              ${protofiles}
 
       DEPENDS ${protofiles}
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -575,9 +572,10 @@ function(daq_add_library)
       target_include_directories(${libname} PUBLIC ${Protobuf_INCLUDE_DIRS})
       target_link_libraries(${libname} PUBLIC ${Protobuf_LIBRARY})
 
+
       if (${DAQ_PROJECT_GENERATES_GRPC})
-        ## UNCOMMENT THIS
-        # target_link_libraries(${libname} PUBLIC gRPC::grpc++)
+        target_include_directories(${libname} PUBLIC ${Protobuf_INCLUDE_DIRS})
+        target_link_libraries(${libname} PUBLIC gRPC::grpc++)
       endif()
 
     endif()
