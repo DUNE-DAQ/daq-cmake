@@ -337,11 +337,14 @@ endfunction()
 ####################################################################################################
 # daq_protobuf_codegen:
 # Usage:
-# daq_protobuf_codegen( <protobuf filename1> ... [DEP_PKGS <package 1> ...] )
+# daq_protobuf_codegen( <protobuf filename1> ... [GEN_GRPC] [DEP_PKGS <package 1> ...] )
 #
 # Arguments:
 #    <protobuf filename1> ...: The list of *.proto files for protobuf's "protoc" program to process from <package>/schema/<package>. Globs also allowed.
 #
+#
+#    GEN_GRPC: if you need to have grpc file generated too
+#      Note that this option will require you to have a find_package(gRPC REQUIRED) before calling this function if you choose to generate gRPC protofiles.
 #
 #    DEP_PKGS: if a *.proto file given depends on *.proto files provided by other DAQ packages,
 #      the "DEP_PKGS" argument must contain the list of packages.
@@ -378,8 +381,6 @@ function (daq_protobuf_codegen)
       set(protofiles ${protofiles} ${schema_dir}/${PROJECT_NAME}/${f})
     endif()
   endforeach()
-
-  message(INFO "message gen" protofiles)
 
   # Build the list of schema paths for this package and any packages which may have been specified to DEP_PKGS
 
@@ -444,12 +445,6 @@ function (daq_protobuf_codegen)
               --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
               --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
               ${protofiles}
-
-      # COMMAND python -m grpc_tools.protoc
-      #         ${protoc_includes}
-      #         --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-      #         --grpc_python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-      #         ${protofiles}
 
       COMMAND protoc
               ${protoc_includes}
@@ -572,9 +567,7 @@ function(daq_add_library)
       target_include_directories(${libname} PUBLIC ${Protobuf_INCLUDE_DIRS})
       target_link_libraries(${libname} PUBLIC ${Protobuf_LIBRARY})
 
-
       if (${DAQ_PROJECT_GENERATES_GRPC})
-        target_include_directories(${libname} PUBLIC ${Protobuf_INCLUDE_DIRS})
         target_link_libraries(${libname} PUBLIC gRPC::grpc++)
       endif()
 
