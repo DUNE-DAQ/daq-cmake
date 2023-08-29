@@ -53,9 +53,10 @@ jobs:
           source /cvmfs/dunedaq.opensciencegrid.org/setup_dunedaq.sh
           setup_dbt latest|| true
           release_name="last_fddaq"
-          grep " ${REPO} " -q /cvmfs/dunedaq-development.opensciencegrid.org/nightly/last_nddaq/default/spack-installation/spack-repo/N*.yaml
+          grep -q "name: ${REPO}\n" /cvmfs/dunedaq-development.opensciencegrid.org/nightly/last_nddaq/default/spack-installation/spack-repo/N*.yaml
           retVal=$?
-          test $retVal -eq 0 && release_name="last_nddaq"
+          echo $retVal
+          test $retVal -eq 0 && release_name="last_nddaq" || echo "Use FD release"
           dbt-create -n $release_name dev-${{ matrix.os_name }}
 
           
