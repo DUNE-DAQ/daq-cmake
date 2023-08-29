@@ -53,13 +53,10 @@ jobs:
           source /cvmfs/dunedaq.opensciencegrid.org/setup_dunedaq.sh
           setup_dbt latest|| true
           release_name="last_fddaq"
-          grep -q "name: ${REPO}\n" /cvmfs/dunedaq-development.opensciencegrid.org/nightly/last_nddaq/default/spack-installation/spack-repo/N*.yaml
-          retVal=$?
-          echo $retVal
-          test $retVal -eq 0 && release_name="last_nddaq" || echo "Use FD release"
+          nd_config=$GITHUB_WORKSPACE/daq-release/configs/nddaq/nddaq-develop/release.yaml
+          if grep -q "name: ${REPO}\n" $nd_config; then release_name="last_nddaq"; fi
           dbt-create -n $release_name dev-${{ matrix.os_name }}
 
-          
     - name: checkout package for CI
       uses: actions/checkout@v3
       with:
