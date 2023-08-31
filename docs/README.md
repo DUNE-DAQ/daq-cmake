@@ -385,7 +385,28 @@ list of libraries to link against, following the `LINK_LIBRARIES`
 token.
 
 ### daq_oks_codegen
-_See [the genconfig documentation](https://github.com/DUNE-DAQ/genconfig/tree/develop#readme)_
+Usage:
+```
+daq_oks_codegen(<oks schema filename1> ... [NAMESPACE ns] [DEP_PKGS pkg1 pkg2 ...])
+```
+
+`daq_oks_codegen` uses the genconfig package's application of the same
+name to generate C++ and Python code from the OKS schema file(s)
+provided to it.
+
+Arguments:
+
+  `<oks schema filename1> ...`: the list of OKS schema files to process from `<package>/schema/<package>`. 
+
+ `NAMESPACE`: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
+
+ `DEP_PKGS`: if a schema file you've provided as an argument itself includes a schema file (or schema files) from one or more other packages, you need to supply the names of the packages as arguments to DEP_PKGS. 
+
+The generated code is automatically built into the package's main
+library (i.e., you don't need to explicitly pass the names of the
+generated files to `daq_add_library`). Note that you get an error if
+you call `daq_oks_codegen` and don't also call `daq_add_library`. 
+
 
 ### daq_install
 Usage:
