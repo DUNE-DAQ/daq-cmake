@@ -92,6 +92,7 @@ macro(daq_setup_environment)
   set(CMAKE_INSTALL_PYTHONDIR  ${CMAKE_INSTALL_LIBDIR}/python ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_SCHEMADIR  ${CMAKE_INSTALL_DATADIR}/schema ) # Not defined in GNUInstallDirs
   set(CMAKE_INSTALL_CONFIGDIR  ${CMAKE_INSTALL_DATADIR}/config ) # Not defined in GNUInstallDirs
+  set(CMAKE_INSTALL_INTEGTESTDIR ${CMAKE_INSTALL_DATADIR}/integtest ) # Not defined in GNUInstallDirs
 
   # Insert a test/ directory one level up
   foreach(token LIB BIN SCHEMA CONFIG)
@@ -1062,6 +1063,8 @@ function(daq_install)
 
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config/  DESTINATION ${CMAKE_INSTALL_CONFIGDIR} OPTIONAL)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/config/  DESTINATION ${CMAKE_INSTALL_CONFIG_TESTDIR} OPTIONAL)
+  		    					      		  				    		    
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/integtest/ DESTINATION ${CMAKE_INSTALL_INTEGTESTDIR} OPTIONAL)		    
 
   set(versionfile        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
   set(configfiletemplate ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in)
