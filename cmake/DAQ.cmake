@@ -544,9 +544,8 @@ function(daq_oks_codegen)
    if (DEFINED config_opts_DEP_PKGS)
      foreach(dep_pkg ${config_opts_DEP_PKGS})
 
-       list(APPEND config_dependencies DAL_${dep_pkg})
-
        if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
+	 list(APPEND config_dependencies DAL_${dep_pkg})
          list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}")
 	 list(APPEND GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/genconfig_DAL_${dep_pkg} )
        else()      					
