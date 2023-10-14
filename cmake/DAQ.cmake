@@ -544,9 +544,8 @@ function(daq_oks_codegen)
    if (DEFINED config_opts_DEP_PKGS)
      foreach(dep_pkg ${config_opts_DEP_PKGS})
 
-       list(APPEND config_dependencies DAL_${dep_pkg})
-
        if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
+         list(APPEND config_dependencies DAL_${dep_pkg})
          list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}")
 	 list(APPEND GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/genconfig_DAL_${dep_pkg} )
        else()      					
@@ -559,7 +558,24 @@ function(daq_oks_codegen)
          endif()
         
          list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}")
-	 list(APPEND GENCONFIG_INCLUDES "${${dep_pkg}_DAQSHARE}/genconfig_DAL_${dep_pkg}")
+
+	 file(COPY "${${dep_pkg}_DAQSHARE}/../${dep_pkg}/share/genconfig_DAL_${dep_pkg}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}" )
+
+	 set(edited_genconfig_info "${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/genconfig_DAL_${dep_pkg}/genconfig.info")
+	 set(genconfig_base_dir ${${dep_pkg}_DAQSHARE})
+         set(sedexpr "s!/.*codegen!${genconfig_base_dir}/..!")
+
+	 # Seems like you can't in-place modify (i.e., have INPUT_FILE == OUTPUT_FILE)
+         execute_process(
+           INPUT_FILE ${edited_genconfig_info}
+	   OUTPUT_FILE /tmp/genconfig.info
+           COMMAND sed -r ${sedexpr}
+         )
+
+	 execute_process(COMMAND cp -f /tmp/genconfig.info ${edited_genconfig_info})
+
+	 list(APPEND GENCONFIG_INCLUDES "${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/genconfig_DAL_${dep_pkg}")
+
        endif()
      endforeach()
    endif()
@@ -602,10 +618,12 @@ function(daq_oks_codegen)
 
    string(JOIN ":" PATHS_TO_SEARCH ${dep_paths})
 
+   message(WARNING "${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}")
+
    add_custom_command(
      OUTPUT ${cpp_source} genconfig_${TARGETNAME}/genconfig.info 
      COMMAND mkdir -p ${cpp_dir} ${hpp_dir} genconfig_${TARGETNAME}
-     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
+     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas} 
      COMMAND cp -f ${cpp_dir}/*.hpp ${hpp_dir}/
      COMMAND cp genconfig.info genconfig_${TARGETNAME}/
      DEPENDS ${schemas} ${config_dependencies} ${GENCONFIG_DEPENDS} 
