@@ -780,7 +780,7 @@ function(daq_add_plugin pluginname plugintype)
   endif()
 
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
-  target_link_options( ${pluginlibname} PRIVATE "LINKER:--no-allow-shlib-undefined") # A plugin should have all its contents defined 
+  target_link_options( ${pluginlibname} PRIVATE "LINKER:--no-undefined") # A plugin should have all its contents defined 
 
   target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES})
   target_include_directories(${pluginlibname} PRIVATE
