@@ -786,7 +786,7 @@ function(daq_add_plugin pluginname plugintype)
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
   target_link_options( ${pluginlibname} PRIVATE "LINKER:--no-undefined") # A plugin should have all its contents defined
 
-  if (NOT DEFINED CETLIB OR NOT DEFINED CETLIB_EXCEPT)
+  if (NOT DEFINED CETLIB)
     message(FATAL_ERROR "ERROR: calls to daq_add_plugin require that this package include \"cetlib\" as a dependency")
   endif()
   
