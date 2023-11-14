@@ -510,8 +510,8 @@ endfunction()
 #######################################################################
 
 function(daq_oks_codegen)
-
-   cmake_parse_arguments(config_opts "" "NAMESPACE" "DEP_PKGS" ${ARGN})
+   set(oneValueArgs NAMESPACE DALDIR)
+   cmake_parse_arguments(config_opts "" "${oneValueArgs}" "DEP_PKGS" ${ARGN})
 
    set(srcs ${config_opts_UNPARSED_ARGUMENTS})
 
@@ -528,7 +528,11 @@ function(daq_oks_codegen)
    set(LIST GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME}/ )
 
    set(cpp_dir ${CMAKE_CODEGEN_BINARY_DIR}/src)
-   set(hpp_dir ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME})
+   if(NOT config_opts_DALDIR)
+     set(hpp_dir ${PROJECT_NAME})
+   else()
+     set(hpp_dir ${config_opts_DALDIR})
+   endif()
 
    set(NAMESPACE)
    if(NOT config_opts_NAMESPACE)
