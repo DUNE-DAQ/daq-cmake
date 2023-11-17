@@ -605,7 +605,7 @@ function(daq_oks_codegen)
    add_custom_command(
      OUTPUT ${cpp_source} genconfig_${TARGETNAME}/genconfig.info 
      COMMAND mkdir -p ${cpp_dir} ${hpp_dir} genconfig_${TARGETNAME}
-     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
+     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${PROJECT_NAME} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
      COMMAND cp -f ${cpp_dir}/*.hpp ${hpp_dir}/
      COMMAND cp genconfig.info genconfig_${TARGETNAME}/
      DEPENDS ${schemas} ${config_dependencies} ${GENCONFIG_DEPENDS} 
