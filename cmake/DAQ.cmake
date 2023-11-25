@@ -271,6 +271,10 @@ function(daq_codegen)
     endif()
   endforeach()
 
+  if (NOT schemas)
+    message(FATAL_ERROR "ERROR: list of files/globs passed to daq_codegen don't match any existing files")
+  endif()
+
   # Generate!
   foreach(schema_path ${schemas})
     string(REPLACE "${schema_dir}/" "" schema_file "${schema_path}")
@@ -407,8 +411,11 @@ function (daq_protobuf_codegen)
     endforeach()
   endif()
 
-
   set(outfiles)
+
+  if (NOT protofiles)
+    message(FATAL_ERROR "ERROR: list of files/globs passed to daq_protobuf_codegen don't match any existing files")
+  endif()
 
   foreach(protofile ${protofiles})
     get_filename_component(basename ${protofile} NAME_WE)
@@ -722,6 +729,11 @@ function(daq_add_library)
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
   else()
+
+    if (NOT LIBOPTS_LINK_LIBRARIES)
+      message(FATAL_ERROR "ERROR: list of files/globs passed to daq_add_library don't match any existing files _and_ no libraries added to create an interface library")
+    endif()
+
     add_library(${libname} INTERFACE)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
 
