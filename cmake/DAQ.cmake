@@ -730,10 +730,6 @@ function(daq_add_library)
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
   else()
 
-    if (NOT LIBOPTS_LINK_LIBRARIES)
-      message(FATAL_ERROR "ERROR: list of files/globs passed to daq_add_library don't match any existing files _and_ no libraries added to create an interface library")
-    endif()
-
     add_library(${libname} INTERFACE)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
 
