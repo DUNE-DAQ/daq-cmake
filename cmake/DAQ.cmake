@@ -784,13 +784,9 @@ function(daq_add_plugin pluginname plugintype)
   endif()
 
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
-  target_link_options( ${pluginlibname} PRIVATE "LINKER:--no-undefined") # A plugin should have all its contents defined
+  target_link_options( ${pluginlibname} PRIVATE "LINKER:--no-undefined") # A plugin should have all its contents defined 
+  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES})
 
-  if (NOT DEFINED CETLIB)
-    message(FATAL_ERROR "ERROR: calls to daq_add_plugin require that this package include \"cetlib\" as a dependency")
-  endif()
-  
-  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES} ${CETLIB} ${CETLIB_EXCEPT})
   target_include_directories(${pluginlibname} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
