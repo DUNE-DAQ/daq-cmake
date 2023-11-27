@@ -333,11 +333,6 @@ in the `python/${PROJECT_NAME}` directory. You will need to have the correspondi
 `python/${PROJECT_NAME}/__init__.py` to import the appropiate componenets of the module.
 See toylibrary for a working example.
 
-Note that daq_add_plugin will automatically link your plugin against
-the cetlib library, and therefore you'll need to add a dependency on
-cetlib in your package if you use this function
-
-
 ### daq_add_plugin:
 Usage:
 ```

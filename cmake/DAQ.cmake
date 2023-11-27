@@ -768,10 +768,6 @@ endfunction()
 # and src/ for its private headers. Additionally, if it's a "TEST"
 # plugin, it will look in test/src/.
 
-# Note that daq_add_plugin will automatically link your plugin against
-# the cetlib library, and therefore you'll need to add a dependency on
-# cetlib in your package if you use this function
-
 function(daq_add_plugin pluginname plugintype)
 
   cmake_parse_arguments(PLUGOPTS "TEST" "" "LINK_LIBRARIES" ${ARGN})
