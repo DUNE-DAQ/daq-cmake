@@ -351,6 +351,9 @@ Your plugin will look in `include/` for your project's public headers
 and `src/` for its private headers. Additionally, if it's a "TEST"
 plugin, it will look in `test/src/`.
 
+Note that if `cetlib` is a dependency of the package being built, it
+will be automatically linked against the plugin.
+
 ### daq_add_application
 
 Usage:

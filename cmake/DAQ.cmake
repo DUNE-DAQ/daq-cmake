@@ -767,6 +767,9 @@ endfunction()
 # and src/ for its private headers. Additionally, if it's a "TEST"
 # plugin, it will look in test/src/.
 
+# Note that if cetlib is a dependency of the package being built, it
+# will be automatically linked against the plugin.
+
 function(daq_add_plugin pluginname plugintype)
 
   cmake_parse_arguments(PLUGOPTS "TEST" "" "LINK_LIBRARIES" ${ARGN})
@@ -779,8 +782,14 @@ function(daq_add_plugin pluginname plugintype)
   endif()
 
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
+  target_link_options( ${pluginlibname} PRIVATE "LINKER:--no-undefined") # A plugin should have all its contents defined 
 
-  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES})
+  if (NOT DEFINED CETLIB)
+    target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES})
+  else()
+    target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES} ${CETLIB} ${CETLIB_EXCEPT})
+  endif()
+
   target_include_directories(${pluginlibname} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
