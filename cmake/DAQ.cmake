@@ -271,6 +271,10 @@ function(daq_codegen)
     endif()
   endforeach()
 
+  if (NOT schemas)
+    message(FATAL_ERROR "ERROR: list of files/globs passed to daq_codegen don't match any existing files")
+  endif()
+
   # Generate!
   foreach(schema_path ${schemas})
     string(REPLACE "${schema_dir}/" "" schema_file "${schema_path}")
@@ -407,8 +411,11 @@ function (daq_protobuf_codegen)
     endforeach()
   endif()
 
-
   set(outfiles)
+
+  if (NOT protofiles)
+    message(FATAL_ERROR "ERROR: list of files/globs passed to daq_protobuf_codegen don't match any existing files")
+  endif()
 
   foreach(protofile ${protofiles})
     get_filename_component(basename ${protofile} NAME_WE)
@@ -548,9 +555,8 @@ function(daq_oks_codegen)
    if (DEFINED config_opts_DEP_PKGS)
      foreach(dep_pkg ${config_opts_DEP_PKGS})
 
-       list(APPEND config_dependencies DAL_${dep_pkg})
-
        if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
+	 list(APPEND config_dependencies DAL_${dep_pkg})
          list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}")
 	 list(APPEND GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/genconfig_DAL_${dep_pkg} )
        else()      					
@@ -609,7 +615,7 @@ function(daq_oks_codegen)
    add_custom_command(
      OUTPUT ${cpp_source} genconfig_${TARGETNAME}/genconfig.info 
      COMMAND mkdir -p ${cpp_dir} ${hpp_dir} genconfig_${TARGETNAME}
-     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
+     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${PROJECT_NAME} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
      COMMAND cp -f ${cpp_dir}/*.hpp ${hpp_dir}/
      COMMAND cp genconfig.info genconfig_${TARGETNAME}/
      DEPENDS ${schemas} ${config_dependencies} ${GENCONFIG_DEPENDS} 
@@ -619,7 +625,7 @@ function(daq_oks_codegen)
    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${TARGETNAME})
 
    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${hpp_dir} DESTINATION include FILES_MATCHING PATTERN *.hpp)
-   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME} DESTINATION ${PROJECT_NAME}/share/)
+   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME} DESTINATION ${CMAKE_INSTALL_DATADIR})
 
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
   set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
@@ -726,6 +732,7 @@ function(daq_add_library)
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
     _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
   else()
+
     add_library(${libname} INTERFACE)
     target_link_libraries(${libname} INTERFACE ${LIBOPTS_LINK_LIBRARIES})
 
@@ -772,6 +779,9 @@ endfunction()
 # and src/ for its private headers. Additionally, if it's a "TEST"
 # plugin, it will look in test/src/.
 
+# Note that if cetlib is a dependency of the package being built, it
+# will be automatically linked against the plugin.
+
 function(daq_add_plugin pluginname plugintype)
 
   cmake_parse_arguments(PLUGOPTS "TEST" "" "LINK_LIBRARIES" ${ARGN})
@@ -784,8 +794,14 @@ function(daq_add_plugin pluginname plugintype)
   endif()
 
   add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
+  target_link_options( ${pluginlibname} PRIVATE "LINKER:--no-undefined") # A plugin should have all its contents defined 
 
-  target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES})
+  if (NOT DEFINED CETLIB)
+    target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES})
+  else()
+    target_link_libraries(${pluginlibname} ${PLUGOPTS_LINK_LIBRARIES} ${CETLIB} ${CETLIB_EXCEPT})
+  endif()
+
   target_include_directories(${pluginlibname} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
