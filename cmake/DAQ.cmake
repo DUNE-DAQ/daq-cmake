@@ -544,9 +544,8 @@ function(daq_oks_codegen)
    if (DEFINED config_opts_DEP_PKGS)
      foreach(dep_pkg ${config_opts_DEP_PKGS})
 
-       list(APPEND config_dependencies DAL_${dep_pkg})
-
        if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
+	 list(APPEND config_dependencies DAL_${dep_pkg})
          list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}")
 	 list(APPEND GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/genconfig_DAL_${dep_pkg} )
        else()      					
@@ -605,7 +604,7 @@ function(daq_oks_codegen)
    add_custom_command(
      OUTPUT ${cpp_source} genconfig_${TARGETNAME}/genconfig.info 
      COMMAND mkdir -p ${cpp_dir} ${hpp_dir} genconfig_${TARGETNAME}
-     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${hpp_dir} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
+     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${PROJECT_NAME} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
      COMMAND cp -f ${cpp_dir}/*.hpp ${hpp_dir}/
      COMMAND cp genconfig.info genconfig_${TARGETNAME}/
      DEPENDS ${schemas} ${config_dependencies} ${GENCONFIG_DEPENDS} 
@@ -615,7 +614,7 @@ function(daq_oks_codegen)
    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${TARGETNAME})
 
    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${hpp_dir} DESTINATION include FILES_MATCHING PATTERN *.hpp)
-   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME} DESTINATION ${PROJECT_NAME}/share/)
+   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME} DESTINATION ${CMAKE_INSTALL_DATADIR})
 
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
   set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
