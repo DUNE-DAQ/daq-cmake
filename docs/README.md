@@ -403,6 +403,8 @@ Arguments:
 
  `NAMESPACE`: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
 
+ `DALDIR`: subdirectory relative to the package's primary include directory where headers will appear (`include/<package>/<DALDIR argument>`; default is no subdirectory
+
  `DEP_PKGS`: if a schema file you've provided as an argument itself includes a schema file (or schema files) from one or more other packages, you need to supply the names of the packages as arguments to DEP_PKGS. 
 
 The generated code is automatically built into the package's main
