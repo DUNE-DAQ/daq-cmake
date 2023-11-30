@@ -493,7 +493,8 @@ endfunction()
 
 # ######################################################################
 # daq_oks_codegen(<oks schema filename1> ... 
-#                      [NAMESPACE ns] 
+#                      [NAMESPACE ns]
+#                      [DALDIR subdir]
 #		       [DEP_PKGS pkg1 pkg2 ...]
 #
 # `daq_oks_codegen` uses the genconfig package's application of the same
@@ -504,6 +505,8 @@ endfunction()
 #  <schema filename1> ...: the list of OKS schema files to process from `<package>/schema/<package>`. 
 #
 # NAMESPACE: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
+#
+# DALDIR: subdirectory relative to the package's primary include directory where headers will appear (`include/<package>/<DALDIR argument>`); default is no subdirectory
 #
 # DEP_PKGS: if a schema file you've provided as an argument itself includes a schema file (or schema files) from one or more other packages, you need to supply the names of the packages as arguments to DEP_PKGS. 
 #
@@ -518,7 +521,7 @@ endfunction()
 
 function(daq_oks_codegen)
 
-   cmake_parse_arguments(config_opts "" "NAMESPACE" "DEP_PKGS" ${ARGN})
+   cmake_parse_arguments(config_opts "" "NAMESPACE;DALDIR" "DEP_PKGS" ${ARGN})
 
    set(srcs ${config_opts_UNPARSED_ARGUMENTS})
 
@@ -534,8 +537,19 @@ function(daq_oks_codegen)
 
    set(LIST GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME}/ )
 
+   set(hpp_dir_prefix ${CMAKE_CODEGEN_BINARY_DIR}/include )
+
+   set(hpp_dir_relative ${PROJECT_NAME})
+   if(config_opts_DALDIR)
+     if(config_opts_DALDIR MATCHES "^${PROJECT_NAME}/")
+       message(WARNING "The DALDIR subdirectory passed to this function begins with \"${PROJECT_NAME}/\"; this is probably not what you want as the subdirectory is taken as relative to ${hpp_dir_prefix}/${hpp_dir_relative}")
+     endif()
+
+     set(hpp_dir_relative ${hpp_dir_relative}/${config_opts_DALDIR})
+   endif()
+
+   set(hpp_dir ${hpp_dir_prefix}/${hpp_dir_relative})
    set(cpp_dir ${CMAKE_CODEGEN_BINARY_DIR}/src)
-   set(hpp_dir ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME})
 
    set(NAMESPACE)
    if(NOT config_opts_NAMESPACE)
@@ -611,7 +625,7 @@ function(daq_oks_codegen)
    add_custom_command(
      OUTPUT ${cpp_source} genconfig_${TARGETNAME}/genconfig.info 
      COMMAND mkdir -p ${cpp_dir} ${hpp_dir} genconfig_${TARGETNAME}
-     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${PROJECT_NAME} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
+     COMMAND ${CMAKE_COMMAND} -E env DUNEDAQ_SHARE_PATH=${PATHS_TO_SEARCH} ${GENCONFIG_BINARY} -i ${hpp_dir_relative} -n ${NAMESPACE} -d ${cpp_dir} -p ${PROJECT_NAME}  -I ${GENCONFIG_INCLUDES} -s ${schemas}
      COMMAND cp -f ${cpp_dir}/*.hpp ${hpp_dir}/
      COMMAND cp genconfig.info genconfig_${TARGETNAME}/
      DEPENDS ${schemas} ${config_dependencies} ${GENCONFIG_DEPENDS} 
@@ -620,7 +634,6 @@ function(daq_oks_codegen)
    add_custom_target(${TARGETNAME} ALL DEPENDS ${cpp_source} genconfig_${TARGETNAME}/genconfig.info)
    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${TARGETNAME})
 
-   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${hpp_dir} DESTINATION include FILES_MATCHING PATTERN *.hpp)
    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME} DESTINATION ${CMAKE_INSTALL_DATADIR})
 
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
