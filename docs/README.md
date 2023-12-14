@@ -279,12 +279,14 @@ library's implementation should be put in the `src/` directory.
 ### daq_protobuf_codegen:
 Usage:
 ```
-daq_protobuf_codegen( <protobuf filename1> ... [GEN_GRPC] [DEP_PKGS <package 1> ...] )
+daq_protobuf_codegen( <protobuf filename1> ... [TEST] [GEN_GRPC] [DEP_PKGS <package 1> ...] )
 ```
 
 Arguments:
 
 * `<protobuf filename1> ...`: these arguments are the list of `*.proto` files for protobuf's "protoc" program to process from `<package>/schema/<package>`. Globs also allowed.
+
+* `TEST`: If the code is meant for an entity in the package's `test/` subdirectory, `TEST` should be passed as an argument, and the schema file's path will be assumed to be `test/schema/` rather than merely `schema/`.
 
 * `GEN_GRPC`: if you need to cgenerate gRPC prototype for the `*.proto` files.
 
@@ -390,7 +392,7 @@ token.
 ### daq_oks_codegen
 Usage:
 ```
-daq_oks_codegen(<oks schema filename1> ... [NAMESPACE ns] [DALDIR subdir] [DEP_PKGS pkg1 pkg2 ...])
+daq_oks_codegen(<oks schema filename1> ... [TEST] [NAMESPACE ns] [DALDIR subdir] [DEP_PKGS pkg1 pkg2 ...])
 ```
 
 `daq_oks_codegen` uses the genconfig package's application of the same
@@ -400,6 +402,8 @@ provided to it.
 Arguments:
 
   `<oks schema filename1> ...`: the list of OKS schema files to process from `<package>/schema/<package>`. 
+
+* `TEST`: If the code is meant for an entity in the package's `test/` subdirectory, `TEST` should be passed as an argument, and the schema file's path will be assumed to be `test/schema/` rather than merely `schema/`.
 
  `NAMESPACE`: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
 
