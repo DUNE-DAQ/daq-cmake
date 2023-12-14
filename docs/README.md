@@ -401,15 +401,15 @@ provided to it.
 
 Arguments:
 
-  `<oks schema filename1> ...`: the list of OKS schema files to process from `<package>/schema/<package>`. 
+* `<oks schema filename1> ...`: the list of OKS schema files to process from `<package>/schema/<package>`. 
 
 * `TEST`: If the code is meant for an entity in the package's `test/` subdirectory, `TEST` should be passed as an argument, and the schema file's path will be assumed to be `test/schema/` rather than merely `schema/`.
 
- `NAMESPACE`: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
+* `NAMESPACE`: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
 
- `DALDIR`: subdirectory relative to the package's primary include directory where headers will appear (`include/<package>/<DALDIR argument>`); default is no subdirectory
+* `DALDIR`: subdirectory relative to the package's primary include directory where headers will appear (`include/<package>/<DALDIR argument>`); default is no subdirectory
 
- `DEP_PKGS`: if a schema file you've provided as an argument itself includes a schema file (or schema files) from one or more other packages, you need to supply the names of the packages as arguments to DEP_PKGS. 
+* `DEP_PKGS`: if a schema file you've provided as an argument itself includes a schema file (or schema files) from one or more other packages, you need to supply the names of the packages as arguments to DEP_PKGS. 
 
 The generated code is automatically built into the package's main
 library (i.e., you don't need to explicitly pass the names of the
