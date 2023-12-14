@@ -342,7 +342,7 @@ endfunction()
 ####################################################################################################
 # daq_protobuf_codegen:
 # Usage:
-# daq_protobuf_codegen( <protobuf filename1> ... [TEST} [GEN_GRPC] [DEP_PKGS <package 1> ...] )
+# daq_protobuf_codegen( <protobuf filename1> ... [TEST] [GEN_GRPC] [DEP_PKGS <package 1> ...] )
 #
 # Arguments:
 #    <protobuf filename1> ...: The list of *.proto files for protobuf's "protoc" program to process from <package>/schema/<package>. Globs also allowed.
