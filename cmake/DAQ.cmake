@@ -342,11 +342,15 @@ endfunction()
 ####################################################################################################
 # daq_protobuf_codegen:
 # Usage:
-# daq_protobuf_codegen( <protobuf filename1> ... [GEN_GRPC] [DEP_PKGS <package 1> ...] )
+# daq_protobuf_codegen( <protobuf filename1> ... [TEST] [GEN_GRPC] [DEP_PKGS <package 1> ...] )
 #
 # Arguments:
 #    <protobuf filename1> ...: The list of *.proto files for protobuf's "protoc" program to process from <package>/schema/<package>. Globs also allowed.
 #
+#
+#    TEST: If the code is meant for an entity in the package's test/ subdirectory, "TEST"
+#      should be passed as an argument, and the schema file's path will be assumed to be
+#      "test/schema/" rather than merely "schema/".
 #
 #    GEN_GRPC: if you need to have grpc file generated too
 #      Note that this option will require you to have a find_package(gRPC REQUIRED) before calling this function if you choose to generate gRPC protofiles.
@@ -365,9 +369,14 @@ endfunction()
 
 function (daq_protobuf_codegen)
 
-  cmake_parse_arguments(PROTOBUFOPTS "GEN_GRPC" "" "DEP_PKGS" ${ARGN})
-
-  set(schema_dir "${PROJECT_SOURCE_DIR}/schema")
+  cmake_parse_arguments(PROTOBUFOPTS "TEST;GEN_GRPC" "" "DEP_PKGS" ${ARGN})
+  
+  # insert test in schema_dir if a TEST schema
+  set(schema_dir "${PROJECT_SOURCE_DIR}")
+  if (${PROTOBUFOPTS_TEST})
+    set(schema_dir "${schema_dir}/test")
+  endif()
+  set(schema_dir  "${schema_dir}/schema")
 
   set(protofiles)
 
@@ -416,6 +425,14 @@ function (daq_protobuf_codegen)
   if (NOT protofiles)
     message(FATAL_ERROR "ERROR: list of files/globs passed to daq_protobuf_codegen don't match any existing files")
   endif()
+  
+  # define the output dir
+  set(outdir "${CMAKE_CODEGEN_BINARY_DIR}")
+  if (${PROTOBUFOPTS_TEST})
+    set(outdir "${outdir}/test")
+  endif()
+  set(outinc "${outdir}/include")
+  set(outdir "${outinc}/${PROJECT_NAME}")
 
   foreach(protofile ${protofiles})
     get_filename_component(basename ${protofile} NAME_WE)
@@ -427,11 +444,12 @@ function (daq_protobuf_codegen)
     # manually via a "COMMAND mv ..." in add_custom_command fail
     # because the "&&"ing of the commands means you get an error since
     # the output files from protoc don't yet exist
+    
 
-    list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.pb.h )
+    list(APPEND outfiles ${outdir}/${basename}.pb.cc ${outdir}/${basename}.pb.h )
 
     if (${PROTOBUFOPTS_GEN_GRPC})
-      list(APPEND outfiles ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.grpc.pb.cc ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}/${basename}.grpc.pb.h )
+      list(APPEND outfiles ${outdir}/${basename}.grpc.pb.cc ${outdir}/${basename}.grpc.pb.h )
     endif()
 
   endforeach()
@@ -445,19 +463,19 @@ function (daq_protobuf_codegen)
 
     add_custom_command(
       OUTPUT ${outfiles}
-      COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
+      COMMAND mkdir -p ${outdir}
 
       COMMAND protoc
               ${protoc_includes}
-              --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --cpp_out=${outinc}
+              --grpc_out=${outinc}
               --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
               ${protofiles}
 
       COMMAND protoc
               ${protoc_includes}
-              --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --grpc_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --python_out=${outinc}
+              --grpc_out=${outinc}
               --plugin=protoc-gen-grpc=`which grpc_python_plugin`
               ${protofiles}
 
@@ -469,12 +487,12 @@ function (daq_protobuf_codegen)
 
     add_custom_command(
       OUTPUT ${outfiles}
-      COMMAND mkdir -p ${CMAKE_CODEGEN_BINARY_DIR}/include/${PROJECT_NAME}
+      COMMAND mkdir -p ${outdir}
 
       COMMAND protoc
               ${protoc_includes}
-              --cpp_out=${CMAKE_CODEGEN_BINARY_DIR}/include
-              --python_out=${CMAKE_CODEGEN_BINARY_DIR}/include
+              --cpp_out=${outinc}
+              --python_out=${outinc}
               ${protofiles}
 
       DEPENDS ${protofiles}
@@ -504,6 +522,10 @@ endfunction()
 # Arguments:
 #  <schema filename1> ...: the list of OKS schema files to process from `<package>/schema/<package>`. 
 #
+# TEST: If the code is meant for an entity in the package's test/ subdirectory, "TEST"
+#  should be passed as an argument, and the schema file's path will be assumed to be
+#  "test/schema/" rather than merely "schema/".
+#
 # NAMESPACE: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
 #
 # DALDIR: subdirectory relative to the package's primary include directory where headers will appear (`include/<package>/<DALDIR argument>`); default is no subdirectory
@@ -521,11 +543,14 @@ endfunction()
 
 function(daq_oks_codegen)
 
-   cmake_parse_arguments(config_opts "" "NAMESPACE;DALDIR" "DEP_PKGS" ${ARGN})
+   cmake_parse_arguments(config_opts "TEST" "NAMESPACE;DALDIR" "DEP_PKGS" ${ARGN})
 
    set(srcs ${config_opts_UNPARSED_ARGUMENTS})
 
    set(TARGETNAME DAL_${PROJECT_NAME})
+   if(${config_opts_TEST})
+     set(TARGETNAME ${TARGETNAME}_TEST)
+   endif()
 
    if(TARGET ${TARGETNAME})
      message(FATAL_ERROR "You are using more than one daq_oks_codegen() command inside this package; this is not allowed. Exiting...")
@@ -537,7 +562,12 @@ function(daq_oks_codegen)
 
    set(LIST GENCONFIG_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/genconfig_${TARGETNAME}/ )
 
-   set(hpp_dir_prefix ${CMAKE_CODEGEN_BINARY_DIR}/include )
+   set(hpp_dir_prefix ${CMAKE_CODEGEN_BINARY_DIR} )
+  if (${config_opts_TEST})
+    set(hpp_dir_prefix "${hpp_dir_prefix}/test")
+  endif()
+  set(hpp_dir_prefix "${hpp_dir_prefix}/include")
+
 
    set(hpp_dir_relative ${PROJECT_NAME})
    if(config_opts_DALDIR)
@@ -550,6 +580,9 @@ function(daq_oks_codegen)
 
    set(hpp_dir ${hpp_dir_prefix}/${hpp_dir_relative})
    set(cpp_dir ${CMAKE_CODEGEN_BINARY_DIR}/src)
+  if (${config_opts_TEST})
+    set(cpp_dir "${CMAKE_CODEGEN_BINARY_DIR}/test/src")
+  endif()
 
    set(NAMESPACE)
    if(NOT config_opts_NAMESPACE)
@@ -585,8 +618,14 @@ function(daq_oks_codegen)
    endif()
 
    set(schemas)
+  # insert test in schema_dir if a TEST schema
+  set(schema_dir "${PROJECT_SOURCE_DIR}")
+  if (${config_opts_TEST})
+    set(schema_dir "${schema_dir}/test")
+  endif()
+  set(schema_dir  "${schema_dir}/schema")
    foreach(src ${srcs})
-     set(schemas ${schemas} ${CMAKE_CURRENT_SOURCE_DIR}/schema/${PROJECT_NAME}/${src})
+     set(schemas ${schemas} ${schema_dir}/${PROJECT_NAME}/${src})
    endforeach()
    
    foreach(schema ${schemas}) 
@@ -638,7 +677,11 @@ function(daq_oks_codegen)
 
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
   set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
-  set(ANY_OKS_FILES ${cpp_source} PARENT_SCOPE)
+  if(NOT ${config_opts_TEST})
+    set(ANY_OKS_FILES ${cpp_source} PARENT_SCOPE)
+  else()
+    set(TEST_OKS_FILES ${cpp_source} PARENT_SCOPE)
+  endif()
   set(ANY_OKS_LIBS oksdbinterfaces::oksdbinterfaces PARENT_SCOPE)
 
 endfunction()
@@ -800,9 +843,10 @@ function(daq_add_plugin pluginname plugintype)
   set(PLUGIN_PATH "plugins")
   if(${PLUGOPTS_TEST})
     set(PLUGIN_PATH "test/${PLUGIN_PATH}")
+    set(test_srcs ${TEST_OKS_FILES})
   endif()
 
-  add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp)
+  add_library( ${pluginlibname} MODULE ${PLUGIN_PATH}/${pluginname}.cpp ${test_srcs})
   target_link_options( ${pluginlibname} PRIVATE "LINKER:--no-undefined") # A plugin should have all its contents defined 
 
   if (NOT DEFINED CETLIB)
@@ -824,6 +868,7 @@ function(daq_add_plugin pluginname plugintype)
     target_include_directories(${pluginlibname} PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src>
       $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
+      $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/include>
   )
     install(TARGETS ${pluginlibname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_LIB_TESTDIR})
   else()
@@ -971,6 +1016,9 @@ function(daq_add_application appname)
     endif()
   endforeach()
 
+  if(APPOPTS_TEST)
+    set(appsrcs ${appsrcs} ${TEST_OKS_FILES})
+  endif()
 
   add_executable(${appname} ${appsrcs})
   target_link_libraries(${appname} PUBLIC ${APPOPTS_LINK_LIBRARIES})
@@ -986,7 +1034,9 @@ function(daq_add_application appname)
 
   if( ${APPOPTS_TEST} )
     target_include_directories( ${appname}
-      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
+      PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/src> 
+              $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/src>
+              $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/include>
   )
     install(TARGETS ${appname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_BIN_TESTDIR})
   else()
@@ -1017,7 +1067,7 @@ function(daq_add_unit_test testname)
 
   set(UTEST_PATH "unittest")
 
-  add_executable( ${testname} ${UTEST_PATH}/${testname}.cxx )
+  add_executable( ${testname} ${UTEST_PATH}/${testname}.cxx ${TEST_OKS_FILES})
   target_link_libraries( ${testname} ${UTEST_LINK_LIBRARIES} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
   target_compile_definitions(${testname} PRIVATE "BOOST_TEST_DYN_LINK=1")
 
@@ -1029,6 +1079,7 @@ function(daq_add_unit_test testname)
 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/codegen/test/include>
   )
 
   add_dependencies( ${testname} ${PRE_BUILD_STAGE_DONE_TRGT})
