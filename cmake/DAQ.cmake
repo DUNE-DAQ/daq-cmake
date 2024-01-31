@@ -437,6 +437,10 @@ function (daq_protobuf_codegen)
   foreach(protofile ${protofiles})
     get_filename_component(basename ${protofile} NAME_WE)
 
+    string(LENGTH "${schema_dir}/${PROJECT_NAME}/" base_dir_length)
+    string(SUBSTRING ${protofile} ${base_dir_length} -1 relname)
+    get_filename_component(reldir ${relname} DIRECTORY)
+
     # It's admittedly a bit inelegant to have not only a header but
     # also a source file appear in an include directory. However
     # there's currently no way to get protoc to output the header and
@@ -446,10 +450,10 @@ function (daq_protobuf_codegen)
     # the output files from protoc don't yet exist
     
 
-    list(APPEND outfiles ${outdir}/${basename}.pb.cc ${outdir}/${basename}.pb.h )
+    list(APPEND outfiles ${outdir}/${reldir}/${basename}.pb.cc ${outdir}/${reldir}/${basename}.pb.h )
 
     if (${PROTOBUFOPTS_GEN_GRPC})
-      list(APPEND outfiles ${outdir}/${basename}.grpc.pb.cc ${outdir}/${basename}.grpc.pb.h )
+      list(APPEND outfiles ${outdir}/${reldir}/${basename}.grpc.pb.cc ${outdir}/${reldir}/${basename}.grpc.pb.h )
     endif()
 
   endforeach()
