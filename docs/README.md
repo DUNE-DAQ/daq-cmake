@@ -134,7 +134,7 @@ Among other things daq_setup_environment() will do the following:
 * Have gcc use standard warnings
 * Support the use of CTest for the unit tests
 
-Next you'll see calls to CMake's [find_package](https://cmake.org/cmake/help/v3.17/command/find_package.html) function, which makes toylibrary's dependencies available. Comments in the file explain why the dependencies are selected.
+Next you'll see calls to CMake's [find_package](https://cmake.org/cmake/help/v3.17/command/find_package.html) function, which makes toylibrary's dependencies available. Comments in the file explain why the dependencies are selected. Please note that when developing your own package, if it's part of the nightly build and you add a new dependency, besides adding the needed `find_package` call you should also alert Software Coordination so they can add the dependency to the Spack build of the package. See below in the section called "Installing your project as a local package" for more about dependencies.   
 
 Then, you'll see a call to a function called `daq_add_library`.
 ```
