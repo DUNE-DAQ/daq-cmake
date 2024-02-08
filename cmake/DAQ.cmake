@@ -105,11 +105,15 @@ macro(daq_setup_environment)
   set(DAQ_PROJECT_GENERATES_GRPC false)
 
   set(COMPILER_OPTS -g -pedantic -Wall -Wextra -Wnon-virtual-dtor -fdiagnostics-color=always)
+
   if (${DBT_DEBUG})
     set(COMPILER_OPTS ${COMPILER_OPTS} -Og)
+  elseif(NOT DBT_OPTIMIZE_FLAG STREQUAL "None" )
+    set(COMPILER_OPTS ${COMPILER_OPTS} "-${DBT_OPTIMIZE_FLAG}")
   else()
     set(COMPILER_OPTS ${COMPILER_OPTS} -O2)
   endif()
+
   add_compile_options(${COMPILER_OPTS})
   unset(COMPILER_OPTS)
 
