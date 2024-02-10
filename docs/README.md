@@ -2,11 +2,10 @@
 
 This package provides CMake support for DUNE-DAQ packages.
 
-The documentation for this package is divided into four parts:
+The documentation for this package is divided into three parts:
 1) Instructions for `create_dunedaq_package`, a script which will generate a good deal of CMake/C++ code which is standard across all DUNE DAQ packages
 2) A description of the standard structure and CMake build code in a DUNE DAQ package
 3) A complete reference manual for the DUNE-DAQ-specific CMake functions developers can call in order to specify their package's build
-4) A description of how we use schema in order to consistently define data structures
 
 Note that this documentation assumes you have some familiarity with the [daq-buildtools package](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools) and know how to set up a development area and run commands to build code in it.
 
@@ -436,38 +435,3 @@ arguments.
 
 1. The `daq_codegen` cmake function provides a simpliefied interface to `moo render` to generate C++ files from Jinja templates. It provides a mechanism to easily import schemas, templates or models from other packages and implements a time-related dependency check. Details are [above](#daq_codegen_documentation).
 
-<a name="daq_cmake_schema"></a>
-### Schema files
-
-`daq-cmake` handles schemas in a similar fashion to C++ headers. Where header files are located according to the namespace of the class they declare (e.g. `mypkg::MyClass` in `include/mypkg/MyClass.hpp`, schemas location in the package is determined by the schema path (e.g. `mypkg.myschema` in `schema/mypkg/myschema.jsonnet`). In both cases the package name is integral part of the namespace/path to ensure uniqueness of the declared entities.
-
-As an example, below is shown the organization of the `appfwk/schema` folder:
-
-```txt
-appfwk/
-├── apps
-├── cmake
-├── CMakeLists.txt
-├── docs
-├── include
-├── python
-├── schema
-│   ├── appfwk
-│   │   ├── appinfo.jsonnet
-│   │   ├── app.jsonnet
-│   │   ├── cmd.jsonnet
-│   ├── README.md
-├── src
-├── test
-└── unittest
-```
-
-`cmd.jsonnet` declares `dunedaq.appfwk.cmd` schema structures with the following statement
-
-```jsonnet
-local s = moo.oschema.schema("dunedaq.appfwk.cmd");
-```
-
-The same applies to `app.jsonnet` and `appinfo.jsonnet` for `dunedaq.appfwk.app` and `dunedaq.appfwk.appinfo`.
-
-The matching between the schema file name/path and the jsonnet namespace is essential for code generation with `daq-cmake`. A mismatch between the two will result in empty generated files in most of the cases.
