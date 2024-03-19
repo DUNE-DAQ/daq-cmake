@@ -1,8 +1,11 @@
 // This is the configuration schema for package
 
 local moo = import "moo.jsonnet";
-local sdc = import "daqconf/confgen.jsonnet";
-local daqconf = moo.oschema.hier(sdc).dunedaq.daqconf.confgen;
+local stypes = import "daqconf/types.jsonnet";
+local types = moo.oschema.hier(stypes).dunedaq.daqconf.types;
+
+local sboot = import "daqconf/bootgen.jsonnet";
+local bootgen = moo.oschema.hier(sboot).dunedaq.daqconf.bootgen;
 
 local ns = "dunedaq.package.confgen";
 local s = moo.oschema.schema(ns);
@@ -25,10 +28,10 @@ local cs = {
     ]),
 
     package_gen: s.record("package_gen", [
-        s.field("boot", daqconf.boot, default=daqconf.boot, doc="Boot parameters"),
+        s.field("boot", bootgen.boot, default=bootgen.boot, doc="Boot parameters"),
         s.field("package", self.package, default=self.package, doc="package parameters"),
     ]),
 };
 
 // Output a topologically sorted array.
-sdc + moo.oschema.sort_select(cs, ns)
+stypes + sboot + moo.oschema.sort_select(cs, ns)
