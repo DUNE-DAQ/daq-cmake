@@ -36,14 +36,14 @@ def cli(config, json_dir):
 
     moo.otypes.load_types('package/confgen.jsonnet')
     import dunedaq.package.confgen as confgen
-    moo.otypes.load_types('daqconf/confgen.jsonnet')
-    import dunedaq.daqconf.confgen as daqconfgen
+    moo.otypes.load_types('daqconf/bootgen.jsonnet')
+    import dunedaq.daqconf.bootgen as daqconfbootgen
 
     console.log(f"\nIndividual configuration records before any command line overrides: ")    
 
     # Copy-of-a-hack, see daqconf's daqconf_multiru_gen file (commit e26a21d54fc5)
     # Sep-26-2023: see also fddaqconf's fddaqconf_gen file
-    boot = daqconfgen.boot(**config_data.boot)
+    boot = daqconfbootgen.boot(**config_data.boot)
     console.log(f"boot configuration object: {boot.pod()}")
 
     package = confgen.package(**config_data.package)
