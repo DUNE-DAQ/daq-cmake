@@ -146,6 +146,24 @@ and/or a README.md documentation file.
 
 os.chdir(PACKAGEDIR)
 
+# Create the standard workflows
+
+os.makedirs(".github/workflows")
+os.chdir(".github/workflows")
+
+for filename in ["dunedaq-v4-cpp-ci.yml", "track_new_issues.yml", "track_new_prs.yml"]:
+    res = subprocess.Popen(f"curl -O https://raw.githubusercontent.com/DUNE-DAQ/.github/develop/workflow-templates/{filename}", shell=True).wait()
+    if res != 0:
+        print("WARNING: unable to download desired GitHub workflow \"{filename}\". Please contact John Freeman on Slack")
+
+os.chdir(PACKAGEDIR)
+
+# Create a .gitignore file so git doesn't track undesired files
+
+with open(".gitignore", "w") as outf:
+    outf.write("*~\n")
+    outf.write("__pycache__\n")
+
 find_package_calls = []
 daq_codegen_calls = []
 daq_add_library_calls = []
