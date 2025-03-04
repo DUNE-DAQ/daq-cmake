@@ -347,7 +347,10 @@ function(daq_codegen)
 
   endforeach()
 
-  set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+  if (NOT ${CGOPTS_TEST})
+    set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+  endif()
+
 endfunction()
 
 ####################################################################################################
@@ -522,7 +525,10 @@ function (daq_protobuf_codegen)
   add_custom_target(${PROJECT_NAME}_PROTOBUF_GENERATION DEPENDS ${outfiles}  )
   add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${PROJECT_NAME}_PROTOBUF_GENERATION)
 
-  set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+  if (NOT ${PROTOBUFOPTS_TEST})
+    set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+  endif()
+
   set(PROTOBUF_FILES ${outfiles} PARENT_SCOPE)
 
 endfunction()
@@ -702,7 +708,11 @@ function(daq_oks_codegen)
    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/oksdalgen_${TARGETNAME} DESTINATION ${CMAKE_INSTALL_DATADIR})
 
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
-  set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+
+  if (NOT ${config_opts_TEST})
+    set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
+  endif()
+
   if(NOT ${config_opts_TEST})
     set(ANY_OKS_FILES ${cpp_source} PARENT_SCOPE)
   else()
