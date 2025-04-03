@@ -567,9 +567,11 @@ endfunction()
 
 function(daq_oks_codegen)
 
-   cmake_parse_arguments(config_opts "TEST" "NAMESPACE;DALDIR" "DEP_PKGS" ${ARGN})
+   cmake_parse_arguments(config_opts "TEST" "NAMESPACE;DALDIR" "DEP_PKGS;EXTRA_SRCS" ${ARGN})
 
    set(srcs ${config_opts_UNPARSED_ARGUMENTS})
+
+   set(LIB_PATH "codegen")
 
    set(TARGETNAME DAL_${PROJECT_NAME})
    if(${config_opts_TEST})
@@ -608,40 +610,58 @@ function(daq_oks_codegen)
     set(cpp_dir "${CMAKE_CODEGEN_BINARY_DIR}/test/src")
   endif()
 
-   set(NAMESPACE)
-   if(NOT config_opts_NAMESPACE)
-      set(NAMESPACE dunedaq::${PROJECT_NAME})
-   else()
-      set(NAMESPACE ${config_opts_NAMESPACE})
-   endif()
+  set(NAMESPACE)
+  if(NOT config_opts_NAMESPACE)
+    set(NAMESPACE dunedaq::${PROJECT_NAME})
+  else()
+    set(NAMESPACE ${config_opts_NAMESPACE})
+  endif()
 
-   set(config_dependencies)
+  set(config_dependencies)
 
-   set(dep_paths ${CMAKE_CURRENT_SOURCE_DIR} )
+  set(dep_paths ${CMAKE_CURRENT_SOURCE_DIR} )
 
-   if (DEFINED config_opts_DEP_PKGS)
-     foreach(dep_pkg ${config_opts_DEP_PKGS})
+  if (DEFINED config_opts_DEP_PKGS)
+    foreach(dep_pkg ${config_opts_DEP_PKGS})
 
-       if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
-         list(APPEND config_dependencies DAL_${dep_pkg})
-         list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}")
-         list(APPEND OKSDALGEN_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/oksdalgen_DAL_${dep_pkg} )
-       else()      					
-         if (NOT DEFINED "${dep_pkg}_DAQSHARE")
-           if (NOT DEFINED "${dep_pkg}_CONFIG")
-             message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
-           else()
-             message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
-           endif()
-         endif()
-        
-         list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}")
-         list(APPEND OKSDALGEN_INCLUDES "${${dep_pkg}_DAQSHARE}/oksdalgen_DAL_${dep_pkg}")
-       endif()
-     endforeach()
-   endif()
+      if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
+        list(APPEND config_dependencies DAL_${dep_pkg})
+        list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}")
+        list(APPEND OKSDALGEN_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/oksdalgen_DAL_${dep_pkg} )
+      else()      					
+        if (NOT DEFINED "${dep_pkg}_DAQSHARE")
+          if (NOT DEFINED "${dep_pkg}_CONFIG")
+            message(FATAL_ERROR "ERROR: package ${dep_pkg} not found/imported.")
+          else()
+            message(FATAL_ERROR "ERROR: package ${dep_pkg} does not provide the ${dep_pkg}_DAQSHARE path variable.")
+          endif()
+        endif()
+      
+        list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}")
+        list(APPEND OKSDALGEN_INCLUDES "${${dep_pkg}_DAQSHARE}/oksdalgen_DAL_${dep_pkg}")
+      endif()
+    endforeach()
+  endif()
 
-   set(schemas)
+  set(libextrasrcs)
+  if (DEFINED config_opts_EXTRA_SRCS)
+    foreach(f ${config_opts_EXTRA_SRCS})
+
+      if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
+
+        set(fpaths)
+        file(GLOB fpaths CONFIGURE_DEPENDS ${LIB_PATH}/${f})
+
+        if (fpaths)
+          set(libextrasrcs ${libextrasrcs} ${fpaths})
+        else()
+          message(WARNING "When defining list of files from which to build library \"${libname}\", no files in ${CMAKE_CURRENT_SOURCE_DIR}/${LIB_PATH} match the glob \"${f}\"")
+        endif()
+      endif()
+    endforeach()
+  endif()
+
+  set(schemas)
   # insert test in schema_dir if a TEST schema
   set(schema_dir "${PROJECT_SOURCE_DIR}")
   if (${config_opts_TEST})
@@ -702,8 +722,18 @@ function(daq_oks_codegen)
      DEPENDS ${schemas} ${config_dependencies} ${OKSDALGEN_DEPENDS} 
 )
 
-   add_custom_target(${TARGETNAME} ALL DEPENDS ${cpp_source} oksdalgen_${TARGETNAME}/oksdalgen.info)
+   add_custom_target(${TARGETNAME} ALL DEPENDS ${cpp_source} ${libextrasrcs} oksdalgen_${TARGETNAME}/oksdalgen.info)
    add_dependencies( ${PRE_BUILD_STAGE_DONE_TRGT} ${TARGETNAME})
+
+   set(libname dal_${PROJECT_NAME})
+   add_library(${libname} SHARED ${cpp_source} ${libextrasrcs})
+   target_link_libraries(${libname} PUBLIC conffwk::conffwk)
+   _daq_set_target_output_dirs( ${libname} ${LIB_PATH} )
+
+   target_include_directories(${libname} PUBLIC
+     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+   )
 
    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/oksdalgen_${TARGETNAME} DESTINATION ${CMAKE_INSTALL_DATADIR})
 
