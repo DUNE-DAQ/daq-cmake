@@ -558,7 +558,9 @@ endfunction()
 #  should be passed as an argument, and the schema file's path will be assumed to be
 #  "test/schema/" rather than merely "schema/".
 #
-# SOURCES: the name of any source files needed to implement functions whose declarations are generated from a schema
+# SOURCES: the names of any user-written source files needed to
+# implement functions whose declarations are generated from a schema,
+# taken relative to the "src/" subdirectory
 #
 # NAMESPACE: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
 #
@@ -742,12 +744,22 @@ function(daq_oks_codegen)
    add_library(${libname} SHARED ${cpp_source})
    target_link_libraries(${libname} PUBLIC ${config_opts_LINK_LIBRARIES} conffwk::conffwk) 
 
-   # JCF, Apr-3-2025: double check the logic behind these included directories
-    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+   if (NOT ${config_opts_TEST})
+   target_include_directories(${libname} PUBLIC
+     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+     )
+   
+   else()
+     target_include_directories(${libname} PUBLIC
+     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/include>
+     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+     )
+    endif()
+
+     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
       target_include_directories(${libname} PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       )
     endif()
 
