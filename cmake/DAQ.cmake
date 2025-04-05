@@ -774,8 +774,8 @@ function(daq_oks_codegen)
 
     _daq_define_exportname()
 
-    install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME})
-   
+    install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
+
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
   if (NOT ${config_opts_TEST})
