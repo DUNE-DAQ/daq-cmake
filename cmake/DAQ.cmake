@@ -769,7 +769,6 @@ function(daq_oks_codegen)
 
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
-    # JCF, Apr-3-2025: need to figure out what these next three lines are doing
     _daq_set_target_output_dirs( ${libname} ${SOURCES_PATH} )
 
     _daq_define_exportname()
