@@ -377,13 +377,13 @@ etc.). Like daq_add_library, daq_add_unit_test can be provided a
 list of libraries to link against, following the `LINK_LIBRARIES`
 token.
 
-### daq_oks_codegen
+### add_dal_library
 Usage:
 ```
-daq_oks_codegen(<oks schema filename1> ... [TEST] [NAMESPACE ns] [DALDIR subdir] [DEP_PKGS pkg1 pkg2 ...])
+add_dal_library(<oks schema filename1> ... [TEST] [NAMESPACE ns] [DALDIR subdir] [DEP_PKGS pkg1 pkg2 ...])
 ```
 
-`daq_oks_codegen` uses the oksdalgen package's application of the same
+`add_dal_library` uses the oksdalgen package's application of the same
 name to generate C++ and Python code from the OKS schema file(s)
 provided to it.
 
@@ -402,7 +402,7 @@ Arguments:
 The generated code is automatically built into the package's main
 library (i.e., you don't need to explicitly pass the names of the
 generated files to `daq_add_library`). Note that you get an error if
-you call `daq_oks_codegen` and don't also call `daq_add_library`. 
+you call `add_dal_library` and don't also call `daq_add_library`. 
 
 
 ### daq_install

@@ -534,7 +534,7 @@ function (daq_protobuf_codegen)
 endfunction()
 
 # ######################################################################
-# daq_oks_codegen(<oks schema filename1> ...
+# add_dal_library(<oks schema filename1> ...
 #                      [TEST]
 #                      [SOURCES src1 src2 ...]
 #                      [NAMESPACE ns]
@@ -544,7 +544,7 @@ endfunction()
 #
 # Note that calling "find_package(conffwk REQUIRED)" is required to use this function
 # 
-# `daq_oks_codegen` uses the oksdalgen package's application of the
+# `add_dal_library` uses the oksdalgen package's application of the
 # same name to generate C++ and Python code from the OKS schema
 # file(s) provided to it and build it into a shared object library
 # with the name "<package>_dal"; it optionally can take source files
@@ -573,7 +573,7 @@ endfunction()
 #
 #######################################################################
 
-function(daq_oks_codegen)
+function(add_dal_library)
 
    cmake_parse_arguments(config_opts "TEST" "NAMESPACE;DALDIR" "DEP_PKGS;SOURCES;LINK_LIBRARIES" ${ARGN})
 
@@ -589,11 +589,11 @@ function(daq_oks_codegen)
    endif()
 
    if(TARGET ${TARGETNAME})
-     message(FATAL_ERROR "You are using more than one daq_oks_codegen() command inside this package; this is not allowed. Exiting...")
+     message(FATAL_ERROR "You are using more than one add_dal_library() command inside this package; this is not allowed. Exiting...")
    endif()
 
    if (NOT DEFINED OKSDALGEN_BINARY) 
-     message(FATAL_ERROR "In order to call this function (daq_oks_codegen) you need to load the oksdalgen package in your CMakeLists.txt file via the find_package call")
+     message(FATAL_ERROR "In order to call this function (add_dal_library) you need to load the oksdalgen package in your CMakeLists.txt file via the find_package call")
    endif()
 
    set(LIST OKSDALGEN_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/oksdalgen_${TARGETNAME}/ )
@@ -732,7 +732,7 @@ function(daq_oks_codegen)
        if (fpaths)
          set(cpp_source ${cpp_source} ${fpaths})
        else()
-         message(WARNING "daq_oks_codegen: no files in ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCES_PATH} match the glob \"${f}\"")
+         message(WARNING "add_dal_library: no files in ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCES_PATH} match the glob \"${f}\"")
        endif()
      elseif(${f} MATCHES "^/[^*]+") # Absolute pathname
        set(cpp_source ${cpp_source} ${f})
