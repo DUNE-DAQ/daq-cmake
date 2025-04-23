@@ -547,7 +547,7 @@ endfunction()
 # `add_dal_library` uses the oksdalgen package's application of the
 # same name to generate C++ and Python code from the OKS schema
 # file(s) provided to it and build it into a shared object library
-# with the name "<package>_dal"; it optionally can take source files
+# with the name "libdal_<package>"; it optionally can take source files
 # which implement some of the functions as well as libraries needed by
 # those source files
 #
@@ -579,7 +579,7 @@ function(add_dal_library)
 
    set(schemafiles ${config_opts_UNPARSED_ARGUMENTS})
 
-   set(libname ${PROJECT_NAME}_dal)
+   set(libname dal_${PROJECT_NAME})
 
    set(SOURCES_PATH "src")
    
