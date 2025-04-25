@@ -566,9 +566,15 @@ endfunction()
 #
 # DALDIR: subdirectory relative to the package's primary include directory where headers will appear (`include/<package>/<DALDIR argument>`); default is no subdirectory
 #
-# DEP_PKGS: if a schema file you've provided as an argument itself includes a schema file (or schema files) from one or more other packages, you need to supply the names of the packages as arguments to DEP_PKGS. 
+# DEP_PKGS: if a schema file you've provided as an argument itself
+# includes a schema file (or schema files) from one or more other
+# packages, you need to supply the names of the packages as arguments
+# to DEP_PKGS. Note the dal libraries produced from those packages
+# will automatically get linked in as dependencies and won't need to
+# be provided in the LINK_LIBRARIES argument described below
 #
-# LINK_LIBRARIES: the name of any libraries needed by the source files provided by SOURCES (conffwk automatically provided)
+# LINK_LIBRARIES: the name of any libraries needed by the source files
+# provided by SOURCES (conffwk automatically provided)
 #
 #
 #######################################################################
@@ -630,9 +636,12 @@ function(add_dal_library)
    set(config_dependencies)
 
    set(dep_paths ${CMAKE_CURRENT_SOURCE_DIR} )
+   set(dep_pkg_libs)
 
    if (DEFINED config_opts_DEP_PKGS)
      foreach(dep_pkg ${config_opts_DEP_PKGS})
+
+       list(APPEND dep_pkg_libs ${dep_pkg}::dal_${dep_pkg})
 
        if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
          list(APPEND config_dependencies DAL_${dep_pkg})
@@ -742,7 +751,7 @@ function(add_dal_library)
    endforeach()
 
    add_library(${libname} SHARED ${cpp_source})
-   target_link_libraries(${libname} PUBLIC ${config_opts_LINK_LIBRARIES} conffwk::conffwk) 
+   target_link_libraries(${libname} PUBLIC ${config_opts_LINK_LIBRARIES} ${dep_pkg_libs} conffwk::conffwk)
 
    if (NOT ${config_opts_TEST})
    target_include_directories(${libname} PUBLIC
