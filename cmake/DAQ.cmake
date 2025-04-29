@@ -534,7 +534,7 @@ function (daq_protobuf_codegen)
 endfunction()
 
 # ######################################################################
-# add_dal_library(<oks schema filename1> ...
+# daq_add_dal_library(<oks schema filename1> ...
 #                      [TEST]
 #                      [SOURCES src1 src2 ...]
 #                      [NAMESPACE ns]
@@ -544,10 +544,10 @@ endfunction()
 #
 # Note that calling "find_package(conffwk REQUIRED)" is required to use this function
 # 
-# `add_dal_library` uses the oksdalgen package's application of the
+# `daq_add_dal_library` uses the oksdalgen package's application of the
 # same name to generate C++ and Python code from the OKS schema
 # file(s) provided to it and build it into a shared object library
-# with the name "libdal_<package>"; it optionally can take source files
+# with the name "lib<package>_dal"; it optionally can take source files
 # which implement some of the functions as well as libraries needed by
 # those source files
 #
@@ -579,27 +579,27 @@ endfunction()
 #
 #######################################################################
 
-function(add_dal_library)
+function(daq_add_dal_library)
 
    cmake_parse_arguments(config_opts "TEST" "NAMESPACE;DALDIR" "DEP_PKGS;SOURCES;LINK_LIBRARIES" ${ARGN})
 
    set(schemafiles ${config_opts_UNPARSED_ARGUMENTS})
 
-   set(libname dal_${PROJECT_NAME})
+   set(libname ${PROJECT_NAME}_dal)
 
    set(SOURCES_PATH "src")
    
-   set(TARGETNAME DAL_${PROJECT_NAME})
+   set(TARGETNAME ${PROJECT_NAME}_DAL)
    if(${config_opts_TEST})
      set(TARGETNAME ${TARGETNAME}_TEST)
    endif()
 
    if(TARGET ${TARGETNAME})
-     message(FATAL_ERROR "You are using more than one add_dal_library() command inside this package; this is not allowed. Exiting...")
+     message(FATAL_ERROR "You are using more than one daq_add_dal_library() command inside this package; this is not allowed. Exiting...")
    endif()
 
    if (NOT DEFINED OKSDALGEN_BINARY) 
-     message(FATAL_ERROR "In order to call this function (add_dal_library) you need to load the oksdalgen package in your CMakeLists.txt file via the find_package call")
+     message(FATAL_ERROR "In order to call this function (daq_add_dal_library) you need to load the oksdalgen package in your CMakeLists.txt file via the find_package call")
    endif()
 
    set(LIST OKSDALGEN_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/oksdalgen_${TARGETNAME}/ )
@@ -641,12 +641,12 @@ function(add_dal_library)
    if (DEFINED config_opts_DEP_PKGS)
      foreach(dep_pkg ${config_opts_DEP_PKGS})
 
-       list(APPEND dep_pkg_libs ${dep_pkg}::dal_${dep_pkg})
+       list(APPEND dep_pkg_libs ${dep_pkg}::${dep_pkg}_dal)
 
        if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
-         list(APPEND config_dependencies DAL_${dep_pkg})
+         list(APPEND config_dependencies ${dep_pkg}_DAL)
          list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}")
-         list(APPEND OKSDALGEN_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/oksdalgen_DAL_${dep_pkg} )
+         list(APPEND OKSDALGEN_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/oksdalgen_${dep_pkg}_DAL )
        else()      					
          if (NOT DEFINED "${dep_pkg}_DAQSHARE")
            if (NOT DEFINED "${dep_pkg}_CONFIG")
@@ -657,7 +657,7 @@ function(add_dal_library)
          endif()
         
          list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}")
-         list(APPEND OKSDALGEN_INCLUDES "${${dep_pkg}_DAQSHARE}/oksdalgen_DAL_${dep_pkg}")
+         list(APPEND OKSDALGEN_INCLUDES "${${dep_pkg}_DAQSHARE}/oksdalgen_${dep_pkg}_DAL")
        endif()
      endforeach()
    endif()
@@ -741,7 +741,7 @@ function(add_dal_library)
        if (fpaths)
          set(cpp_source ${cpp_source} ${fpaths})
        else()
-         message(WARNING "add_dal_library: no files in ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCES_PATH} match the glob \"${f}\"")
+         message(WARNING "daq_add_dal_library: no files in ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCES_PATH} match the glob \"${f}\"")
        endif()
      elseif(${f} MATCHES "^/[^*]+") # Absolute pathname
        set(cpp_source ${cpp_source} ${f})
