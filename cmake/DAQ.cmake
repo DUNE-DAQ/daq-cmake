@@ -534,14 +534,22 @@ function (daq_protobuf_codegen)
 endfunction()
 
 # ######################################################################
-# daq_oks_codegen(<oks schema filename1> ... 
+# daq_add_dal_library(<oks schema filename1> ...
+#                      [TEST]
+#                      [SOURCES src1 src2 ...]
 #                      [NAMESPACE ns]
 #                      [DALDIR subdir]
 #		       [DEP_PKGS pkg1 pkg2 ...]
+#                      [LINK_LIBRARIES lib1 lib2 ...]
 #
-# `daq_oks_codegen` uses the oksdalgen package's application of the same
-# name to generate C++ and Python code from the OKS schema file(s)
-# provided to it.
+# Note that calling "find_package(conffwk REQUIRED)" is required to use this function
+# 
+# `daq_add_dal_library` uses the oksdalgen package's application of the
+# same name to generate C++ and Python code from the OKS schema
+# file(s) provided to it and build it into a shared object library
+# with the name "lib<package>_dal"; it optionally can take source files
+# which implement some of the functions as well as libraries needed by
+# those source files
 #
 # Arguments:
 #  <schema filename1> ...: the list of OKS schema files to process from `<package>/schema/<package>`. 
@@ -550,38 +558,48 @@ endfunction()
 #  should be passed as an argument, and the schema file's path will be assumed to be
 #  "test/schema/" rather than merely "schema/".
 #
+# SOURCES: the names of any user-written source files needed to
+# implement functions whose declarations are generated from a schema,
+# taken relative to the "src/" subdirectory
+#
 # NAMESPACE: the namespace in which the generated C++ classes will be in. Defaults to `dunedaq::<package>`
 #
 # DALDIR: subdirectory relative to the package's primary include directory where headers will appear (`include/<package>/<DALDIR argument>`); default is no subdirectory
 #
-# DEP_PKGS: if a schema file you've provided as an argument itself includes a schema file (or schema files) from one or more other packages, you need to supply the names of the packages as arguments to DEP_PKGS. 
+# DEP_PKGS: if a schema file you've provided as an argument itself
+# includes a schema file (or schema files) from one or more other
+# packages, you need to supply the names of the packages as arguments
+# to DEP_PKGS. Note the dal libraries produced from those packages
+# will automatically get linked in as dependencies and won't need to
+# be provided in the LINK_LIBRARIES argument described below
 #
-#
-# The generated code is automatically built into the package's main
-# library (i.e., you don't need to explicitly pass the names of the
-# generated files to `daq_add_library`). Note that you get an error if
-# you call `daq_oks_codegen` and don't also call `daq_add_library`. 
+# LINK_LIBRARIES: the name of any libraries needed by the source files
+# provided by SOURCES (conffwk automatically provided)
 #
 #
 #######################################################################
 
-function(daq_oks_codegen)
+function(daq_add_dal_library)
 
-   cmake_parse_arguments(config_opts "TEST" "NAMESPACE;DALDIR" "DEP_PKGS" ${ARGN})
+   cmake_parse_arguments(config_opts "TEST" "NAMESPACE;DALDIR" "DEP_PKGS;SOURCES;LINK_LIBRARIES" ${ARGN})
 
-   set(srcs ${config_opts_UNPARSED_ARGUMENTS})
+   set(schemafiles ${config_opts_UNPARSED_ARGUMENTS})
 
-   set(TARGETNAME DAL_${PROJECT_NAME})
+   set(libname ${PROJECT_NAME}_dal)
+
+   set(SOURCES_PATH "src")
+   
+   set(TARGETNAME ${PROJECT_NAME}_DAL)
    if(${config_opts_TEST})
      set(TARGETNAME ${TARGETNAME}_TEST)
    endif()
 
    if(TARGET ${TARGETNAME})
-     message(FATAL_ERROR "You are using more than one daq_oks_codegen() command inside this package; this is not allowed. Exiting...")
+     message(FATAL_ERROR "You are using more than one daq_add_dal_library() command inside this package; this is not allowed. Exiting...")
    endif()
 
    if (NOT DEFINED OKSDALGEN_BINARY) 
-     message(FATAL_ERROR "In order to call this function (daq_oks_codegen) you need to load the oksdalgen package in your CMakeLists.txt file via the find_package call")
+     message(FATAL_ERROR "In order to call this function (daq_add_dal_library) you need to load the oksdalgen package in your CMakeLists.txt file via the find_package call")
    endif()
 
    set(LIST OKSDALGEN_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/oksdalgen_${TARGETNAME}/ )
@@ -618,14 +636,17 @@ function(daq_oks_codegen)
    set(config_dependencies)
 
    set(dep_paths ${CMAKE_CURRENT_SOURCE_DIR} )
+   set(dep_pkg_libs)
 
    if (DEFINED config_opts_DEP_PKGS)
      foreach(dep_pkg ${config_opts_DEP_PKGS})
 
+       list(APPEND dep_pkg_libs ${dep_pkg}::${dep_pkg}_dal)
+
        if (EXISTS ${CMAKE_SOURCE_DIR}/${dep_pkg})
-         list(APPEND config_dependencies DAL_${dep_pkg})
+         list(APPEND config_dependencies ${dep_pkg}_DAL)
          list(APPEND dep_paths "${CMAKE_SOURCE_DIR}/${dep_pkg}")
-         list(APPEND OKSDALGEN_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/oksdalgen_DAL_${dep_pkg} )
+         list(APPEND OKSDALGEN_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/../${dep_pkg}/oksdalgen_${dep_pkg}_DAL )
        else()      					
          if (NOT DEFINED "${dep_pkg}_DAQSHARE")
            if (NOT DEFINED "${dep_pkg}_CONFIG")
@@ -636,7 +657,7 @@ function(daq_oks_codegen)
          endif()
         
          list(APPEND dep_paths "${${dep_pkg}_DAQSHARE}")
-         list(APPEND OKSDALGEN_INCLUDES "${${dep_pkg}_DAQSHARE}/oksdalgen_DAL_${dep_pkg}")
+         list(APPEND OKSDALGEN_INCLUDES "${${dep_pkg}_DAQSHARE}/oksdalgen_${dep_pkg}_DAL")
        endif()
      endforeach()
    endif()
@@ -648,7 +669,7 @@ function(daq_oks_codegen)
     set(schema_dir "${schema_dir}/test")
   endif()
   set(schema_dir  "${schema_dir}/schema")
-   foreach(src ${srcs})
+   foreach(src ${schemafiles})
      set(schemas ${schemas} ${schema_dir}/${PROJECT_NAME}/${src})
    endforeach()
    
@@ -707,18 +728,71 @@ function(daq_oks_codegen)
 
    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/oksdalgen_${TARGETNAME} DESTINATION ${CMAKE_INSTALL_DATADIR})
 
+   ######################################################################
+
+   # Augment the list of generated source files with any source files explicitly requested by the caller
+   foreach(f ${config_opts_SOURCES})
+
+     if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
+
+       set(fpaths)
+       file(GLOB fpaths CONFIGURE_DEPENDS ${SOURCES_PATH}/${f})
+
+       if (fpaths)
+         set(cpp_source ${cpp_source} ${fpaths})
+       else()
+         message(WARNING "daq_add_dal_library: no files in ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCES_PATH} match the glob \"${f}\"")
+       endif()
+     elseif(${f} MATCHES "^/[^*]+") # Absolute pathname
+       set(cpp_source ${cpp_source} ${f})
+     else()
+       set(cpp_source ${cpp_source} ${SOURCES_PATH}/${f})
+     endif()
+   endforeach()
+
+   add_library(${libname} SHARED ${cpp_source})
+   target_link_libraries(${libname} PUBLIC ${config_opts_LINK_LIBRARIES} ${dep_pkg_libs} conffwk::conffwk)
+
+   if (NOT ${config_opts_TEST})
+   target_include_directories(${libname} PUBLIC
+     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/include>
+     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+     )
+   
+   else()
+     target_include_directories(${libname} PUBLIC
+     $<BUILD_INTERFACE:${CMAKE_CODEGEN_BINARY_DIR}/test/include>
+     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+     )
+    endif()
+
+     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+      target_include_directories(${libname} PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      )
+    endif()
+
+    target_include_directories(${libname} PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    )
+
+    add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
+
+    _daq_set_target_output_dirs( ${libname} ${SOURCES_PATH} )
+
+    _daq_define_exportname()
+
+    install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} )
+
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
   if (NOT ${config_opts_TEST})
     set(DAQ_PROJECT_GENERATES_CODE true PARENT_SCOPE)
   endif()
 
-  if(NOT ${config_opts_TEST})
-    set(ANY_OKS_FILES ${cpp_source} PARENT_SCOPE)
-  else()
+  if(${config_opts_TEST})
     set(TEST_OKS_FILES ${cpp_source} PARENT_SCOPE)
   endif()
-  set(ANY_OKS_LIBS conffwk::conffwk PARENT_SCOPE)
 
 endfunction()
 
@@ -756,7 +830,7 @@ function(daq_add_library)
 
   set(LIB_PATH "src")
 
-  set(libsrcs ${ANY_OKS_FILES})
+  set(libsrcs)
   foreach(f ${LIBOPTS_UNPARSED_ARGUMENTS})
 
     if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
@@ -782,7 +856,7 @@ function(daq_add_library)
   if (libsrcs)
 
     add_library(${libname} SHARED ${libsrcs})
-    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES} ${ANY_OKS_LIBS}) 
+    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES}) 
 
     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
       target_include_directories(${libname} PUBLIC
@@ -1142,11 +1216,6 @@ function(daq_install)
   if (DEFINED PROTOBUF_FILES AND NOT TARGET ${PROJECT_NAME})
      message(FATAL_ERROR "Error in call to daq_protobuf_codegen: you need to also create a package-wide library via daq_add_library, since these functions will automatically compile the code daq_protobuf_codegen generates into such a library")
   endif()
-
-
-  if (DEFINED ANY_OKS_FILES AND NOT TARGET ${PROJECT_NAME})
-    message(FATAL_ERROR "Error in call to daq_oks_codegen; you need to also create a package-wide library via daq_add_library, since these functions will automatically compile the code daq_oks_codegen generates into such a library")
-  endif()		      
 
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DAQ_PROJECT_SUMMARY_FILENAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
 
