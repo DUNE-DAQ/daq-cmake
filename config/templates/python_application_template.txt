@@ -1,0 +1,9 @@
+# populate the imports
+
+
+def main():
+    {APPLICATION}()
+
+
+if __name__ == "__main__":
+    main()

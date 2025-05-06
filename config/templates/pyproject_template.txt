@@ -1,0 +1,26 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[project]
+name = "{PACKAGE_NAME}"
+requires-python = ">=3.10"
+readme = "docs/README.md"
+dynamic = ["version"]
+description = "{DESCRIPTION}"
+
+dependencies = [
+    {DEPENDENCIES}
+]
+
+
+[tool.hatch.version]
+path = "version.py"
+
+[tool.hatch.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+dev = ["ruff", "pre-commit", "pytest"]
+
+{APPLICATIONS}
