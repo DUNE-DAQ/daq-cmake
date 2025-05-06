@@ -24,3 +24,20 @@ where = ["src"]
 dev = ["ruff", "pre-commit", "pytest"]
 
 {APPLICATIONS}
+
+
+[tool.ruff]
+exclude = [
+    {COMPILED_SCHEMA_LOCATIONS}
+]
+
+[tool.ruff.lint]
+select = [
+    "D",   # pydocstyle
+    "E",   # pycodestyle
+    "F",   # Pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "RUF", # ruff-specific rules
+]
+pydocstyle.convention = "google"
