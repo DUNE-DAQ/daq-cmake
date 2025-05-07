@@ -68,6 +68,12 @@ repos:
       - id: ruff-format
 """     
 
+default_optional_requirements = [
+    "ruff",
+    "pre-commit",
+    "pytest"
+]
+
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 CONSOLE_THEMES = Theme(
     {
@@ -144,112 +150,100 @@ def validate_dot_git(package_path: Path, overwrite: bool) -> None:
     if git_initialized:
         return
     elif not git_initialized and git_path.exists() and not overwrite:
-        log.error(
-"Found a misconstructed '.git' directory. If this needs to be overwritten with a " \
-"correctly structured git directory, use the '-o/--overwrite' option."
-                )
+        log.error("Found a misconstructed '.git' directory. If this needs to be overwritten with a correctly structured git directory, use the '-o/--overwrite' option.")
         sys.exit(1)
     elif not git_initialized and git_path.exists() and overwrite:
+        log.warning("Found improperly formatted .git, overwriting it.")
         shutil.rmtree(git_path)
     Repo.init(package_path, mkdir=True)
     return
 
-def wipe_package_directory(
+def in_dot_git(git_dir: Path, obj: Path) -> bool:
+    obj = obj.resolve()
+    git_dir = git_dir.resolve()
+    try:
+        obj.relative_to(git_dir)
+        return True
+    except ValueError:
+        return False
+
+def wipe_directory(
         package_path: Path,
+        applications: list[str],
+        schema: bool, 
         clean: bool,
         overwrite: bool
     ) -> None:
+    """Minimize the package directory. 
+    If clean, removes the non-standard directories.
+    If overwrite, removes all directories aside from .git.
+    """
     validate_dot_git(package_path, overwrite)
+    git_dir = package_path / ".git"
+
+    if overwrite:
+        for item in package_path.iterdir():
+            if item == git_dir:
+                continue
+            if item.is_dir():
+                log.warning(f"Removing directory {item}")
+                shutil.rmtree(item)
+            else:
+                log.warning(f"Removing file {item}")
+                item.unlink()
+        return
+
+    package_name = package_path.name
     keep_dirs = [package_path / path for path in default_subdirs]
-    for dir in package_path.iterdir():
-        if dir.is_dir() and dir not in keep_dirs and clean:
+    keep_dirs.append(package_path / "src" / package_name)
+    keep_dirs.append(package_path / "src" / package_name / "tests")
+    if applications:
+        keep_dirs.append(package_path / "src" / package_name / "apps")
+    if schema:
+        keep_dirs.append(package_path / "schema")
+        keep_dirs.append(package_path / "src" / package_name / "schema")
+    log.debug(f"Handling directories: {[str(d) for d in keep_dirs]}")
+
+    for dir in [d for d in package_path.rglob("*") if d.is_dir()]:
+        log.debug(f"Handling directory {dir}")
+        if dir not in keep_dirs and clean and not in_dot_git(git_dir, dir):
             log.warning(f"Removing directory {dir}")
             shutil.rmtree(dir)
+        else:
+            log.info(f"Found directory {dir}, leaving as is.")
+
     keep_files = [package_path / path for path in default_files]
-    for file in package_path.iterdir():
-        if file.is_file() and file not in keep_files and clean:
-            log.warning(f"Removing file {file}")
-            file.unlink()
+    keep_files.extend([p / "__init__.py" for p in (package_path / "src" / package_name).rglob("*") if p.is_dir()])
+    log.debug(f"Handling files: {[str(d) for d in keep_files]}")
+    if (package_path / "README.md").is_file():
+        log.info("Found README.md in the root, not removing it.")
+        keep_files.append(package_path / "README.md")
+
+    for file in [f for f in package_path.rglob("*") if f.is_file()]:
+        log.debug(f"Handling file {file}")
+        if not in_dot_git(git_dir, file):
+            if file not in keep_files and clean:
+                    log.warning(f"Removing file {file}")
+                    file.unlink()
+            else:
+                log.info(f"Found file {file}, leaving as is.")
     return
 
-def make_package_subdirs(package_path: Path, schema: bool) -> None:
+def make_subdirs(package_path: Path, applications: tuple[str], schema: bool) -> None:
     package_name = package_path.name
     create_subdirs = [package_path / dir for dir in default_subdirs]
-    create_subdirs.append(
-        f"src/{package_name}",
-        f"src/{package_name}/tests",
-        f"src/{package_name}/apps"
-    )
+    create_subdirs.append(package_path / "src" / package_name / "tests")
+    if applications:
+        create_subdirs.append(package_path / "src" / package_name / "apps")
     if schema:
-        create_subdirs.append("schema", f"schema/{package_name}")
+        create_subdirs.extend(["schema", f"schema/{package_name}", f"src/{package_name}/schema"])
     for dir in create_subdirs:
         if not dir.exists():
             log.info(f"Generating directory {dir}")
             dir.mkdir(parents=True)
     return
 
-def construct_application_file(
-        daq_cmake_share: Path,
-        application: str,
-        application_path: Path,
-        force: bool
-    ) -> None:
-    if application_path.is_file() and not force:
-        log.info(f"File for application {application} ({application_path}) already exists, skipping")
-        return
-    elif application_path.is_file() and force:
-        log.warning(f"File for application {application} ({application_path}) already exists, overwriting")
-        application_path.unlink()
-    
-    default_application_path = daq_cmake_share / "config" / "templates" / "python_application_template.txt"
-    default_application_str = default_application_path.read_text()
-
-    template = Template(default_application_str)
-    params = {"APPLICATION" : application}
-    result = template.render(**params)
-    application_path.write_text(result)
-    log.info(f"Written the file {application_path} for application {application}")
-    return
-
-def construct_default_pyproject_toml(
-        package_path: Path,
-        package_description: str,
-        requirements: List[str],
-        applications: Tuple[str],
-        overwrite: bool
-    ) -> None:
-    file = package_path / "pyproject.toml"
-    daq_cmake_share = os.getenv("DAQ_CMAKE_SHARE")
-    if not template_path:
-        raise OSError("$DAQ_CMAKE_SHARE not found, exiting.")
-    template_path = Path(daq_cmake_share) / "config" / "templates" / "pyproject_template.txt" #RETURNTOME
-    pyproject_toml_str = template_path.read_text()
-    template = Template(pyproject_toml_str)
-    params = {
-        "PACKAGE_NAME" : package_path.name,
-        "DESCRIPTION" : package_description,
-        "DEPENDENCIES" : requirements
-    }
-    result = template.render(**params)
-    if len(applications) :
-        entry_points = '\n\n[project.scripts]'
-        package_name = package_path.name
-        for application in applications:
-            application_path = f"{package_name}/apps/__main_{application}__"
-            construct_application_file(
-                daq_cmake_share,
-                application,
-                Path(application_path + ".py"),
-                overwrite
-            )
-            application_entry_point = f"{application_path.replace("/", ".")}:main"
-            entry_points += f'\n{application}: "{application_entry_point}'
-            log.info(f"Added application {application} to pyproject.toml")
-        result += entry_points
-        log.info(f"Added the script entry points")
-    return
-
-def verify_construct_file(file: Path, overwrite: bool) -> bool: 
+def construct_file(file: Path, overwrite: bool) -> bool: 
     if file.is_file():
         if not overwrite:
             log.info(f"File {file} already exists, and overwrite has not been set.")
@@ -258,31 +252,9 @@ def verify_construct_file(file: Path, overwrite: bool) -> bool:
             log.info(f"File {file} already exists, removing file")
             file.unlink()
             return True
-    return
-
-def construct_default_gitignore(package_path: Path, overwrite: bool) -> None:
-    file = package_path / ".gitignore"
-    if not verify_construct_file(file, overwrite):
-        return
-    with file.open(mode='w') as f:
-        f.write("\n".join(default_git_ignores))
-    return
-
-def construct_default_pre_commit_config_yaml(package_path: Path, overwrite: bool) -> None:
-    file = package_path / ".pre-commit_config.yaml"
-    if not verify_construct_file(file, overwrite):
-        return
-    with file.open(mode='w') as f:
-        f.write(default_pre_config_yaml)
-    return
-
-def construct_default_version_py(package_path: Path, overwrite: bool) -> None:
-    file = package_path / "version.py"
-    if not verify_construct_file(file, overwrite):
-        return
-    with file.open(mode='w') as f:
-        f.write('__version__ = "0.0.0"')
-    return
+    else:
+        log.debug(f"File does not exist, write the file {file}.")
+        return True
 
 def construct_default_readme_md(
         package_path: Path,
@@ -290,33 +262,207 @@ def construct_default_readme_md(
         overwrite: bool
     ) -> None:
     file = package_path / "docs" / "README.md"
-    if not verify_construct_file(file, overwrite):
+    if not construct_file(file, overwrite):
         return
     package_name = package_path.name
+    log.info(f"Writing {file.name}")
     with file.open(mode='w') as f:
-        f.write(f'# {package_name}\n{description}')
+        f.write(f'# {package_name}\n{description}\n')
     return
 
-def make_package_files(
+def construct_default_gitignore(package_path: Path, overwrite: bool) -> None:
+    file = package_path / ".gitignore"
+    if not construct_file(file, overwrite):
+        return
+    log.info(f"Writing {file.name}")
+    with file.open(mode='w') as f:
+        f.write("\n".join(default_git_ignores))
+    return
+
+def construct_default_github_workflows(
+    package_path: Path,
+    overwrite: bool
+) -> None:
+    template_workflow_dir = Path(os.getenv("DAQ_CMAKE_SHARE")) / "config" / "templates" / "python" / "github_workflows"
+    workflow_files = [file for file in template_workflow_dir.iterdir() if file.is_file()]
+    destination = package_path / ".github" / "workflows"
+    for file in workflow_files:
+        if not construct_file(destination / file.name, overwrite):
+            continue
+        shutil.copy(file, destination)
+        log.info(f"Template .github/workflow file {file} has been written to {destination}")
+    return
+
+def construct_default_pre_commit_config_yaml(package_path: Path, overwrite: bool) -> None:
+    file = package_path / ".pre-commit_config.yaml"
+    if not construct_file(file, overwrite):
+        return
+    log.info(f"Writing {file.name}")
+    with file.open(mode='w') as f:
+        f.write(default_pre_config_yaml)
+    return
+
+def construct_default_version_py(package_path: Path, overwrite: bool) -> None:
+    file = package_path / "version.py"
+    if not construct_file(file, overwrite):
+        return
+    log.info(f"Writing {file.name}")
+    with file.open(mode='w') as f:
+        f.write(f'"""Version number for package {package_path.name}."""\n__version__ = "0.0.0"')
+    return
+
+def construct_application_file(
+        daq_cmake_share: Path,
+        application: str,
+        application_path: Path,
+        overwrite: bool
+    ) -> None:
+    if not construct_file(application_path, overwrite):
+        return
+    default_application_path = daq_cmake_share / "config" / "templates" / "python" / "python_application_template.txt"
+    template = Template(default_application_path.read_text())
+    params = {"APPLICATION" : application}
+    result = template.render(**params)
+    application_path.write_text(result)
+    log.info(f"File {application_path} for application {application} written")
+    return
+
+def construct_default_schema_compile(
+        daq_cmake_share: Path,
+        application: str,
+        application_path: Path,
+        overwrite: bool
+    ) -> None:
+    if not construct_file(application_path, overwrite):
+        return
+    default_application_path = daq_cmake_share / "config" / "templates" / "python" / "generate_protos_template.txt"
+    template = Template(default_application_path.read_text())
+    params = {
+        "APPLICATION" : application
+    }
+    result = template.render(**params)
+    application_path.write_text(result)
+    log.info(f"File {application_path} for application {application} written")
+    return
+
+def construct_default_proto(
+    daq_cmake_share: Path,
+    package_path: Path,
+    overwrite: bool
+) -> None:
+    file = package_path / "schema" / "template.proto"
+    if not construct_file(file, overwrite):
+        return
+    default_proto_file_name = "renameme_info.proto"
+    default_proto_path = daq_cmake_share / "config" / "templates" / default_proto_file_name
+    shutil.copy(default_proto_path, file)
+    log.info(f"Template protobuf file {default_proto_file_name} has been written to {file}")
+    return
+
+def parse_applications(package_path: Path, applications: List[str], daq_cmake_share: Path, schema: bool, overwrite: bool) -> str:
+    template_entry_points = '[project.scripts]'
+    package_name = package_path.name
+    for application in applications:
+        application_path = f"{package_name}/apps/__main_{application}__"
+        construct_application_file(
+            daq_cmake_share,
+            application,
+            package_path / "src" / (application_path + ".py"),
+            overwrite
+        )
+        application_entry_point = f"{application_path.replace('/', '.')}:main"
+        template_entry_points += f'\n{application}: {application_entry_point}'
+        log.info(f"Added application {application} to pyproject.toml")
+
+    if schema:
+        application = package_name + "_generate_protos"
+        application_path = f"{package_name}/apps/__main_{application}__"
+        construct_default_schema_compile(
+            daq_cmake_share,
+            application,
+            package_path / "src" / (application_path + ".py"),
+            overwrite
+        )
+        construct_default_proto(
+            daq_cmake_share,
+            package_path,
+            overwrite
+        )
+        application_entry_point = f"{application_path.replace('/', '.')}:main"
+        template_entry_points += f'\n{application}: {application_entry_point}'
+
+    return template_entry_points
+
+
+def construct_default_pyproject_toml(
+        package_path: Path,
+        package_description: str,
+        requirements: List[str],
+        applications: tuple[str],
+        schema: bool,
+        overwrite: bool
+    ) -> None:
+    file = package_path / "pyproject.toml"
+    package_name = package_path.name
+    daq_cmake_share = os.getenv("DAQ_CMAKE_SHARE")
+    if not daq_cmake_share:
+        raise OSError("$DAQ_CMAKE_SHARE not found, exiting.")
+    template_path = Path(daq_cmake_share) / "config" / "templates" / "python" / "pyproject_template.txt"
+    template = Template(template_path.read_text())
+    template_params = {
+        "PACKAGE_NAME" : package_name,
+        "DESCRIPTION" : package_description
+    }
+    optional_requirements = default_optional_requirements
+    if applications or schema:
+        template_params["APPLICATIONS"] = parse_applications(package_path, applications, daq_cmake_share, schema, overwrite)
+        log.info(f"Added all script entry points")
+
+    if schema:
+        ruff_exclude_dirs = [
+            package_name + "/" + package_name + ".egg-info",
+            package_name + "/src/schema/*._pb2.py*",
+            package_name + "/src/schema/*._pb2_grpc.py*"
+        ]
+        ruff_exclude_dirs_str = "[tool.ruff]\nexclude = [" + "\n".join(f'"{dir}"' for dir in ruff_exclude_dirs) + "]"
+        template_params["RUFF_EXCLUDE"] = ruff_exclude_dirs_str
+        requirements.extend(["grpcio", "grpcio-status", "grpcio-tools", "googleapis-common-protos"])
+        optional_requirements.extend(["mypy-protobuf", "types-protobuf"])
+    
+    if requirements:
+        requirements_str = "dependencies = [" + "\n".join(f'"{pkg}"' for pkg in requirements) + "\n]"
+        template_params["DEPENDENCIES"] =  requirements_str 
+
+    optional_requirements_str = "[project.optional-dependencies] \ndev = [" + ", ".join(f'"{pkg}"' for pkg in optional_requirements) + "]"
+    print(optional_requirements_str)
+    template_params["OPTIONAL_DEPENDENCIES"] = optional_requirements_str
+
+    log.info(template_params)
+    log.info(template.render(**template_params))
+    file.write_text(template.render(**template_params))
+    return
+
+def make_files(
         package_path: Path,
         overwrite: bool,
-        requirements: Tuple[str],
-        applications: Tuple[str],
-        package_description: str
+        requirements: tuple[str],
+        applications: tuple[str],
+        package_description: str,
+        schema: bool
     ) -> None:
     construct_default_readme_md(package_path, package_description, overwrite)
     construct_default_gitignore(package_path, overwrite)
+    construct_default_github_workflows(package_path, overwrite)
+    construct_default_version_py(package_path, overwrite)
     construct_default_pre_commit_config_yaml(package_path, overwrite)
     construct_default_pyproject_toml(
         package_path,
         package_description,
         requirements,
         applications,
+        schema,
         overwrite
     )
-
-
-
     return
 
 @click.command()
@@ -326,41 +472,39 @@ def make_package_files(
     "--log-level",
     type=click.Choice(log_levels.keys(), case_sensitive=False),
     default="INFO",
-    help="Set the log level",
+    help="Set the log level.",
 )
 @click.option(
     "-c",
     "--clean",
     is_flag=True,
-    help="Remove all existing files and directories that do not follow the standard" \
-    "python package structure"
+    help="Remove all existing files and directories that do not follow the standard python package structure."
 )
 @click.option(
     "-o",
     "--overwrite",
     is_flag=True,
-    help="Overwrite existing files"
+    help="Overwrite existing files required for the standard python package structure. Does not affect .git."
 )
 @click.option(
     "-r",
     "--requirement",
     "requirements",
     multiple=True,
-    help="Defines the requiements for the pyproject.toml as e.g. 'click==8.1.7'"
+    help="Define requiements for the pyproject.toml as e.g. 'click==8.1.7'"
 )
 @click.option(
     "-a",
     "--app",
     "applications",
     multiple=True,
-    help="Defines the repository scripts available when installed"
+    help="Create template scripts for applications to become available when installed"
 )
 @click.option(
     "-s",
     "--schema",
     is_flag=True,
-    help="If true, makes a directory to include all the schema files and includes a " \
-    "scrpt to compile the schema into *pb2.py, *pb2.pyi, and *pb2_grpc.pb2."
+    help="Makes a directory to include all the schema files and include a script to compile the schema into *pb2.py, *pb2.pyi, and *pb2_grpc.pb2."
 )
 @click.option(
     "-p",
@@ -373,8 +517,8 @@ def create_python_dunedaq_package(
     log_level: str,
     clean: bool,
     overwrite: bool,
-    requirements: Tuple(str),
-    applications: Tuple(str),
+    requirements: tuple[str],
+    applications: tuple[str],
     schema: bool,
     package_description: str) -> None:
     """Create new DUNEDAQ python package.
@@ -382,6 +526,10 @@ This script generates much of the standard python code of a new DUNE DAQ package
 Simplest usage:\n\n\tcreate_python_dunedaq_package <package_name>\n
 The directory out of which you run this script must be empty with the possible
 exception of a git/ version control subdirectory.\n
+In the instance that you have an existing repository, you can validate that it follows
+the correct structure with the same command. To overwrite the existing code to ensure
+that the package follows the correct structure, use the -o/--overwrite option.
+To remove code that does not follow the correct structure, use the -c/--clean option.\n
 For details on how to write a DUNE DAQ package, please look at the official daq-cmake
 documentation at https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-cmake/.\n
 For details on how to write a python-only DUNE DAQ package, please look at the official
@@ -421,16 +569,17 @@ for more on naming conventions. Exiting...
     if package_description is None:
         package_description = "Description left as an exercise for the author"
 
-    wipe_package_directory(package_path, clean, overwrite)
-    make_package_subdirs(package_path, schema)
-    make_package_files(
+    wipe_directory(package_path, applications, schema, clean, overwrite)
+    make_subdirs(package_path, applications, schema)
+    make_files(
         package_path,
         overwrite,
         requirements,
         applications,
-        package_description
+        package_description,
+        schema
     )
-    sys.exit(0)
+    return
 
 
 if __name__ == '__main__':
