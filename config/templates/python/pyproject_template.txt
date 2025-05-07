@@ -21,6 +21,9 @@ where = ["src"]
 {{ APPLICATIONS }}
 {{ RUFF_EXCLUDE }}
 
+[tool.ruff]
+ignore = ["D205"]
+
 [tool.ruff.lint]
 select = [
     "D",   # pydocstyle

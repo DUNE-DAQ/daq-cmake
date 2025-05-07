@@ -467,8 +467,6 @@ def construct_default_pyproject_toml(
     print(optional_requirements_str)
     template_params["OPTIONAL_DEPENDENCIES"] = optional_requirements_str
 
-    log.info(template_params)
-    log.info(template.render(**template_params))
     file.write_text(template.render(**template_params))
     return
 
