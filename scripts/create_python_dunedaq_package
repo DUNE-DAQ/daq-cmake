@@ -17,6 +17,7 @@ import click
 from typing import Tuple, List
 from git import Repo, InvalidGitRepositoryError
 from jinja2 import Template
+from importlib.metadata import version, PackageNotFoundError
 
 default_subdirs = [
     ".git",
@@ -233,10 +234,10 @@ def make_subdirs(package_path: Path, applications: tuple[str], schema: bool) -> 
     package_name = package_path.name
     create_subdirs = [package_path / dir for dir in default_subdirs]
     create_subdirs.append(package_path / "src" / package_name / "tests")
-    if applications:
+    if applications or schema:
         create_subdirs.append(package_path / "src" / package_name / "apps")
     if schema:
-        create_subdirs.extend(["schema", f"schema/{package_name}", f"src/{package_name}/schema"])
+        create_subdirs.extend(package_path / dir for dir in ["schema", f"src/{package_name}/schema"])
     for dir in create_subdirs:
         if not dir.exists():
             log.info(f"Generating directory {dir}")
@@ -371,7 +372,7 @@ def parse_applications(package_path: Path, applications: List[str], daq_cmake_sh
             overwrite
         )
         application_entry_point = f"{application_path.replace('/', '.')}:main"
-        template_entry_points += f'\n{application}: {application_entry_point}'
+        template_entry_points += f'\n{application} = {application_entry_point}'
         log.info(f"Added application {application} to pyproject.toml")
 
     if schema:
@@ -389,10 +390,37 @@ def parse_applications(package_path: Path, applications: List[str], daq_cmake_sh
             overwrite
         )
         application_entry_point = f"{application_path.replace('/', '.')}:main"
-        template_entry_points += f'\n{application}: {application_entry_point}'
+        template_entry_points += f'\n{application} = "{application_entry_point}"'
 
     return template_entry_points
 
+def format_requirements(requirements: list[str]) -> list[str]:
+    formatted_requirements = []
+    requirement_pattern_with_version = r'^[a-zA-Z0-9_-]+==\d+\.\d+\.\d+$'
+    requirement_pattern_without_version = r'^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$'
+    log.debug(f"Processing requirements: {requirements}")
+    for requirement in requirements:
+        if bool(re.match(requirement_pattern_with_version, requirement)):
+            package_name, requested_package_version = requirement.split("==")
+        elif bool(re.match(requirement_pattern_without_version, requirement)):
+            package_name = requirement
+            requested_package_version = ""
+        else:
+            log.error(f"Requirement '{requirement}' improperly formatted, expected a package name or a package name with version number.")
+            sys.exit(1)
+
+        try:
+            available_package_version = version(package_name)
+            if available_package_version == requested_package_version:
+                log.debug(f"{requirement} found with requested version")
+                formatted_requirements.append(requirement)
+            else:
+                log.info(f"Package {package_name} requested with version {requested_package_version}, but found installed version {available_package_version}. Using this version.")
+                formatted_requirements.append(f"{package_name}=={available_package_version}")
+        except PackageNotFoundError:
+            log.error(f"Package {package_name} not found in environment, skipping.")
+            sys.exit(1)
+    return formatted_requirements
 
 def construct_default_pyproject_toml(
         package_path: Path,
@@ -404,7 +432,7 @@ def construct_default_pyproject_toml(
     ) -> None:
     file = package_path / "pyproject.toml"
     package_name = package_path.name
-    daq_cmake_share = os.getenv("DAQ_CMAKE_SHARE")
+    daq_cmake_share = Path(os.getenv("DAQ_CMAKE_SHARE"))
     if not daq_cmake_share:
         raise OSError("$DAQ_CMAKE_SHARE not found, exiting.")
     template_path = Path(daq_cmake_share) / "config" / "templates" / "python" / "pyproject_template.txt"
@@ -424,13 +452,15 @@ def construct_default_pyproject_toml(
             package_name + "/src/schema/*._pb2.py*",
             package_name + "/src/schema/*._pb2_grpc.py*"
         ]
-        ruff_exclude_dirs_str = "[tool.ruff]\nexclude = [" + "\n".join(f'"{dir}"' for dir in ruff_exclude_dirs) + "]"
+        ruff_exclude_dirs_str = "[tool.ruff]\nexclude = [\n" + "\n".join(f'"{dir}",' for dir in ruff_exclude_dirs) + "\n]"
         template_params["RUFF_EXCLUDE"] = ruff_exclude_dirs_str
+        requirements = list(requirements)
         requirements.extend(["grpcio", "grpcio-status", "grpcio-tools", "googleapis-common-protos"])
         optional_requirements.extend(["mypy-protobuf", "types-protobuf"])
     
     if requirements:
-        requirements_str = "dependencies = [" + "\n".join(f'"{pkg}"' for pkg in requirements) + "\n]"
+        requirements = format_requirements(requirements)
+        requirements_str = "dependencies = [\n" + "\n".join(f'"{pkg}",' for pkg in requirements) + "\n]"
         template_params["DEPENDENCIES"] =  requirements_str 
 
     optional_requirements_str = "[project.optional-dependencies] \ndev = [" + ", ".join(f'"{pkg}"' for pkg in optional_requirements) + "]"
