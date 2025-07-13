@@ -32,6 +32,8 @@ Arguments and options:
 
 `--test-app`: same as `--daq-module`, but for integration test applications
 
+`--pytest`: will create a Python program readable by the pytest integration test framework
+
 Note that some of these concepts, e.g. a user-oriented app vs. an app designed for integration tests of the package itself, are covered below in the [Overview of a DUNE DAQ package](#package_overview) section.
 
 In the directory `create_dunedaq_package` is run out of, `create_dunedaq_package` will create a subdirectory named after your package if such a subdirectory doesn't exist. If a subdirectory with that name already _does_ exist, it should be empty with the possible exceptions of a `README.md` documentation file and/or a `.git/` version control directory. These exceptions allow you to run the script using as an argument the name of a new repo which you've cloned into your area. An example of using `create_dunedaq_package` would be the following (note you can horizontal-scroll the command below):

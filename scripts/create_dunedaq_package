@@ -139,9 +139,9 @@ else:
         if file_in_dir != ".git" and file_in_dir != "README.md" and file_in_dir != "docs":
             error(f"""
 
-It looks like this directory isn't empty. This script can only be run in 
-directories which are empty with the possible exceptions of a .git/ subdirectory
-and/or a README.md documentation file. 
+It looks like the directory \"{PACKAGEDIR}\" isn't empty.
+This script can only be run for directories which are empty with the possible exceptions
+of a .git/ subdirectory and/or a README.md documentation file.
 
     """)
 
@@ -202,7 +202,7 @@ for more on naming conventions. Exiting...
             wipe_package_directory()
             error(f"""
 Requested pytest name \"{pytest}\" is invalid; it needs to be of the form
-\"*_test.py\" or \"test_*.py\" to get picked up by pytest. Please see
+\"*_test\" or \"test_*\" to get picked up by pytest. Please see
 https://dune-daq-sw.readthedocs.io/en/latest/packages/integrationtest/ for
 more. Exiting...
 """)
@@ -211,7 +211,23 @@ more. Exiting...
         DEST_FILENAME = src_filename.replace("renameme_test", pytest)
         DEST_FILENAME = f"{PACKAGEDIR}/integtest/{DEST_FILENAME}"
 
-        shutil.copyfile(f"{TEMPLATEDIR}/{src_filename}", DEST_FILENAME)
+        with open(f"{TEMPLATEDIR}/{src_filename}", "r") as inf:
+            session_name = "UNDEFINED"
+            res = re.search(r".*/(.*)_test.py", DEST_FILENAME)
+            if res:
+                session_name = res.group(1)
+            else:
+                res = re.search(r".*/test_(.*).py", DEST_FILENAME)
+                if res:
+                    session_name = res.group(1)
+                else:
+                    assert False, f"Unable to determine session name from filename \"{DEST_FILENAME}\""
+
+            sourcecode = inf.read()
+            sourcecode = sourcecode.replace("renameme", session_name)
+
+            with open(DEST_FILENAME, "w") as outf:
+                outf.write(sourcecode)
 
 if args.daq_modules:
 
