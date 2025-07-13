@@ -32,7 +32,7 @@ Arguments and options:
 
 `--test-app`: same as `--daq-module`, but for integration test applications
 
-`--pytest`: will create a Python program readable by the pytest integration test framework
+`--pytest`: will create a Python program readable by the [pytest integration test framework](https://docs.pytest.org/en/stable/). It takes the name of the test as an argument; note the name needs to be of the form `*_test` or `test_*` so that pytest can work with it. 
 
 Note that some of these concepts, e.g. a user-oriented app vs. an app designed for integration tests of the package itself, are covered below in the [Overview of a DUNE DAQ package](#package_overview) section.
 
