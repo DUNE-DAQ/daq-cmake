@@ -1014,14 +1014,18 @@ endfunction()
 
 function(daq_add_python_bindings)
 
-  cmake_parse_arguments(LIBOPTS "" "" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(BINDOPTS "DAL" "" "LINK_LIBRARIES" ${ARGN})
 
-  set(libname _daq_${PROJECT_NAME}_py)
+  if(NOT ${BINDOPTS_DAL})
+    set(libname _daq_${PROJECT_NAME}_py)
+  else()
+    set(libname _daq_${PROJECT_NAME}_dal_py)
+  endif()
 
   set(LIB_PATH "pybindsrc")
 
   set(libsrcs)
-  foreach(f ${LIBOPTS_UNPARSED_ARGUMENTS})
+  foreach(f ${BINDOPTS_UNPARSED_ARGUMENTS})
 
     if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
 
@@ -1041,7 +1045,12 @@ function(daq_add_python_bindings)
 
   if (libsrcs)
     pybind11_add_module(${libname} ${libsrcs})
-    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES})
+
+    if(NOT ${BINDOPTS_DAL})
+      target_link_libraries(${libname} PUBLIC ${PROJECT_NAME} ${BINDOPTS_LINK_LIBRARIES})
+    else()
+      target_link_libraries(${libname} PUBLIC ${PROJECT_NAME}_dal ${BINDOPTS_LINK_LIBRARIES})
+    endif()
 
     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
       target_include_directories(${libname} PUBLIC
