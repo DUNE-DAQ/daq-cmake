@@ -1012,9 +1012,9 @@ endfunction()
 
 # Without the DAL option, the library shared object
 # will be named _daq_${PROJECT_NAME}_py.so, and will be installed in the
-# python/${PROJECT_NAME} directory. You will need to have the
-# corresponding init file, python/${PROJECT_NAME}/__init__.py to
-# import the appropiate componenets of the module.  See toylibrary for
+# python/${PROJECT_NAME}/no_dal directory. You will need to have the
+# corresponding init file, python/${PROJECT_NAME}/no_dal/__init__.py to
+# import the appropiate components of the module.  See toylibrary for
 # a working example.
 
 # With the DAL option, the library shared object will be
@@ -1035,15 +1035,16 @@ function(daq_add_python_bindings)
 
   if(NOT ${BINDOPTS_DAL})
     set(libname _daq_${PROJECT_NAME}_py)
-    set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME})
+    set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}/no_dal)
+    set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME}/no_dal)
   else()
     set(libname _daq_${PROJECT_NAME}_dal_py)
+    set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}/dal)
     set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME}/dal)
+  endif()
 
-    set (initfile_dal ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}/dal/__init__.py)
-    if (NOT EXISTS ${initfile_dal})
-      message(FATAL_ERROR "ERROR: daq_add_python_bindings has been called with the DAL option but no __init__.py file has been found in ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}/dal")
-    endif()
+  if (NOT EXISTS ${srcdir}/__init__.py)
+    message(FATAL_ERROR "ERROR: daq_add_python_bindings expects but doesn't find an __init__.py file in ${srcdir}")
   endif()
 
   set(LIB_PATH "pybindsrc")
