@@ -308,26 +308,32 @@ Its compilation will be done automatically, i.e. there is no need to add `*.pb.c
 ### daq_add_python_bindings:
 Usage:
 ```
-daq_add_python_bindings( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
+daq_add_python_bindings( <file | glob expression 1> ... [DAL] [LINK_LIBRARIES <lib1> ...])
 ```
 
-`daq_add_python_bindings` is designed to produce a library providing
-a python interface to C++ code. It will compile a group
-of files, which are expected to expose the desired C++ interface via `pybind11`.
-The set of files is defined by a set of one or more individual filenames and/or
-glob expressions, and link against the libraries listed after
-LINK_LIBRARIES. The set of files is expected to be in the `pybindsrc`
-subdirectory of the project.
+`daq_add_python_bindings` is designed to produce a library providing a Python
+interface to C++ code. It will compile a group of files, which are expected
+to expose the desired C++ interface via `pybind11`. The set of files is
+defined by a set of one or more individual filenames and/or glob expressions,
+and are assumed to be in the `pybindsrc/` subdirectory of the package.
+Linking is done against the libraries listed after `LINK_LIBRARIES` plus,
+if available, the main package library (if `DAL` isn't provided as an argument)
+or the library produced via `daq_create_dal_library` (if `DAL` is). 
 
 As an example,
-`daq_add_python_bindings(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME})`
+`daq_add_python_bindings(my_wrapper.cpp)`
 will create a library from `pybindsrc/my_wrapper.cpp` and link against
-the main project library which would have been created via daq_add_library
+the main package library which would have been created via `daq_add_library`
 
-Please note that library shared object will be named `_daq_${PROJECT_NAME}_py.so`, and will be placed
-in the `python/${PROJECT_NAME}` directory. You will need to have the corresponding init file,
-`python/${PROJECT_NAME}/__init__.py` to import the appropiate componenets of the module.
-See toylibrary for a working example.
+_Without_ the `DAL` option, the library shared object will be named
+`_daq_${PROJECT_NAME}_py.so`, and will be installed in the `python/${PROJECT_NAME}/`
+directory. You will need to have the corresponding init file,
+`python/${PROJECT_NAME}/__init__.py` to import the appropiate components of the module.
+See `toylibrary` for a working example.
+
+_With_ the `DAL` option, the library shared object will be `_daq_${PROJECT_NAME}_dal_py.so`,
+and will be installed in the `python/${PROJECT_NAME}_dal` directory. Here, you need a
+`python/${PROJECT_NAME}_dal/__init__.py` file which imports `_daq_${PROJECT_NAME}_dal_py.so`.
 
 ### daq_add_plugin:
 Usage:

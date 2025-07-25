@@ -995,21 +995,21 @@ endfunction()
 # daq_add_python_bindings( <file | glob expression 1> ... [DAL] [LINK_LIBRARIES <lib1> ...])
 #
 
-# daq_add_python_bindings is designed to produce a library providing
-# a python interface to C++ code. It will compile a group
-# of files, which are expected to expose the desired C++ interface via pybind11.
-# The set of files is defined by a set of one or more individual filenames and/or
-# glob expressions, and link against the libraries listed after
-# LINK_LIBRARIES. The set of files is assumed to be in the pybindsrc/
-# subdirectory of the project.
+# daq_add_python_bindings is designed to produce a library providing a
+# Python interface to C++ code. It will compile a group of files,
+# which are expected to expose the desired C++ interface via pybind11.
+# The set of files is defined by a set of one or more individual
+# filenames and/or glob expressions, and are assumed to be in the
+# pybindsrc/ subdirectory of the package. Linking is done against the
+# libraries listed after LINK_LIBRARIES plus, if available, the main
+# package library (if DAL isn't provided as an argument) or the
+# library produced via daq_create_dal_library (if DAL is).
 #
 # As an example,
-# daq_add_python_bindings(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME})
+# daq_add_python_bindings(my_wrapper.cpp)
 # will create a library from pybindsrc/my_wrapper.cpp and link against
-# the main project library which would have been created via daq_add_library
+# the main package library which would have been created via daq_add_library
 #
-# daq_add_python_bindings can also take an option "DAL" argument; in this case
-# it will link the source code against the DAL library created via daq_add_dal_library
 
 # Without the DAL option, the library shared object
 # will be named _daq_${PROJECT_NAME}_py.so, and will be installed in the
