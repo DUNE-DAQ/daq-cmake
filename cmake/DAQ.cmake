@@ -1066,11 +1066,15 @@ function(daq_add_python_bindings)
   if (libsrcs)
     pybind11_add_module(${libname} ${libsrcs})
 
-    if(NOT ${BINDOPTS_DAL})
-      target_link_libraries(${libname} PUBLIC ${PROJECT_NAME} ${BINDOPTS_LINK_LIBRARIES})
-    else()
-      target_link_libraries(${libname} PUBLIC ${PROJECT_NAME}_dal ${BINDOPTS_LINK_LIBRARIES})
+    set(DEFAULT_LINK_LIBRARY "")
+
+    if(NOT ${BINDOPTS_DAL} AND TARGET ${PROJECT_NAME})
+	set(DEFAULT_LINK_LIBRARY ${PROJECT_NAME})
+    elseif(${BINDOPTS_DAL} AND TARGET ${PROJECT_NAME}_dal)
+	set(DEFAULT_LINK_LIBRARY ${PROJECT_NAME}_dal)
     endif()
+
+    target_link_libraries(${libname} PUBLIC ${DEFAULT_LINK_LIBRARY} ${BINDOPTS_LINK_LIBRARIES})
 
     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
       target_include_directories(${libname} PUBLIC
