@@ -994,6 +994,7 @@ endfunction()
 # Usage:
 # daq_add_python_bindings( <file | glob expression 1> ... [DAL] [LINK_LIBRARIES <lib1> ...])
 #
+
 # daq_add_python_bindings is designed to produce a library providing
 # a python interface to C++ code. It will compile a group
 # of files, which are expected to expose the desired C++ interface via pybind11.
@@ -1012,35 +1013,29 @@ endfunction()
 
 # Without the DAL option, the library shared object
 # will be named _daq_${PROJECT_NAME}_py.so, and will be installed in the
-# python/${PROJECT_NAME}/no_dal directory. You will need to have the
-# corresponding init file, python/${PROJECT_NAME}/no_dal/__init__.py to
+# python/${PROJECT_NAME}/ directory. You will need to have the
+# corresponding init file, python/${PROJECT_NAME}/__init__.py to
 # import the appropiate components of the module.  See toylibrary for
 # a working example.
 
 # With the DAL option, the library shared object will be
 # _daq_${PROJECT_NAME}_dal_py.so, and will be installed in the
-# python/${PROJECT_NAME}/dal directory. You still need a
-# python/${PROJECT_NAME}/__init__.py file (which can be empty), but
-# also need a python/${PROJECT_NAME}/dal/__init__.py file which
-# imports _daq_${PROJECT_NAME}_dal_py.so
+# python/${PROJECT_NAME}_dal directory. You need a
+# python/${PROJECT_NAME}_dal/__init__.py file which imports
+# _daq_${PROJECT_NAME}_dal_py.so
 
 function(daq_add_python_bindings)
 
   cmake_parse_arguments(BINDOPTS "DAL" "" "LINK_LIBRARIES" ${ARGN})
 
-  set(initfile ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}/__init__.py)
-  if (NOT EXISTS ${initfile})
-    message(FATAL_ERROR "ERROR: daq_add_python_bindings has been called but no __init__.py file has been found in ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}")
-  endif()
-
   if(NOT ${BINDOPTS_DAL})
     set(libname _daq_${PROJECT_NAME}_py)
-    set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}/no_dal)
-    set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME}/no_dal)
+    set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME})
+    set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME})
   else()
     set(libname _daq_${PROJECT_NAME}_dal_py)
-    set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}/dal)
-    set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME}/dal)
+    set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}_dal)
+    set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME}_dal)
   endif()
 
   if (NOT EXISTS ${srcdir}/__init__.py)
