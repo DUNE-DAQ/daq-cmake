@@ -1003,7 +1003,7 @@ endfunction()
 # pybindsrc/ subdirectory of the package. Linking is done against the
 # libraries listed after LINK_LIBRARIES plus, if available, the main
 # package library (if DAL isn't provided as an argument) or the
-# library produced via daq_create_dal_library (if DAL is).
+# library produced via daq_add_dal_library (if DAL is).
 #
 # As an example,
 # daq_add_python_bindings(my_wrapper.cpp)
@@ -1011,14 +1011,14 @@ endfunction()
 # the main package library which would have been created via daq_add_library
 #
 
-# Without the DAL option, the library shared object
+# *Without* the DAL option, the library shared object
 # will be named _daq_${PROJECT_NAME}_py.so, and will be installed in the
 # python/${PROJECT_NAME}/ directory. You will need to have the
 # corresponding init file, python/${PROJECT_NAME}/__init__.py to
 # import the appropiate components of the module.  See toylibrary for
 # a working example.
 
-# With the DAL option, the library shared object will be
+# *With* the DAL option, the library shared object will be
 # _daq_${PROJECT_NAME}_dal_py.so, and will be installed in the
 # python/${PROJECT_NAME}_dal directory. You need a
 # python/${PROJECT_NAME}_dal/__init__.py file which imports
@@ -1028,7 +1028,7 @@ function(daq_add_python_bindings)
 
   cmake_parse_arguments(BINDOPTS "DAL" "" "LINK_LIBRARIES" ${ARGN})
 
-  if(NOT ${BINDOPTS_DAL})
+  if (NOT ${BINDOPTS_DAL})
     set(libname _daq_${PROJECT_NAME}_py)
     set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME})
     set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME})

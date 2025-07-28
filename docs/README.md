@@ -318,7 +318,7 @@ defined by a set of one or more individual filenames and/or glob expressions,
 and are assumed to be in the `pybindsrc/` subdirectory of the package.
 Linking is done against the libraries listed after `LINK_LIBRARIES` plus,
 if available, the main package library (if `DAL` isn't provided as an argument)
-or the library produced via `daq_create_dal_library` (if `DAL` is). 
+or the library produced via `daq_add_dal_library` (if `DAL` is). 
 
 As an example,
 `daq_add_python_bindings(my_wrapper.cpp)`
