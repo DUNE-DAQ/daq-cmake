@@ -121,6 +121,11 @@ macro(daq_setup_environment)
     set(COMPILER_OPTS ${COMPILER_OPTS} -O2)
   endif()
 
+  if (DEFINED DBT_SANITIZE)
+    set(COMPILER_OPTS ${COMPILER_OPTS} -fsanitize=${DBT_SANITIZE} -fsanitize-recover=all)
+    add_link_options( -fsanitize=${DBT_SANITIZE} )
+  endif()
+
   add_compile_options(${COMPILER_OPTS})
   unset(COMPILER_OPTS)
 
