@@ -997,36 +997,60 @@ endfunction()
 ####################################################################################################
 # daq_add_python_bindings:
 # Usage:
-# daq_add_python_bindings( <file | glob expression 1> ... [LINK_LIBRARIES <lib1> ...])
+# daq_add_python_bindings( <file | glob expression 1> ... [DAL] [LINK_LIBRARIES <lib1> ...])
 #
-# daq_add_python_bindings is designed to produce a library providing
-# a python interface to C++ code. It will compile a group
-# of files, which are expected to expose the desired C++ interface via pybind11.
-# The set of files is defined by a set of one or more individual filenames and/or
-# glob expressions, and link against the libraries listed after
-# LINK_LIBRARIES. The set of files is assumed to be in the pybindsrc/
-# subdirectory of the project.
+
+# daq_add_python_bindings is designed to produce a library providing a
+# Python interface to C++ code. It will compile a group of files,
+# which are expected to expose the desired C++ interface via pybind11.
+# The set of files is defined by a set of one or more individual
+# filenames and/or glob expressions, and are assumed to be in the
+# pybindsrc/ subdirectory of the package. Linking is done against the
+# libraries listed after LINK_LIBRARIES plus, if available, the main
+# package library (if DAL isn't provided as an argument) or the
+# library produced via daq_add_dal_library (if DAL is).
 #
 # As an example,
-# daq_add_python_bindings(my_wrapper.cpp LINK_LIBRARIES ${PROJECT_NAME})
+# daq_add_python_bindings(my_wrapper.cpp)
 # will create a library from pybindsrc/my_wrapper.cpp and link against
-# the main project library which would have been created via daq_add_library
+# the main package library which would have been created via daq_add_library
+#
 
-# Please note that library shared object will be named _daq_${PROJECT_NAME}_py.so, and will be placed
-# in the python/${PROJECT_NAME} directory. You will need to have the corresponding init file,
-# python/${PROJECT_NAME}/__init__.py to import the appropiate componenets of the module.
-# See toylibrary for a working example.
+# *Without* the DAL option, the library shared object
+# will be named _daq_${PROJECT_NAME}_py.so, and will be installed in the
+# python/${PROJECT_NAME}/ directory. You will need to have the
+# corresponding init file, python/${PROJECT_NAME}/__init__.py to
+# import the appropiate components of the module.  See toylibrary for
+# a working example.
+
+# *With* the DAL option, the library shared object will be
+# _daq_${PROJECT_NAME}_dal_py.so, and will be installed in the
+# python/${PROJECT_NAME}_dal directory. You need a
+# python/${PROJECT_NAME}_dal/__init__.py file which imports
+# _daq_${PROJECT_NAME}_dal_py.so
 
 function(daq_add_python_bindings)
 
-  cmake_parse_arguments(LIBOPTS "" "" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(BINDOPTS "DAL" "" "LINK_LIBRARIES" ${ARGN})
 
-  set(libname _daq_${PROJECT_NAME}_py)
+  if (NOT ${BINDOPTS_DAL})
+    set(libname _daq_${PROJECT_NAME}_py)
+    set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME})
+    set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME})
+  else()
+    set(libname _daq_${PROJECT_NAME}_dal_py)
+    set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}_dal)
+    set(destdir ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME}_dal)
+  endif()
+
+  if (NOT EXISTS ${srcdir}/__init__.py)
+    message(FATAL_ERROR "ERROR: daq_add_python_bindings expects but doesn't find an __init__.py file in ${srcdir}")
+  endif()
 
   set(LIB_PATH "pybindsrc")
 
   set(libsrcs)
-  foreach(f ${LIBOPTS_UNPARSED_ARGUMENTS})
+  foreach(f ${BINDOPTS_UNPARSED_ARGUMENTS})
 
     if(${f} MATCHES ".*\\*.*")  # An argument with an "*" in it is treated as a glob
 
@@ -1046,7 +1070,16 @@ function(daq_add_python_bindings)
 
   if (libsrcs)
     pybind11_add_module(${libname} ${libsrcs})
-    target_link_libraries(${libname} PUBLIC ${LIBOPTS_LINK_LIBRARIES})
+
+    set(DEFAULT_LINK_LIBRARY "")
+
+    if(NOT ${BINDOPTS_DAL} AND TARGET ${PROJECT_NAME})
+	set(DEFAULT_LINK_LIBRARY ${PROJECT_NAME})
+    elseif(${BINDOPTS_DAL} AND TARGET ${PROJECT_NAME}_dal)
+	set(DEFAULT_LINK_LIBRARY ${PROJECT_NAME}_dal)
+    endif()
+
+    target_link_libraries(${libname} PUBLIC ${DEFAULT_LINK_LIBRARY} ${BINDOPTS_LINK_LIBRARIES})
 
     if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include)
       target_include_directories(${libname} PUBLIC
@@ -1075,7 +1108,7 @@ function(daq_add_python_bindings)
   endif()
 
   _daq_define_exportname()
-  install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${CMAKE_INSTALL_PYTHONDIR}/${PROJECT_NAME})
+  install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${destdir})
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()

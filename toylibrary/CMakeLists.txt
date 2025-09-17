@@ -26,7 +26,7 @@ daq_add_library(IntPrinter.cpp LINK_LIBRARIES logging::logging)
 
 ##############################################################################
 
-daq_add_python_bindings(*.cpp LINK_LIBRARIES ${PROJECT_NAME} ) 
+daq_add_python_bindings(*.cpp )
 
 ##############################################################################
 

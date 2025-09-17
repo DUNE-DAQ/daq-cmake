@@ -165,7 +165,7 @@ if args.contains_main_library:
 if args.contains_python_bindings:
     make_package_subdir(f"{PACKAGEDIR}/pybindsrc")
     make_package_subdir(f"{PACKAGEDIR}/python/{PACKAGE}")
-    daq_add_python_bindings_calls.append("\ndaq_add_python_bindings(*.cpp LINK_LIBRARIES ${PROJECT_NAME} ) # Any additional libraries to link in beyond the main library not yet determined\n")
+    daq_add_python_bindings_calls.append("\ndaq_add_python_bindings(*.cpp ) # main library automatically linked in; can use LINK_LIBRARIES to link against additional libraries\n")
 
     for src_filename in ["module.cpp", "pythonbindingsrenameme.cpp", "registrators.hpp"]:
         with open(f"{TEMPLATEDIR}/{src_filename}", "r") as inf:
