@@ -36,7 +36,7 @@ RenameMe::generate_opmon_data()
 }
 
 void
-RenameMe::do_conf(const data_t& /* do not pass an argument*/ )
+RenameMe::do_conf(const CommandData_t& /* do not pass an argument*/ )
 {
 }
 

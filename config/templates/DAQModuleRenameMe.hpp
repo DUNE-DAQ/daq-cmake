@@ -47,7 +47,7 @@ private:
   // RenameMe get assigned values from a configuration passed as 
   // an argument and originating from the CCM system.
 
-  void do_conf(const data_t&);
+  void do_conf(const CommandData_t&);
 
   // TO package DEVELOPERS: PLEASE DELETE THIS FOLLOWING COMMENT AFTER READING IT 
   // m_total_amount and m_amount_since_last_get_info_call are examples
