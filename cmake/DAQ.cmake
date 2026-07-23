@@ -923,13 +923,13 @@ function(daq_add_python_bindings)
       message(WARNING
 	"pybind11-stubgen failed for ${PROJECT_NAME}.\n"
 	"${errmsg}\n"
-	"The Python buildings were build successfully, but pybind11-stubgen was unable to generate stubs.")
+	"The Python bindings were built successfully, but pybind11-stubgen was unable to generate stubs.")
     endif()
   endif()
 
   _daq_define_exportname()
   install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${destdir})
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/ DESTINATION ${destdir} OPTIONAL FILES_MATCHING PATTERN "*.pyi")
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/ DESTINATION ${destdir} OPTIONAL FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
