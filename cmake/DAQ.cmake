@@ -913,23 +913,26 @@ function(daq_add_python_bindings)
   find_program(PYBIND11_STUBGEN pybind11-stubgen)
 
   if(PYBIND11_STUBGEN)
-    execute_process(
-      COMMAND ${PYBIND11_STUBGEN} -o ${PROJECT_NAME}/python ${PROJECT_NAME}
-      RESULT_VARIABLE retval
-      ERROR_VARIABLE errmsg
-    )
+        set(PRIMARY_STUB_FILE ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/__init__.pyi)
+	add_custom_command(
+		OUTPUT
+		${PRIMARY_STUB_FILE}
+   	      COMMAND PYTHONPATH ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME} ${PYBIND11_STUBGEN} -o ${PROJECT_NAME}/python ${DEFAULT_LINK_LIBRARY}
+	      DEPENDS ${libname}
+          )
 
-    if(retval)
-      message(WARNING
-	"pybind11-stubgen failed for ${PROJECT_NAME}.\n"
-	"${errmsg}\n"
-	"The Python bindings were built successfully, but pybind11-stubgen was unable to generate stubs.")
-    endif()
+      add_custom_target(${PROJECT_NAME}_pybind11_stubs DEPENDS ${PRIMARY_STUB_FILE})
+      add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_pybind11_stubs)
   endif()
+
+
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/ DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
+
+  endif()
+
 
   _daq_define_exportname()
   install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${destdir})
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/ DESTINATION ${destdir} OPTIONAL FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
