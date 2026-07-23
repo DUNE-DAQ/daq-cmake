@@ -910,8 +910,26 @@ function(daq_add_python_bindings)
     message(FATAL_ERROR "ERROR: No source files found for python library: ${libname}.")
   endif()
 
+  find_program(PYBIND11_STUBGEN pybind11-stubgen)
+
+  if(PYBIND11_STUBGEN)
+    execute_process(
+      COMMAND ${PYBIND11_STUBGEN} -o ${PROJECT_NAME}/python ${PROJECT_NAME}
+      RESULT_VARIABLE retval
+      ERROR_VARIABLE errmsg
+    )
+
+    if(retval)
+      message(WARNING
+	"pybind11-stubgen failed for ${PROJECT_NAME}.\n"
+	"${errmsg}\n"
+	"The Python bindings were built successfully, but pybind11-stubgen was unable to generate stubs.")
+    endif()
+  endif()
+
   _daq_define_exportname()
   install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${destdir})
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/ DESTINATION ${destdir} OPTIONAL FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
