@@ -905,6 +905,9 @@ function(daq_add_python_bindings)
 
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
+    # JCF, Jul-24-2026, TODO: determine if we should have the output
+    # dir be python/${PROJECT_NAME}_DAL if it's a DAL library
+
     _daq_set_target_output_dirs( ${libname} python/${PROJECT_NAME} )
   else()
     message(FATAL_ERROR "ERROR: No source files found for python library: ${libname}.")
@@ -921,22 +924,39 @@ function(daq_add_python_bindings)
     # of package>" we'll need this code available in the build area
 
     file(COPY
-      ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}
-      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/python
+      ${srcdir}/
+      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/python/${DEFAULT_LINK_LIBRARY}
     )
 
     set(PRIMARY_STUB_FILE ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/__init__.pyi)
-    add_custom_command(
-      OUTPUT
-      ${PRIMARY_STUB_FILE}
-      COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
-      DEPENDS ${libname}
-    )
+
+    # JCF, Jul-24-2026: see my TODO comment above, from this same day
+    if(NOT ${BINDOPTS_DAL})
+
+      add_custom_command(
+	OUTPUT
+	${PRIMARY_STUB_FILE}
+	COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
+	DEPENDS ${libname}
+      )
+
+    else()
+
+      add_custom_command(
+	OUTPUT
+	${PRIMARY_STUB_FILE}
+	COMMAND ln -s ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/${libname}.so ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}_dal/${libname}.so
+	COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
+	DEPENDS ${libname}
+      )
+    endif()
+
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${DEFAULT_LINK_LIBRARY}/ DESTINATION ${destdir} FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
 
     add_custom_target(${PROJECT_NAME}_pybind11_stubs ALL DEPENDS ${PRIMARY_STUB_FILE})
     add_dependencies(${PROJECT_NAME}_pybind11_stubs ${libname})
 
-    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/ DESTINATION ${destdir} FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
+
   endif()
 
   install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${destdir})
