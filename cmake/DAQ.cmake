@@ -945,7 +945,7 @@ function(daq_add_python_bindings)
       add_custom_command(
 	OUTPUT
 	${PRIMARY_STUB_FILE}
-	COMMAND ln -s ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/${libname}.so ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}_dal/${libname}.so
+	COMMAND ln -sf ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/${libname}.so ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}_dal/${libname}.so
 	COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
 	DEPENDS ${libname}
       )
