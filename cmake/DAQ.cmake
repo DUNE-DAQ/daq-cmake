@@ -910,29 +910,27 @@ function(daq_add_python_bindings)
     message(FATAL_ERROR "ERROR: No source files found for python library: ${libname}.")
   endif()
 
+  _daq_define_exportname()
+
   find_program(PYBIND11_STUBGEN pybind11-stubgen)
 
   if(PYBIND11_STUBGEN)
-        set(PRIMARY_STUB_FILE ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/__init__.pyi)
-	add_custom_command(
-		OUTPUT
-		${PRIMARY_STUB_FILE}
-   	      COMMAND PYTHONPATH ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME} ${PYBIND11_STUBGEN} -o ${PROJECT_NAME}/python ${DEFAULT_LINK_LIBRARY}
-	      DEPENDS ${libname}
-          )
+    set(PRIMARY_STUB_FILE ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/__init__.pyi)
+    add_custom_command(
+      OUTPUT
+      ${PRIMARY_STUB_FILE}
+      COMMAND ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
+      DEPENDS ${libname}
+    )
 
-      add_custom_target(${PROJECT_NAME}_pybind11_stubs DEPENDS ${PRIMARY_STUB_FILE})
-      add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_pybind11_stubs)
+    add_custom_target(${PROJECT_NAME}_pybind11_stubs ALL DEPENDS ${PRIMARY_STUB_FILE})
+    add_dependencies(${PROJECT_NAME}_pybind11_stubs ${libname})
+
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/ DESTINATION ${destdir} FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
   endif()
 
-
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/ DESTINATION ${CMAKE_INSTALL_PYTHONDIR} OPTIONAL FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
-
-  endif()
-
-
-  _daq_define_exportname()
   install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${destdir})
+
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
