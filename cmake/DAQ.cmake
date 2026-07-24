@@ -925,6 +925,8 @@ function(daq_add_python_bindings)
 	"${errmsg}\n"
 	"The Python bindings were built successfully, but pybind11-stubgen was unable to generate stubs.")
     endif()
+  else()
+    message(FATAL_ERROR "pybind11-stubgen not actually there")
   endif()
 
   _daq_define_exportname()
