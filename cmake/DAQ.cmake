@@ -915,6 +915,16 @@ function(daq_add_python_bindings)
   find_program(PYBIND11_STUBGEN pybind11-stubgen)
 
   if(PYBIND11_STUBGEN)
+
+    # Usually we copy the Python code straight from the source area to
+    # the install area, but since pybind11-stubgen calls "import <name
+    # of package>" we'll need this code available in the build area
+
+    file(COPY
+      ${CMAKE_CURRENT_SOURCE_DIR}/python/${PROJECT_NAME}
+      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/python
+    )
+
     set(PRIMARY_STUB_FILE ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/__init__.pyi)
     add_custom_command(
       OUTPUT
