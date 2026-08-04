@@ -273,7 +273,7 @@ Its compilation will be done automatically, i.e. there is no need to add `*.pb.c
 ### daq_add_python_bindings:
 Usage:
 ```
-daq_add_python_bindings( <file | glob expression 1> ... [DAL] [LINK_LIBRARIES <lib1> ...])
+daq_add_python_bindings( <file | glob expression 1> ... [DAL] [GENERATE_STUBS] [LINK_LIBRARIES <lib1> ...])
 ```
 
 `daq_add_python_bindings` is designed to produce a library providing a Python
@@ -299,6 +299,11 @@ See `toylibrary` for a working example.
 _With_ the `DAL` option, the library shared object will be `_daq_${PROJECT_NAME}_dal_py.so`,
 and will be installed in the `python/${PROJECT_NAME}_dal` directory. Here, you need a
 `python/${PROJECT_NAME}_dal/__init__.py` file which imports `_daq_${PROJECT_NAME}_dal_py.so`.
+
+`GENERATE_STUBS` is used if you want `daq_add_python_bindings` to call
+`pybind11-stubgen` to generate `*.pyi` files off of the Python
+bindings
+
 
 ### daq_add_plugin:
 Usage:

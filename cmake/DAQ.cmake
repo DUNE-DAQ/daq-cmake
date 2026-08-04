@@ -800,7 +800,7 @@ endfunction()
 ####################################################################################################
 # daq_add_python_bindings:
 # Usage:
-# daq_add_python_bindings( <file | glob expression 1> ... [DAL] [LINK_LIBRARIES <lib1> ...])
+# daq_add_python_bindings( <file | glob expression 1> ... [DAL] [GENERATE_STUBS] [LINK_LIBRARIES <lib1> ...])
 #
 
 # daq_add_python_bindings is designed to produce a library providing a
@@ -832,9 +832,12 @@ endfunction()
 # python/${PROJECT_NAME}_dal/__init__.py file which imports
 # _daq_${PROJECT_NAME}_dal_py.so
 
+# GENERATE_STUBS is used if you want daq_add_python_bindings to call
+# pybind11-stubgen to generate *.pyi files off of the Python bindings
+
 function(daq_add_python_bindings)
 
-  cmake_parse_arguments(BINDOPTS "DAL" "" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(BINDOPTS "DAL;GENERATE_STUBS" "" "LINK_LIBRARIES" ${ARGN})
 
   if (NOT ${BINDOPTS_DAL})
     set(libname _daq_${PROJECT_NAME}_py)
@@ -915,48 +918,51 @@ function(daq_add_python_bindings)
 
   _daq_define_exportname()
 
-  find_program(PYBIND11_STUBGEN pybind11-stubgen)
+  if(BINDOPTS_GENERATE_STUBS)
 
-  if(PYBIND11_STUBGEN)
+    find_program(PYBIND11_STUBGEN pybind11-stubgen)
 
-    # Usually we copy the Python code straight from the source area to
-    # the install area, but since pybind11-stubgen calls "import <name
-    # of package>" we'll need this code available in the build area
+    if (PYBIND11_STUBGEN)
+    
+      # Usually we copy the Python code straight from the source area to
+      # the install area, but since pybind11-stubgen calls "import <name
+      # of package>" we'll need this code available in the build area
 
-    file(COPY
-      ${srcdir}/
-      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/python/${DEFAULT_LINK_LIBRARY}
-    )
-
-    set(PRIMARY_STUB_FILE ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/__init__.pyi)
-
-    # JCF, Jul-24-2026: see my TODO comment above, from this same day
-    if(NOT ${BINDOPTS_DAL})
-
-      add_custom_command(
-	OUTPUT
-	${PRIMARY_STUB_FILE}
-	COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
-	DEPENDS ${libname}
+      file(COPY
+	${srcdir}/
+	DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/python/${DEFAULT_LINK_LIBRARY}
       )
 
+      set(PRIMARY_STUB_FILE ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/__init__.pyi)
+
+      # JCF, Jul-24-2026: see my TODO comment above, from this same day
+      if(NOT ${BINDOPTS_DAL})
+
+	add_custom_command(
+	  OUTPUT
+	  ${PRIMARY_STUB_FILE}
+	  COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
+	  DEPENDS ${libname}
+	)
+
+      else()
+
+	add_custom_command(
+	  OUTPUT
+	  ${PRIMARY_STUB_FILE}
+	  COMMAND ln -sf ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/${libname}.so ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}_dal/${libname}.so
+	  COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
+	  DEPENDS ${libname}
+	)
+      endif()
+
+      install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${DEFAULT_LINK_LIBRARY}/ DESTINATION ${destdir} FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
+
+      add_custom_target(${PROJECT_NAME}_pybind11_stubs ALL DEPENDS ${PRIMARY_STUB_FILE})
+      add_dependencies(${PROJECT_NAME}_pybind11_stubs ${libname})
     else()
-
-      add_custom_command(
-	OUTPUT
-	${PRIMARY_STUB_FILE}
-	COMMAND ln -sf ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/${libname}.so ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}_dal/${libname}.so
-	COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
-	DEPENDS ${libname}
-      )
+      message(FATAL_ERROR "GENERATE_STUBS passed as option, but pybind11-stubgen was not found")
     endif()
-
-    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${DEFAULT_LINK_LIBRARY}/ DESTINATION ${destdir} FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
-
-    add_custom_target(${PROJECT_NAME}_pybind11_stubs ALL DEPENDS ${PRIMARY_STUB_FILE})
-    add_dependencies(${PROJECT_NAME}_pybind11_stubs ${libname})
-
-
   endif()
 
   install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${destdir})
