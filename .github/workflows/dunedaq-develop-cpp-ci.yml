@@ -15,8 +15,8 @@ on:
       - patch/*
       - prep-release/*
 
-  schedule:
-    - cron: "0 9 * * *"
+  #schedule:
+  #  - cron: "0 9 * * *"
 
   workflow_dispatch:
     inputs:
