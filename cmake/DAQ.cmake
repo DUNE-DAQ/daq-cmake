@@ -800,7 +800,7 @@ endfunction()
 ####################################################################################################
 # daq_add_python_bindings:
 # Usage:
-# daq_add_python_bindings( <file | glob expression 1> ... [DAL] [LINK_LIBRARIES <lib1> ...])
+# daq_add_python_bindings( <file | glob expression 1> ... [DAL] [GENERATE_STUBS] [LINK_LIBRARIES <lib1> ...])
 #
 
 # daq_add_python_bindings is designed to produce a library providing a
@@ -832,9 +832,12 @@ endfunction()
 # python/${PROJECT_NAME}_dal/__init__.py file which imports
 # _daq_${PROJECT_NAME}_dal_py.so
 
+# GENERATE_STUBS is used if you want daq_add_python_bindings to call
+# pybind11-stubgen to generate *.pyi files off of the Python bindings
+
 function(daq_add_python_bindings)
 
-  cmake_parse_arguments(BINDOPTS "DAL" "" "LINK_LIBRARIES" ${ARGN})
+  cmake_parse_arguments(BINDOPTS "DAL;GENERATE_STUBS" "" "LINK_LIBRARIES" ${ARGN})
 
   if (NOT ${BINDOPTS_DAL})
     set(libname _daq_${PROJECT_NAME}_py)
@@ -905,31 +908,65 @@ function(daq_add_python_bindings)
 
     add_dependencies( ${libname} ${PRE_BUILD_STAGE_DONE_TRGT})
 
+    # JCF, Jul-24-2026, TODO: determine if we should have the output
+    # dir be python/${PROJECT_NAME}_DAL if it's a DAL library
+
     _daq_set_target_output_dirs( ${libname} python/${PROJECT_NAME} )
   else()
     message(FATAL_ERROR "ERROR: No source files found for python library: ${libname}.")
   endif()
 
-  find_program(PYBIND11_STUBGEN pybind11-stubgen)
+  _daq_define_exportname()
 
-  if(PYBIND11_STUBGEN)
-    execute_process(
-      COMMAND ${PYBIND11_STUBGEN} -o ${PROJECT_NAME}/python ${PROJECT_NAME}
-      RESULT_VARIABLE retval
-      ERROR_VARIABLE errmsg
-    )
+  if(BINDOPTS_GENERATE_STUBS)
 
-    if(retval)
-      message(WARNING
-	"pybind11-stubgen failed for ${PROJECT_NAME}.\n"
-	"${errmsg}\n"
-	"The Python bindings were built successfully, but pybind11-stubgen was unable to generate stubs.")
+    find_program(PYBIND11_STUBGEN pybind11-stubgen)
+
+    if (PYBIND11_STUBGEN)
+    
+      # Usually we copy the Python code straight from the source area to
+      # the install area, but since pybind11-stubgen calls "import <name
+      # of package>" we'll need this code available in the build area
+
+      file(COPY
+	${srcdir}/
+	DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/python/${DEFAULT_LINK_LIBRARY}
+      )
+
+      set(PRIMARY_STUB_FILE ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/__init__.pyi)
+
+      # JCF, Jul-24-2026: see my TODO comment above, from this same day
+      if(NOT ${BINDOPTS_DAL})
+
+	add_custom_command(
+	  OUTPUT
+	  ${PRIMARY_STUB_FILE}
+	  COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
+	  DEPENDS ${libname}
+	)
+
+      else()
+
+	add_custom_command(
+	  OUTPUT
+	  ${PRIMARY_STUB_FILE}
+	  COMMAND ln -sf ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/${libname}.so ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}_dal/${libname}.so
+	  COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/python:$ENV{PYTHONPATH} ${PYBIND11_STUBGEN} -o ${CMAKE_CURRENT_BINARY_DIR}/python ${DEFAULT_LINK_LIBRARY}
+	  DEPENDS ${libname}
+	)
+      endif()
+
+      install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${DEFAULT_LINK_LIBRARY}/ DESTINATION ${destdir} FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
+
+      add_custom_target(${PROJECT_NAME}_pybind11_stubs ALL DEPENDS ${PRIMARY_STUB_FILE})
+      add_dependencies(${PROJECT_NAME}_pybind11_stubs ${libname})
+    else()
+      message(FATAL_ERROR "GENERATE_STUBS passed as option, but pybind11-stubgen was not found")
     endif()
   endif()
 
-  _daq_define_exportname()
   install(TARGETS ${libname} EXPORT ${DAQ_PROJECT_EXPORTNAME} DESTINATION ${destdir})
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/${PROJECT_NAME}/ DESTINATION ${destdir} OPTIONAL FILES_MATCHING PATTERN "*.pyi" PATTERN "py.typed")
+
   set(DAQ_PROJECT_INSTALLS_TARGETS true PARENT_SCOPE)
 
 endfunction()
