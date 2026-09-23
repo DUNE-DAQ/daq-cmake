@@ -15,6 +15,7 @@ namespace dunedaq::package::python {
 
 void
 register_renameme(py::module& m)
-{}
+{
+}
 
 } // namespace dunedaq::package::python

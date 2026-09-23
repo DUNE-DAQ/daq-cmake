@@ -8,7 +8,6 @@
  * received with this code.
  */
 
-
 #ifndef PACKAGE_PYBINDSRC_REGISTRATORS_HPP_
 #define PACKAGE_PYBINDSRC_REGISTRATORS_HPP_
 
@@ -16,7 +15,8 @@
 
 namespace dunedaq::package::python {
 
-  void register_renameme(pybind11::module&);
+void
+register_renameme(pybind11::module&);
 
 }
 

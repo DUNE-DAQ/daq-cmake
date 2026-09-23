@@ -24,7 +24,8 @@ RenameMe::RenameMe(const std::string& name)
 
 void
 RenameMe::init(std::shared_ptr<appfwk::ConfigurationManager> /* mcfg */)
-{}
+{
+}
 
 void
 RenameMe::generate_opmon_data()
@@ -36,7 +37,7 @@ RenameMe::generate_opmon_data()
 }
 
 void
-RenameMe::do_conf(const CommandData_t& /* do not pass an argument*/ )
+RenameMe::do_conf(const CommandData_t& /* do not pass an argument*/)
 {
 }
 
