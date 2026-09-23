@@ -27,7 +27,8 @@ class ValueWrapper
 public:
   explicit ValueWrapper(const ValueType& value_to_wrap)
     : value_(value_to_wrap)
-  {}
+  {
+  }
 
   ValueType GetValue() const;
 
